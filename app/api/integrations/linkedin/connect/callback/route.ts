@@ -1,0 +1,74 @@
+import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import { createClient } from "@/lib/supabase/server";
+import {
+  exchangeLinkedInCode,
+  fetchLinkedInUser,
+  getLinkedInTokenExpiry,
+  LINKEDIN_PLATFORM,
+  LINKEDIN_SCOPES
+} from "@/lib/integrations/linkedin";
+
+export const dynamic = "force-dynamic";
+
+export async function GET(request: Request) {
+  const requestUrl = new URL(request.url);
+  const code = requestUrl.searchParams.get("code");
+  const state = requestUrl.searchParams.get("state");
+  const oauthError = requestUrl.searchParams.get("error");
+  const supabase = createClient();
+
+  const redirect = (status: "connected" | "error", message?: string) => {
+    const url = new URL("/dashboard", requestUrl.origin);
+    url.searchParams.set("linkedin", status);
+    if (message) url.searchParams.set("message", message);
+    const response = NextResponse.redirect(url);
+    response.cookies.delete("postsync_linkedin_oauth_state");
+    return response;
+  };
+
+  if (oauthError) return redirect("error", `LinkedIn authorization failed: ${oauthError}`);
+  if (!code || !state) return redirect("error", "Missing OAuth data.");
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.redirect(new URL("/", requestUrl.origin));
+
+  const raw = cookies().get("postsync_linkedin_oauth_state")?.value;
+  let cookieState: { state?: string; userId?: string } | null = null;
+  try { cookieState = raw ? JSON.parse(raw) : null; } catch { cookieState = null; }
+
+  if (cookieState?.state !== state || cookieState?.userId !== user.id) {
+    return redirect("error", "Session expired. Try connecting again.");
+  }
+
+  try {
+    const tokens = await exchangeLinkedInCode(requestUrl.origin, code);
+    const linkedinUser = await fetchLinkedInUser(tokens.access_token);
+
+    const { data: existing } = await supabase
+      .from("social_accounts").select("id, refresh_token")
+      .eq("user_id", user.id).eq("platform", LINKEDIN_PLATFORM)
+      .eq("account_id", linkedinUser.sub).maybeSingle();
+
+    await supabase.from("social_accounts").upsert({
+      id: existing?.id,
+      user_id: user.id,
+      platform: LINKEDIN_PLATFORM,
+      account_id: linkedinUser.sub,
+      account_name: linkedinUser.name || `${linkedinUser.given_name || ""} ${linkedinUser.family_name || ""}`.trim(),
+      account_avatar_url: linkedinUser.picture || null,
+      access_token: tokens.access_token,
+      refresh_token: tokens.refresh_token || existing?.refresh_token || null,
+      token_expires_at: getLinkedInTokenExpiry(tokens.expires_in),
+      scopes: tokens.scope?.split(" ") || LINKEDIN_SCOPES,
+      status: "connected",
+      metadata: { email: linkedinUser.email },
+      connected_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }, { onConflict: "user_id,platform,account_id" });
+
+    return redirect("connected");
+  } catch (error) {
+    return redirect("error", error instanceof Error ? error.message : "LinkedIn connection failed.");
+  }
+}

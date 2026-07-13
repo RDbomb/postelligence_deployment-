@@ -1,0 +1,199 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { Link2, Unlink, Loader2, ShieldCheck } from "lucide-react";
+import { canManageSocialAccounts } from "@/lib/workspace/permissions";
+import type { WorkspaceRole } from "@/lib/types";
+
+interface WorkspaceAccount {
+  id: string;
+  platform: string;
+  account_id: string;
+  account_name: string;
+  account_avatar_url: string | null;
+  status: string;
+  connected_by_name: string;
+  connected_at: string | null;
+}
+
+const CONNECTABLE = [
+  { platform: "instagram", label: "Instagram", connectUrl: "/api/integrations/instagram/connect" },
+  { platform: "facebook",  label: "Facebook",  connectUrl: "/api/integrations/meta/connect?platform=facebook" },
+  { platform: "threads",   label: "Threads",   connectUrl: "/api/integrations/threads/connect" },
+  { platform: "linkedin",  label: "LinkedIn",  connectUrl: "/api/integrations/linkedin/connect" },
+  { platform: "youtube",   label: "YouTube",   connectUrl: "/api/integrations/youtube/connect" },
+  { platform: "bluesky",   label: "Bluesky",   connectUrl: null }, // handled via modal below (app password, no redirect)
+];
+
+export default function WorkspaceSocialAccounts({
+  workspaceId,
+  currentRole,
+}: {
+  workspaceId: string;
+  currentRole: WorkspaceRole;
+}) {
+  const [accounts, setAccounts] = useState<WorkspaceAccount[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [error, setError]       = useState<string | null>(null);
+  const [disconnecting, setDisconnecting] = useState<string | null>(null);
+  const [blueskyModal, setBlueskyModal] = useState(false);
+  const [handle, setHandle] = useState("");
+  const [appPassword, setAppPassword] = useState("");
+  const [connectingBluesky, setConnectingBluesky] = useState(false);
+
+  const canManage = canManageSocialAccounts(currentRole);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/workspace/${workspaceId}/social-accounts`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setAccounts(data.accounts || []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load connected accounts.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { void load(); }, [workspaceId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const disconnect = async (platform: string, accountId: string) => {
+    if (!confirm("Disconnect this account? Scheduled posts using it may fail until reconnected.")) return;
+    setDisconnecting(accountId);
+    try {
+      const res = await fetch(`/api/workspace/${workspaceId}/social-accounts?platform=${platform}&accountId=${accountId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error((await res.json()).error);
+      setAccounts((prev) => prev.filter((a) => a.account_id !== accountId));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to disconnect.");
+    } finally {
+      setDisconnecting(null);
+    }
+  };
+
+  const connectBluesky = async () => {
+    setConnectingBluesky(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/integrations/bluesky/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ handle, appPassword, workspaceId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setBlueskyModal(false);
+      setHandle("");
+      setAppPassword("");
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to connect Bluesky.");
+    } finally {
+      setConnectingBluesky(false);
+    }
+  };
+
+  const connectedPlatforms = new Set(accounts.map((a) => a.platform));
+
+  return (
+    <div className="space-y-6">
+      <div className="rounded-2xl border border-blue-100 bg-blue-50 px-5 py-4 text-sm text-blue-700 flex items-start gap-2">
+        <ShieldCheck className="h-4 w-4 mt-0.5 shrink-0" />
+        <p>
+          These accounts belong to <strong>{`the workspace`}</strong>, not to any one member. Every post — whether
+          published now, scheduled, or sent by automation — always goes out through these accounts, no matter who
+          created, approved, or scheduled it.
+        </p>
+      </div>
+
+      {error && <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>}
+
+      {loading ? (
+        <div className="flex items-center gap-2 text-sm text-gray-400"><Loader2 className="h-4 w-4 animate-spin" /> Loading connected accounts...</div>
+      ) : (
+        <div className="space-y-3">
+          {accounts.length === 0 && (
+            <p className="text-sm text-gray-400">No workspace accounts connected yet.</p>
+          )}
+          {accounts.map((a) => (
+            <div key={a.id} className="flex items-center justify-between rounded-xl border border-gray-100 px-4 py-3">
+              <div className="flex items-center gap-3">
+                {a.account_avatar_url ? (
+                  <img src={a.account_avatar_url} alt="" className="h-9 w-9 rounded-full object-cover" />
+                ) : (
+                  <div className="h-9 w-9 rounded-full bg-gray-100 grid place-items-center text-xs font-bold text-gray-400 capitalize">
+                    {a.platform[0]}
+                  </div>
+                )}
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">{a.account_name}</p>
+                  <p className="text-xs text-gray-400 capitalize">{a.platform} · connected by {a.connected_by_name}</p>
+                </div>
+              </div>
+              {canManage && (
+                <button
+                  onClick={() => disconnect(a.platform, a.account_id)}
+                  disabled={disconnecting === a.account_id}
+                  className="flex items-center gap-1.5 text-xs font-medium text-red-500 hover:bg-red-50 rounded-lg px-3 py-1.5 disabled:opacity-40"
+                >
+                  {disconnecting === a.account_id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Unlink className="h-3.5 w-3.5" />}
+                  Disconnect
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {canManage && (
+        <div>
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">Connect another account</h3>
+          <div className="flex flex-wrap gap-2">
+            {CONNECTABLE.filter((c) => !connectedPlatforms.has(c.platform)).map((c) => (
+              <a
+                key={c.platform}
+                href={c.connectUrl ? `${c.connectUrl}${c.connectUrl.includes("?") ? "&" : "?"}workspaceId=${workspaceId}` : undefined}
+                onClick={c.connectUrl ? undefined : (e) => { e.preventDefault(); setBlueskyModal(true); }}
+                className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors"
+              >
+                <Link2 className="h-3.5 w-3.5" /> {c.label}
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {blueskyModal && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/30 p-4" onClick={() => setBlueskyModal(false)}>
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-gray-900 mb-4">Connect Bluesky for the workspace</h3>
+            <div className="space-y-3">
+              <input
+                type="text" placeholder="handle.bsky.social"
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                value={handle} onChange={(e) => setHandle(e.target.value)}
+              />
+              <input
+                type="password" placeholder="App password"
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                value={appPassword} onChange={(e) => setAppPassword(e.target.value)}
+              />
+            </div>
+            <div className="mt-5 flex gap-2">
+              <button onClick={() => setBlueskyModal(false)} className="flex-1 px-4 py-2 border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50">Cancel</button>
+              <button
+                onClick={connectBluesky}
+                disabled={connectingBluesky || !handle || !appPassword}
+                className="flex-1 px-4 py-2 bg-black text-white rounded-xl text-sm font-medium disabled:opacity-40"
+              >
+                {connectingBluesky ? "Connecting..." : "Connect"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

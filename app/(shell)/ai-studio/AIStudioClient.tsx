@@ -201,15 +201,25 @@ export default function AIStudioClient({ user }: { user: { email?: string | null
   const [trendTextLoading, setTrendTextLoading] = useState(false);
   const [trendImageLoading, setTrendImageLoading] = useState(false);
   const [trendGeneratedPost, setTrendGeneratedPost] = useState<{ caption: string; imageUrl: string; publicUrl: string } | null>(null);
+  const [trendImgIndex, setTrendImgIndex] = useState(0);
+  const [keywordInput, setKeywordInput] = useState("");
+  const [keywords, setKeywords] = useState<string[]>([]);
+  const [selectedGeo, setSelectedGeo] = useState("GLOBAL");
+  const [selectedCategory, setSelectedCategory] = useState("WORLD");
 
-  async function fetchTrends() {
+  async function fetchTrends(keywordsList: string[] = keywords, geo: string = selectedGeo, category: string = selectedCategory) {
     setTrendsLoading(true);
     setTrendsError(null);
     try {
       const res = await fetch("/api/ai/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: "trends-list" }),
+        body: JSON.stringify({
+          mode: "trends-list",
+          keyword: keywordsList.length > 0 ? keywordsList.join(" ") : undefined,
+          geo: geo !== "GLOBAL" ? geo : undefined,
+          category: category,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to fetch trends");
@@ -221,12 +231,44 @@ export default function AIStudioClient({ user }: { user: { email?: string | null
     }
   }
 
+  function handleAddKeyword() {
+    const val = keywordInput.trim();
+    if (val && !keywords.includes(val)) {
+      const updated = [...keywords, val];
+      setKeywords(updated);
+      setKeywordInput("");
+      fetchTrends(updated, selectedGeo, selectedCategory);
+    }
+  }
+
+  function handleRemoveKeyword(indexToRemove: number) {
+    const updated = keywords.filter((_, idx) => idx !== indexToRemove);
+    setKeywords(updated);
+    fetchTrends(updated, selectedGeo, selectedCategory);
+  }
+
+  // Wrapped retry click handler
+  function handleRetryFetch() {
+    fetchTrends(keywords, selectedGeo, selectedCategory);
+  }
+
+  function handleGeoChange(newGeo: string) {
+    setSelectedGeo(newGeo);
+    fetchTrends(keywords, newGeo, selectedCategory);
+  }
+
+  function handleCategoryChange(newCategory: string) {
+    setSelectedCategory(newCategory);
+    fetchTrends(keywords, selectedGeo, newCategory);
+  }
+
   async function generateTrendPost(trend: any) {
     setSelectedTrend(trend);
     setTrendTextLoading(true);
     setTrendImageLoading(true);
     setTrendGeneratedPost(null);
     setTrendsError(null);
+    setTrendImgIndex(0); // Reset index to first image
 
     const textPromise = fetch("/api/ai/generate", {
       method: "POST",
@@ -246,9 +288,11 @@ export default function AIStudioClient({ user }: { user: { email?: string | null
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        prompt: trend.imagePrompt,
+        prompt: trend.title,
         style: "photorealistic",
         aspectRatio: "square",
+        usePinterest: true,
+        pinterestIndex: 0,
       }),
     }).then(async (r) => {
       const d = await r.json();
@@ -305,14 +349,18 @@ export default function AIStudioClient({ user }: { user: { email?: string | null
     if (!selectedTrend || !trendGeneratedPost) return;
     setTrendImageLoading(true);
     setTrendsError(null);
+    const nextIdx = trendImgIndex + 1;
+    setTrendImgIndex(nextIdx);
     try {
       const res = await fetch("/api/ai/image-generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          prompt: selectedTrend.imagePrompt,
+          prompt: selectedTrend.title,
           style: "photorealistic",
           aspectRatio: "square",
+          usePinterest: true,
+          pinterestIndex: nextIdx,
         }),
       });
       const data = await res.json();
@@ -935,6 +983,121 @@ export default function AIStudioClient({ user }: { user: { email?: string | null
                     </div>
                   </div>
 
+                  {/* Country Selector & Keywords Search Panel */}
+                  <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-gray-100 bg-gray-50/50 p-4">
+                    {/* Selectors Grid */}
+                    <div className="grid grid-cols-2 gap-3">
+                      {/* Country Selector */}
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Search Region</label>
+                        <select
+                          value={selectedGeo}
+                          onChange={(e) => handleGeoChange(e.target.value)}
+                          className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 outline-none transition focus:border-gray-300"
+                        >
+                          <option value="GLOBAL">🌍 Global</option>
+                          <option value="US">🇺🇸 United States</option>
+                          <option value="IN">🇮🇳 India</option>
+                          <option value="GB">🇬🇧 United Kingdom</option>
+                          <option value="CA">🇨🇦 Canada</option>
+                          <option value="AU">🇦🇺 Australia</option>
+                          <option value="DE">🇩🇪 Germany</option>
+                          <option value="FR">🇫🇷 France</option>
+                          <option value="JP">🇯🇵 Japan</option>
+                        </select>
+                      </div>
+
+                      {/* Category Selector */}
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Category Feed</label>
+                        <select
+                          value={selectedCategory}
+                          onChange={(e) => handleCategoryChange(e.target.value)}
+                          className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 outline-none transition focus:border-gray-300"
+                        >
+                          <option value="WORLD">🌍 General / World News</option>
+                          <option value="TECHNOLOGY">💻 Technology</option>
+                          <option value="BUSINESS">📈 Business / Finance</option>
+                          <option value="SPORTS">⚽ Sports</option>
+                          <option value="ENTERTAINMENT">🎬 Entertainment</option>
+                          <option value="HEALTH">🏥 Health</option>
+                          <option value="SCIENCE">🧪 Science</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Keyword Input & Add Button */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Target Keywords</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={keywordInput}
+                          onChange={(e) => setKeywordInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleAddKeyword();
+                            }
+                          }}
+                          placeholder="Type keyword and click Add..."
+                          className="flex-1 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs text-gray-900 placeholder-gray-400 outline-none transition focus:border-gray-300"
+                        />
+                        <button
+                          onClick={handleAddKeyword}
+                          type="button"
+                          className="rounded-xl bg-emerald-100 hover:bg-emerald-200 px-4 py-2 text-xs font-bold text-emerald-800 transition cursor-pointer"
+                        >
+                          Add
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Keyword Chips/Tags */}
+                    {keywords.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 py-1">
+                        {keywords.map((kw, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-center gap-1.5 rounded-lg bg-emerald-50 border border-emerald-200/60 px-2 py-1 text-xs text-emerald-800 font-medium"
+                          >
+                            <span>{kw}</span>
+                            <button
+                              onClick={() => handleRemoveKeyword(idx)}
+                              type="button"
+                              className="text-emerald-500 hover:text-emerald-700 font-bold focus:outline-none cursor-pointer"
+                            >
+                              &times;
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Search & Reset Buttons */}
+                    <div className="flex gap-2 mt-1">
+                      <button
+                        onClick={() => fetchTrends(keywords, selectedGeo)}
+                        disabled={trendsLoading}
+                        className="flex-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-4 py-2.5 text-xs font-bold text-white transition disabled:opacity-50 cursor-pointer text-center"
+                      >
+                        {trendsLoading ? "Searching..." : "Search Trends"}
+                      </button>
+                      {keywords.length > 0 && (
+                        <button
+                          onClick={() => {
+                            setKeywords([]);
+                            fetchTrends([], selectedGeo);
+                          }}
+                          disabled={trendsLoading}
+                          className="rounded-xl border border-gray-200 bg-white hover:bg-gray-50 px-3 py-2.5 text-xs font-bold text-gray-600 transition cursor-pointer"
+                        >
+                          Clear Keywords
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
                   {trendsLoading ? (
                     <div className="flex flex-col items-center justify-center py-12 gap-3">
                       <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
@@ -944,7 +1107,7 @@ export default function AIStudioClient({ user }: { user: { email?: string | null
                     <div className="text-center py-6">
                       <p className="text-sm text-rose-600 font-medium mb-3">{trendsError}</p>
                       <button
-                        onClick={fetchTrends}
+                        onClick={handleRetryFetch}
                         className="rounded-xl bg-gray-100 hover:bg-gray-200 px-4 py-2 text-xs font-bold text-gray-700 transition"
                       >
                         Retry
@@ -994,7 +1157,7 @@ export default function AIStudioClient({ user }: { user: { email?: string | null
                       </div>
                       <div>
                         <p className="font-black text-gray-900">Creating trend package</p>
-                        <p className="mt-1 text-xs text-gray-500 max-w-[280px]">Drafting viral caption from Gemini & generating photorealistic Flux.1 visual...</p>
+                        <p className="mt-1 text-xs text-gray-500 max-w-[280px]">Drafting viral caption & generating high-quality visual via Pollinations AI...</p>
                       </div>
                     </motion.div>
                   ) : trendsError && selectedTrend ? (

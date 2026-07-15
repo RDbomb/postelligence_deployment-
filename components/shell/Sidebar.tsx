@@ -39,7 +39,7 @@ const menuItems = [
   { href: "/calendar", label: "Calendar", icon: Calendar },
   { href: "/library", label: "Library", icon: ImageIcon },
   { href: "/ai-studio", label: "AI Studio", icon: Sparkles },
-  { href: "/dashboard", label: "Automation", icon: Cpu },
+  { href: "/automation", label: "Automation", icon: Cpu },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/integrations", label: "Integrations", icon: Link2 },
   { href: "/team", label: "Team", icon: Users },
@@ -99,7 +99,7 @@ export default function Sidebar({ user, open, onToggle }: SidebarProps) {
         `}} />
         {menuItems.map((item) => {
           const Icon = item.icon;
-          const isActive = pathname === item.href && item.label !== "Automation";
+          const isActive = pathname === item.href;
           return (
             <Link
               key={item.label}

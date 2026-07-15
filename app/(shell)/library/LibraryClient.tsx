@@ -5,7 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ImageIcon, Video, Trash2, Eye, Plus, Loader2,
-  Upload, X, ExternalLink, Copy, Check, Library
+  Upload, X, ExternalLink, Copy, Check, Library,
+  ChevronLeft, ChevronRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { MediaLibraryItem } from "@/lib/types";
@@ -19,7 +20,7 @@ function formatDate(iso: string) {
 }
 
 function formatSize(bytes: number | null) {
-  if (!bytes) return "";
+  if (!bytes) return "0 KB";
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
@@ -36,6 +37,10 @@ export default function LibraryClient({ items: initialItems }: Props) {
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const filtered = items.filter((i) => filter === "all" || i.file_type === filter);
+  const images = items.filter((i) => i.file_type === "image");
+  const videos = items.filter((i) => i.file_type === "video");
+
   // Deep-link from the topbar search: "?open=<mediaId>" opens that file's
   // preview modal directly, no matter which tab/page we were on before —
   // this re-runs any time the URL's "open" param changes, not just on
@@ -47,6 +52,32 @@ export default function LibraryClient({ items: initialItems }: Props) {
     const match = items.find((i) => i.id === openId);
     if (match) setPreviewItem(match);
   }, [searchParams, items]);
+
+  // Listen to arrow keys for navigation
+  useEffect(() => {
+    if (!previewItem) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "ArrowRight") {
+        const currentIndex = filtered.findIndex((i) => i.id === previewItem.id);
+        if (currentIndex !== -1) {
+          const nextIndex = (currentIndex + 1) % filtered.length;
+          setPreviewItem(filtered[nextIndex]);
+        }
+      } else if (e.key === "ArrowLeft") {
+        const currentIndex = filtered.findIndex((i) => i.id === previewItem.id);
+        if (currentIndex !== -1) {
+          const prevIndex = (currentIndex - 1 + filtered.length) % filtered.length;
+          setPreviewItem(filtered[prevIndex]);
+        }
+      } else if (e.key === "Escape") {
+        closePreview();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [previewItem, filtered]);
 
   const closePreview = () => {
     setPreviewItem(null);
@@ -106,9 +137,7 @@ export default function LibraryClient({ items: initialItems }: Props) {
     window.location.href = `/create?mediaUrl=${encodeURIComponent(item.file_url)}`;
   };
 
-  const filtered = items.filter((i) => filter === "all" || i.file_type === filter);
-  const images = items.filter((i) => i.file_type === "image");
-  const videos = items.filter((i) => i.file_type === "video");
+
 
   return (
     <div className="dashboard-light relative min-h-screen bg-[#f6f7f1] text-[#1f2528]">
@@ -145,17 +174,19 @@ export default function LibraryClient({ items: initialItems }: Props) {
         {/* Stats */}
         <div className="mb-6 grid grid-cols-3 gap-4">
           {[
-            { label: "Total Files", value: items.length, icon: Library },
-            { label: "Images", value: images.length, icon: ImageIcon },
-            { label: "Videos", value: videos.length, icon: Video },
-          ].map(({ label, value, icon: Icon }) => (
+            { label: "Total Files", value: items.length, size: items.reduce((sum, item) => sum + (item.file_size || 0), 0), icon: Library },
+            { label: "Images", value: images.length, size: images.reduce((sum, item) => sum + (item.file_size || 0), 0), icon: ImageIcon },
+            { label: "Videos", value: videos.length, size: videos.reduce((sum, item) => sum + (item.file_size || 0), 0), icon: Video },
+          ].map(({ label, value, size, icon: Icon }) => (
             <div key={label} className="rounded-2xl border border-[#1f2528]/10 bg-white p-4 shadow-sm">
               <div className="flex items-center gap-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#eaf3ed]">
                   <Icon className="h-4 w-4 text-[#2f7867]" />
                 </div>
                 <div>
-                  <p className="text-2xl font-black text-[#1f2528]">{value}</p>
+                  <p className="text-2xl font-black text-[#1f2528]">
+                    {value} <span className="text-sm font-medium text-slate-400">({formatSize(size)})</span>
+                  </p>
                   <p className="text-xs text-slate-500">{label}</p>
                 </div>
               </div>
@@ -219,60 +250,25 @@ export default function LibraryClient({ items: initialItems }: Props) {
                   initial={{ opacity: 0, scale: 0.96 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  className="group relative overflow-hidden rounded-2xl border border-[#1f2528]/10 bg-white shadow-sm transition hover:shadow-[0_8px_32px_rgba(31,37,40,0.12)]"
+                  className="group relative cursor-pointer overflow-hidden rounded-2xl border border-[#1f2528]/10 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_12px_40px_rgba(31,37,40,0.14)]"
+                  onClick={() => setPreviewItem(item)}
                 >
-                  {/* Thumbnail */}
-                  <div
-                    className="relative h-44 cursor-pointer bg-[#f4f6f0]"
-                    onClick={() => setPreviewItem(item)}
-                  >
+                  <div className="relative aspect-[4/3] w-full bg-[#f4f6f0]">
                     {item.file_type === "image" ? (
-                      <img src={item.file_url} alt={item.file_name} className="h-full w-full object-cover" />
+                      <img src={item.file_url} alt={item.file_name} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
                     ) : (
-                      <video
-                        src={item.file_url}
-                        className="h-full w-full object-cover"
-                        preload="metadata"
-                        muted
-                      />
+                      <div className="relative h-full w-full">
+                        <video
+                          src={item.file_url}
+                          className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                          preload="metadata"
+                          muted
+                        />
+                        <div className="absolute bottom-2 right-2 flex h-6 w-6 items-center justify-center rounded-md bg-black/60 text-white backdrop-blur-sm">
+                          <Video className="h-3 w-3" />
+                        </div>
+                      </div>
                     )}
-                    {/* Overlay */}
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover:bg-black/20 group-hover:opacity-100">
-                      <Eye className="h-7 w-7 text-white drop-shadow" />
-                    </div>
-                  </div>
-
-                  {/* Info */}
-                  <div className="p-3">
-                    <p className="truncate text-xs font-bold text-[#1f2528]">{item.file_name}</p>
-                    <p className="mt-0.5 text-[10px] text-slate-400">
-                      {formatDate(item.uploaded_at)}{item.file_size ? ` · ${formatSize(item.file_size)}` : ""}
-                    </p>
-
-                    {/* Actions */}
-                    <div className="mt-3 flex gap-1.5">
-                      <button
-                        onClick={() => useInPost(item)}
-                        className="use-in-post-glass flex flex-1 items-center justify-center gap-1 rounded-lg py-1.5 text-[10px] font-bold transition"
-                      >
-                        <Plus className="h-3 w-3" /> Use in Post
-                      </button>
-                      <button
-                        onClick={() => copyUrl(item)}
-                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#1f2528]/10 bg-white transition hover:bg-[#f4f6f0]"
-                        title="Copy URL"
-                      >
-                        {copiedId === item.id ? <Check className="h-3.5 w-3.5 text-[#2f7867]" /> : <Copy className="h-3.5 w-3.5 text-slate-400" />}
-                      </button>
-                      <button
-                        onClick={() => deleteItem(item.id)}
-                        disabled={deletingId === item.id}
-                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-rose-200 bg-rose-50 text-rose-500 transition hover:bg-rose-100 disabled:opacity-50"
-                        title="Delete"
-                      >
-                        {deletingId === item.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-                      </button>
-                    </div>
                   </div>
                 </motion.div>
               ))}
@@ -286,10 +282,27 @@ export default function LibraryClient({ items: initialItems }: Props) {
         {previewItem && (
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 grid place-items-center p-4 backdrop-blur-xl"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-xl"
             style={{ background: "rgba(31,37,40,0.55)" }}
             onClick={() => closePreview()}
           >
+            {/* Left navigation arrow */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                const currentIndex = filtered.findIndex((i) => i.id === previewItem.id);
+                if (currentIndex !== -1) {
+                  const prevIndex = (currentIndex - 1 + filtered.length) % filtered.length;
+                  setPreviewItem(filtered[prevIndex]);
+                }
+              }}
+              className="mr-6 hidden h-14 w-14 items-center justify-center rounded-full bg-white/10 text-white border border-white/20 shadow transition hover:bg-white/25 md:flex shrink-0 active:scale-90"
+              title="Previous"
+            >
+              <ChevronLeft className="h-8 w-8" />
+            </button>
+
+            {/* Modal Content */}
             <motion.div
               initial={{ opacity: 0, scale: 0.92, y: 16 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -342,17 +355,67 @@ export default function LibraryClient({ items: initialItems }: Props) {
               </div>
 
               {/* Footer */}
-              <div className="flex items-center justify-between border-t border-[#1f2528]/10 bg-[#f6f7f1]/60 px-5 py-3">
-                <p className="text-xs text-slate-400">{new Date(previewItem.uploaded_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</p>
-                <button
-                  onClick={() => { useInPost(previewItem); setPreviewItem(null); }}
-                  className="btn-liquid-glass relative flex items-center gap-2 rounded-full px-5 py-2 text-sm font-bold text-[#1a3d34] shadow-[0_4px_16px_rgba(47,120,103,0.18)]"
-                >
-                  <Plus className="h-4 w-4 relative z-10" />
-                  <span className="relative z-10">Use in Post</span>
-                </button>
+              <div className="flex flex-wrap items-center justify-between gap-4 border-t border-[#1f2528]/10 bg-[#f6f7f1]/60 px-5 py-4">
+                <div>
+                  <p className="text-xs font-bold text-[#1f2528]">{previewItem.file_name}</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Uploaded {new Date(previewItem.uploaded_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                    {previewItem.file_size ? ` · ${formatSize(previewItem.file_size)}` : ""}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => deleteItem(previewItem.id)}
+                    disabled={deletingId === previewItem.id}
+                    className="flex h-10 items-center justify-center gap-1.5 border-rose-200 bg-rose-50 text-rose-500 hover:bg-rose-100 disabled:opacity-50 px-4 rounded-xl text-xs font-bold transition"
+                  >
+                    {deletingId === previewItem.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                    Delete
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => copyUrl(previewItem)}
+                    className="flex h-10 items-center justify-center gap-1.5 border-[#1f2528]/10 bg-white hover:bg-[#f4f6f0] px-4 rounded-xl text-xs font-bold text-[#1f2528] transition"
+                  >
+                    {copiedId === previewItem.id ? (
+                      <>
+                        <Check className="h-4 w-4 text-[#2f7867]" />
+                        Copied
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-4 w-4 text-slate-500" />
+                        Copy URL
+                      </>
+                    )}
+                  </Button>
+                  <button
+                    onClick={() => { useInPost(previewItem); setPreviewItem(null); }}
+                    className="btn-liquid-glass relative flex h-10 items-center gap-2 rounded-xl px-5 text-xs font-bold text-[#1a3d34] shadow-[0_4px_16px_rgba(47,120,103,0.18)]"
+                  >
+                    <Plus className="h-4 w-4 relative z-10" />
+                    <span className="relative z-10">Use in Post</span>
+                  </button>
+                </div>
               </div>
             </motion.div>
+
+            {/* Right navigation arrow */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                const currentIndex = filtered.findIndex((i) => i.id === previewItem.id);
+                if (currentIndex !== -1) {
+                  const nextIndex = (currentIndex + 1) % filtered.length;
+                  setPreviewItem(filtered[nextIndex]);
+                }
+              }}
+              className="ml-6 hidden h-14 w-14 items-center justify-center rounded-full bg-white/10 text-white border border-white/20 shadow transition hover:bg-white/25 md:flex shrink-0 active:scale-90"
+              title="Next"
+            >
+              <ChevronRight className="h-8 w-8" />
+            </button>
           </motion.div>
         )}
       </AnimatePresence>

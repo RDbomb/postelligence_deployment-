@@ -831,11 +831,16 @@ export default function CreateClient({
                 </label>
               )}
 
-              <label className="block">
+              <div className="block">
                 <span className="mb-1.5 block text-xs font-bold uppercase tracking-[0.16em] text-slate-400">Post text</span>
                 <textarea className="min-h-44 w-full resize-none rounded-lg border border-[#1f2528]/12 bg-[#f9faf7] p-4 text-sm leading-6 text-[#1f2528] outline-none transition placeholder:text-slate-400 focus:border-[#2f7867]/50 focus:bg-white"
                   placeholder={`What's on your mind, ${displayName.split(" ")[0]}?`} value={caption} onChange={(e) => setCaption(e.target.value)} />
-              </label>
+                <div className="mt-1.5 flex justify-end text-xs font-bold text-slate-400 tracking-wide">
+                  <span className={caption.length > 500 ? "text-rose-500 font-black" : "text-slate-400"}>
+                    {caption.length}/500
+                  </span>
+                </div>
+              </div>
 
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
                 <label className="flex items-center gap-2 rounded-lg border border-[#1f2528]/10 bg-[#f9faf7] px-3 py-2.5 text-sm">

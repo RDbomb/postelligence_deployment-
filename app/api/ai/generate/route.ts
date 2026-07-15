@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
-const GEMINI_API_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent";
+export const maxDuration = 60; // Allow up to 60 seconds execution time to prevent timeouts
+
+const POLLINATIONS_TEXT_URL = "https://text.pollinations.ai/";
 
 export type AIGenerateMode =
   | "caption"
@@ -24,6 +25,9 @@ interface AIGenerateRequest {
   existingContent?: string;
   targetPlatforms?: string[];
   count?: number;
+  keyword?: string;
+  geo?: string;
+  category?: string;
 }
 
 function buildPrompt(req: AIGenerateRequest): string {
@@ -41,7 +45,7 @@ Requirements:
 - Each caption should be unique with a different angle
 - Include relevant emojis naturally
 - Make them authentic, not salesy
-- Vary the length (some short, some medium)
+- CRITICAL: Each caption MUST be strictly under 500 characters total to comply with platform limits (including emojis and hashtags).
 - Each caption on a new line, numbered 1. 2. 3. etc.
 Return ONLY the captions, no extra explanation.`;
 
@@ -169,15 +173,22 @@ For each trend, provide:
 Return ONLY a valid JSON array of objects with the keys: "title", "explanation", "category", "imagePrompt", "captionPrompt". Do NOT wrap it in any Markdown formatting (no backticks), return ONLY the raw JSON string.`;
 
     case "trends-post":
-      return `You are a viral social media strategist. Generate a single high-performing post caption about the following trend.
+      return `You are a viral social media strategist and content copywriter. Generate a comprehensive, detailed, and high-performing social media post caption about the following trend.
+
 Trend: "${topic}"
 Description: "${existingContent}"
+
 Requirements:
-- Make it highly engaging and authentic
-- Hook the reader in the first sentence
-- Add relevant emojis naturally
-- End with a strong call-to-action
-- Add 3-5 relevant hashtags at the bottom
+- CRITICAL LENGTH LIMIT: The ENTIRE caption (including text, emojis, and hashtags) MUST be strictly under 500 characters total. This is a hard limit to comply with Threads platform restrictions.
+- Accuracy: Focus strictly on the factual details provided in the Description. Incorporate the specific pricing, locations, release info, or statistics mentioned in the description to make it highly accurate and informative.
+- Structure:
+  1. Start with an attention-grabbing hook in the first sentence.
+  2. Provide a detailed breakdown or context of why this trend is happening.
+  3. Include an engaging discussion question or call-to-interaction.
+  4. End with a strong call-to-action and hashtags.
+- Formatting: Use emojis naturally to break up text, and use clean paragraph spacing to make it readable.
+- Hashtags: Add 3-4 highly relevant, specific hashtags at the very bottom (avoid generic or incorrect tags like #IndieGames for AAA games).
+
 Return ONLY the caption, no extra explanation.`;
 
     default:
@@ -200,57 +211,285 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "mode is required" }, { status: 400 });
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json({ error: "Gemini API key not configured" }, { status: 500 });
+    const apiKey = process.env.POLLINATIONS_API_KEY;
+    let prompt = "";
+
+    if (mode === "trends-list") {
+      try {
+        const keyword = body.keyword;
+        const geo = body.geo;
+        const isGlobal = !geo || geo === "GLOBAL";
+        const category = body.category || "WORLD";
+        const geoNames: Record<string, string> = {
+          US: "United States",
+          IN: "India",
+          GB: "United Kingdom",
+          CA: "Canada",
+          AU: "Australia",
+          DE: "Germany",
+          FR: "France",
+          JP: "Japan"
+        };
+        const countrySuffix = (!isGlobal && geoNames[geo]) ? ` ${geoNames[geo]}` : "";
+        const finalQuery = keyword ? `${keyword}${countrySuffix}` : "";
+
+        let items: { title: string; approxTraffic: string; newsTitle: string; explanation: string }[] = [];
+        try {
+          let url = "";
+          if (keyword) {
+            url = isGlobal
+              ? `https://news.google.com/rss/search?q=${encodeURIComponent(finalQuery)}&hl=en-US`
+              : `https://news.google.com/rss/search?q=${encodeURIComponent(finalQuery)}&hl=en-US&gl=${geo}&ceid=${geo}:en`;
+          } else if (category === "WORLD") {
+            url = isGlobal
+              ? "https://news.google.com/rss?hl=en-US"
+              : `https://trends.google.com/trending/rss?geo=${geo}`;
+          } else {
+            url = isGlobal
+              ? `https://news.google.com/rss/headlines/section/topic/${category.toUpperCase()}?hl=en-US`
+              : `https://news.google.com/rss/headlines/section/topic/${category.toUpperCase()}?hl=en-US&gl=${geo}&ceid=${geo}:en`;
+          }
+
+          const trendsRes = await fetch(url);
+          if (trendsRes.ok) {
+            const xml = await trendsRes.text();
+            const itemRegex = /<item>([\s\S]*?)<\/item>/g;
+            let match;
+            while ((match = itemRegex.exec(xml)) !== null) {
+              const content = match[1];
+              const titleRaw = content.match(/<title>([\s\S]*?)<\/title>/)?.[1] || "";
+              const approxTrafficRaw = content.match(/<ht:approx_traffic>([\s\S]*?)<\/ht:approx_traffic>/)?.[1] || "";
+              const newsTitleRaw = content.match(/<ht:news_item_title>([\s\S]*?)<\/ht:news_item_title>/)?.[1] || "";
+              const descRaw = content.match(/<description>([\s\S]*?)<\/description>/)?.[1] || "";
+
+              const newsTitles: string[] = [];
+              const newsTitleRegex = /<ht:news_item_title>([\s\S]*?)<\/ht:news_item_title>/g;
+              let ntMatch;
+              while ((ntMatch = newsTitleRegex.exec(content)) !== null) {
+                newsTitles.push(ntMatch[1]);
+              }
+
+              const unescape = (str: string) => str
+                .replace(/&amp;/g, "&")
+                .replace(/&lt;/g, "<")
+                .replace(/&gt;/g, ">")
+                .replace(/&quot;/g, '"')
+                .replace(/&#39;/g, "'")
+                .replace(/&apos;/g, "'");
+
+              let cleanTitle = unescape(titleRaw);
+              if (keyword || category !== "WORLD" || isGlobal) {
+                cleanTitle = cleanTitle.replace(/\s+-\s+[^-]+$/, "");
+              }
+
+              // Extract clean related headlines as a snippet summary, filtering out title duplicates
+              const getSnippet = (descRawHtml: string, trendsTitles: string[], mainTitle: string, defaultSnippet: string): string => {
+                try {
+                  const desc = unescape(descRawHtml);
+                  const linkTexts: string[] = [];
+                  const linkRegex = /<a[^>]*>([\s\S]*?)<\/a>/g;
+                  let m;
+
+                  const normalizedMain = mainTitle.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+                  while ((m = linkRegex.exec(desc)) !== null) {
+                    const text = m[1].replace(/<[^>]*>/g, "").trim();
+                    if (text && !text.toLowerCase().includes("see more") && !text.toLowerCase().includes("google news")) {
+                      const cleaned = unescape(text).replace(/\s+-\s+[^-]+$/, "").trim();
+                      const normalizedText = cleaned.toLowerCase().replace(/[^a-z0-9]/g, "");
+                      if (normalizedText !== normalizedMain && !linkTexts.includes(cleaned)) {
+                        linkTexts.push(cleaned);
+                      }
+                    }
+                  }
+
+                  if (linkTexts.length > 0) {
+                    return linkTexts.slice(0, 2).join(". ");
+                  }
+
+                  const filteredTrends = trendsTitles
+                    .map(t => unescape(t).trim())
+                    .filter(t => t.toLowerCase().replace(/[^a-z0-9]/g, "") !== normalizedMain);
+
+                  if (filteredTrends.length > 0) {
+                    const uniqueTrends = filteredTrends.filter((v, i, a) => a.indexOf(v) === i);
+                    return uniqueTrends.slice(0, 2).join(". ");
+                  }
+                } catch (e) {
+                  console.error("Failed to parse description snippet:", e);
+                }
+                return `Latest updates and reports regarding: ${mainTitle}.`;
+              };
+
+              const parsedDescription = getSnippet(descRaw, newsTitles, cleanTitle, "No additional description available.");
+
+              items.push({
+                title: cleanTitle,
+                approxTraffic: unescape(approxTrafficRaw),
+                newsTitle: (keyword || category !== "WORLD" || isGlobal) ? cleanTitle : unescape(newsTitleRaw),
+                explanation: parsedDescription
+              });
+            }
+          }
+        } catch (fetchErr) {
+          console.error("Failed to fetch Google Trends RSS:", fetchErr);
+        }
+
+        const getCategory = (title: string, headline: string): string => {
+          const text = (title + " " + headline).toLowerCase();
+          if (text.includes("trump") || text.includes("biden") || text.includes("election") || text.includes("gov") || text.includes("senate") || text.includes("policy") || text.includes("court") || text.includes("usaid")) {
+            return "Politics";
+          }
+          if (text.includes("stocks") || text.includes("market") || text.includes("finance") || text.includes("economy") || text.includes("crypto") || text.includes("doge") || text.includes("bitcoin") || text.includes("business") || text.includes("company")) {
+            return "Business";
+          }
+          if (text.includes("sports") || text.includes("cup") || text.includes("game") || text.includes("player") || text.includes("olympics") || text.includes("gymnastics") || text.includes("nhl") || text.includes("nba") || text.includes("football") || text.includes("soccer") || text.includes("baseball")) {
+            return "Sports";
+          }
+          if (text.includes("movie") || text.includes("star wars") || text.includes("mandalorian") || text.includes("music") || text.includes("actor") || text.includes("goldberg") || text.includes("celebrity") || text.includes("show") || text.includes("entertainment")) {
+            return "Entertainment";
+          }
+          if (text.includes("tech") || text.includes("ai") || text.includes("software") || text.includes("app") || text.includes("google") || text.includes("apple") || text.includes("microsoft") || text.includes("phone")) {
+            return "Tech";
+          }
+          return "Lifestyle";
+        };
+
+        let parsed = [];
+        if (items.length > 0) {
+          const topTrends = items.slice(0, 5);
+
+          // Batch generate real-world descriptions for each trend headline using exactly 1 API call
+          let llmDescriptions: string[] = [];
+          try {
+            const headlines = topTrends.map(t => t.title);
+            const prompt = `For each of the following news headlines, write a concise 1-sentence explanation that describes what the event is about:
+${headlines.map((h, i) => `${i + 1}. ${h}`).join("\n")}
+
+Return ONLY a valid JSON array of ${headlines.length} strings (the explanations), no extra text or markdown formatting. E.g.:
+["explanation 1", "explanation 2", "explanation 3", "explanation 4", "explanation 5"]`;
+
+            const cacheBuster = `\n\n[Request ID: ${Date.now()}-${Math.random().toString(36).substring(2)}]`;
+            const finalPrompt = prompt + cacheBuster;
+
+            const res = await fetch(POLLINATIONS_TEXT_URL, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+              },
+              body: JSON.stringify({
+                messages: [
+                  { role: "system", content: "You are a concise helper that outputs raw JSON arrays of strings. No markdown, no backticks, no explanations." },
+                  { role: "user", content: finalPrompt }
+                ],
+                model: "openai-fast",
+                temperature: 0.2
+              })
+            });
+
+            if (res.ok) {
+              const text = await res.text();
+              const cleanText = text.trim().replace(/^```json|```$/g, "").trim();
+              const array = JSON.parse(cleanText);
+              if (Array.isArray(array) && array.length === topTrends.length) {
+                llmDescriptions = array.map(item => String(item).trim());
+              }
+            }
+          } catch (llmErr) {
+            console.error("Batch description generation failed, falling back to RSS headlines:", llmErr);
+          }
+
+          parsed = topTrends.map((t, idx) => {
+            const itemCategory = category !== "WORLD" ? category : getCategory(t.title, t.newsTitle);
+            const cleanTitle = t.title
+              .split(" ")
+              .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+              .join(" ");
+
+            const displayTitle = (keyword || category !== "WORLD" || isGlobal)
+              ? t.title
+              : `${cleanTitle}: ${t.newsTitle || "Trending Search"}`;
+
+            const finalExplanation = llmDescriptions[idx] || t.explanation;
+
+            return {
+              title: displayTitle,
+              explanation: finalExplanation,
+              category: itemCategory.charAt(0).toUpperCase() + itemCategory.slice(1).toLowerCase(),
+              imagePrompt: `A photorealistic cinematic visual representing ${t.title}, high quality, editorial style`,
+              captionPrompt: `Write an engaging, trending social media caption about ${t.title}`
+            };
+          });
+        } else {
+          // Robust static fallbacks if RSS is entirely down/rate-limited
+          parsed = [
+            {
+              title: "AI Agents Rise: Autonomy in the Workplace",
+              explanation: "Businesses are adopting AI agents to automate daily workflows, transforming productivity metrics across industries.",
+              category: "Tech",
+              imagePrompt: "A sleek modern office workspace with translucent holographic displays showing AI node connections and charts, warm sunset lighting, highly detailed",
+              captionPrompt: "Create an insightful caption about the impact of AI agent automation on corporate productivity."
+            },
+            {
+              title: "Sustainable Travel: Eco-Tourism Trends",
+              explanation: "Travelers are actively choosing carbon-neutral destinations and green lodges, driving hospitality industry adaptations.",
+              category: "Lifestyle",
+              imagePrompt: "A luxury eco-friendly resort built into a luxury green mountainside, glowing lights at dusk, professional architecture photography",
+              captionPrompt: "Write an inspiring post about the shift towards mindful and sustainable travel choices."
+            },
+            {
+              title: "Remote Teamwork: The Hybrid Future",
+              explanation: "Organizations are shifting permanent investments into hybrid collaboration tools as team distribution increases.",
+              category: "Business",
+              imagePrompt: "A dynamic flat design illustration of diverse remote team members collaborating via video chat, colorful overlays, modern aesthetic",
+              captionPrompt: "Generate a practical tip post on improving communication in hybrid workforces."
+            }
+          ];
+        }
+
+        return NextResponse.json({ result: parsed, mode });
+      } catch (err) {
+        console.error("Trends list builder error:", err);
+        return NextResponse.json({ error: "Failed to construct trends data" }, { status: 500 });
+      }
     }
 
-    const prompt = buildPrompt(body);
+    if (!prompt) {
+      prompt = buildPrompt(body);
+    }
 
-    const geminiRes = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
+    const finalPrompt = `${prompt}\n\n[Request ID: ${Date.now()}-${Math.random().toString(36).substring(2)}]`;
+
+    const res = await fetch(POLLINATIONS_TEXT_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+      },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.85,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 2048,
-        },
-        safetySettings: [
-          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
-          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
-        ],
+        messages: [{ role: "user", content: finalPrompt }],
+        model: "openai",
+        temperature: 0.85,
       }),
     });
 
-    if (!geminiRes.ok) {
-      const errData = await geminiRes.json().catch(() => ({}));
-      console.error("Gemini API error:", errData);
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "Unknown error");
+      console.error("Pollinations AI error:", errText);
       return NextResponse.json(
-        { error: errData?.error?.message || "Gemini API request failed" },
-        { status: geminiRes.status }
+        { error: errText || "Pollinations AI request failed" },
+        { status: res.status }
       );
     }
 
-    const data = await geminiRes.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    const text = await res.text();
 
     if (!text) {
       return NextResponse.json({ error: "No content generated" }, { status: 500 });
     }
 
-    if (mode === "trends-list") {
-      try {
-        const jsonStr = text.replace(/```json|```/g, "").trim();
-        const parsed = JSON.parse(jsonStr);
-        return NextResponse.json({ result: parsed, mode });
-      } catch (err) {
-        console.error("JSON parse error for trends-list:", err, text);
-        return NextResponse.json({ error: "Failed to parse trends data", rawText: text, mode }, { status: 500 });
-      }
-    }
+
 
     return NextResponse.json({ result: text, mode });
   } catch (err) {

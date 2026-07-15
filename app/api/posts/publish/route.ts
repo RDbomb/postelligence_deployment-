@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createBaseClient } from "@supabase/supabase-js";
 import { getTokenExpiry, refreshYouTubeAccessToken } from "@/lib/integrations/youtube";
 import { canPublish } from "@/lib/workspace/permissions";
 import type { WorkspaceRole } from "@/lib/types";
@@ -1322,8 +1323,29 @@ async function fetchMediaUrlAsFile(mediaUrl: string, mediaType: string): Promise
 }
 
 export async function POST(request: Request) {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const authHeader = request.headers.get("Authorization");
+  const isServiceRole = authHeader === `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`;
+
+  let supabase = createClient();
+  let user = null;
+
+  if (isServiceRole) {
+    const targetUserId = request.headers.get("X-User-Id");
+    if (targetUserId) {
+      const baseClient = createBaseClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        { auth: { persistSession: false, autoRefreshToken: false } }
+      );
+      const { data: { user: foundUser } } = await baseClient.auth.admin.getUserById(targetUserId);
+      user = foundUser;
+      supabase = baseClient;
+    }
+  } else {
+    const { data: { user: authedUser } } = await supabase.auth.getUser();
+    user = authedUser;
+  }
+
   if (!user) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
 
   const formData = await request.formData();

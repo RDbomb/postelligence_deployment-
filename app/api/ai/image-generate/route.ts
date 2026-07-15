@@ -2,18 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createHash } from "crypto";
 
+export const maxDuration = 60; // Allow up to 60 seconds execution time to prevent timeouts on cold GPU starts
+
 // Uses Hugging Face's current Inference Providers router (zero cost on free tier)
 // The old "api-inference.huggingface.co/models/..." endpoint is legacy and
 // no longer reliably serves GPU diffusion models like SDXL - it now throws
 // connection-level errors for most users instead of a clean HTTP error.
 // FLUX.1-schnell is fast, free-tier friendly, and actively served via hf-inference.
-const HF_API_URL =
-  "https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell";
+// Uses Pollinations AI for unlimited free generation with the highly detailed Flux model
+const POLLINATIONS_IMAGE_URL = "https://image.pollinations.ai/prompt/";
 
 interface ImageGenerateRequest {
   prompt: string;
   style?: string; // "photorealistic" | "illustration" | "minimalist" | "3d" | "watercolor"
   aspectRatio?: "square" | "portrait" | "landscape"; // 1:1, 9:16, 16:9
+  usePinterest?: boolean;
+  pinterestIndex?: number;
 }
 
 const STYLE_MODIFIERS: Record<string, string> = {
@@ -34,21 +38,15 @@ export async function POST(req: NextRequest) {
     }
 
     const body: ImageGenerateRequest = await req.json();
-    const { prompt, style = "photorealistic", aspectRatio = "square" } = body;
+    const { prompt, style = "photorealistic", aspectRatio = "square", usePinterest, pinterestIndex = 0 } = body;
 
     if (!prompt || prompt.trim().length < 3) {
       return NextResponse.json({ error: "Prompt is required" }, { status: 400 });
     }
 
-    const hfToken = process.env.HUGGINGFACE_API_TOKEN;
-    if (!hfToken) {
-      return NextResponse.json({ error: "Hugging Face API token not configured" }, { status: 500 });
-    }
-
+    const apiKey = process.env.POLLINATIONS_API_KEY;
     const styleModifier = STYLE_MODIFIERS[style] || STYLE_MODIFIERS.photorealistic;
-    const randomSeed = Math.floor(Math.random() * 10000000);
-    // Suffixing random seed variations to prompt makes inputs unique for Hugging Face CDN caching bypass
-    const fullPrompt = `${prompt}, ${styleModifier}, social media content, high quality, variation ${randomSeed}`;
+    const fullPrompt = `${prompt}, ${styleModifier}, social media content, high quality`;
 
     // Dimensions based on aspect ratio
     const dimensions =
@@ -58,60 +56,106 @@ export async function POST(req: NextRequest) {
         ? { width: 1024, height: 576 }
         : { width: 1024, height: 1024 }; // square
 
-    const hfRes = await fetch(HF_API_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${hfToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        inputs: fullPrompt,
-        parameters: {
-          ...dimensions,
-          num_inference_steps: 4, // FLUX.1-schnell is distilled for ~4 steps
-          seed: randomSeed,
-        },
-      }),
-    });
+    let imageBuffer: ArrayBuffer | null = null;
+    let contentType = "image/png";
+    let isWebSearch = false;
 
-    if (!hfRes.ok) {
-      const errText = await hfRes.text().catch(() => "Unknown error");
-      // If model is loading (503), return a friendly error
-      if (hfRes.status === 503) {
-        return NextResponse.json(
-          { error: "Image model is warming up. Please try again in 20-30 seconds." },
-          { status: 503 }
-        );
+    if (usePinterest) {
+      try {
+        const query = prompt;
+        // Step 1: Get vqd token
+        const htmlRes = await fetch(`https://duckduckgo.com/?q=${encodeURIComponent(query)}`, {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+          }
+        });
+        if (htmlRes.ok) {
+          const html = await htmlRes.text();
+          const vqdRegex = /vqd=['"]?([^'"]+)['"]?/;
+          const vqdMatch = html.match(vqdRegex);
+          if (vqdMatch) {
+            const vqd = vqdMatch[1];
+            // Step 2: Fetch images json
+            const imagesRes = await fetch(`https://duckduckgo.com/i.js?q=${encodeURIComponent(query)}&o=json&vqd=${vqd}`, {
+              headers: {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Referer": "https://duckduckgo.com/"
+              }
+            });
+            if (imagesRes.ok) {
+              const json = await imagesRes.json();
+              const results = json.results || [];
+              if (results.length > 0) {
+                const targetIndex = pinterestIndex % results.length;
+                const imageUrl = results[targetIndex].image;
+                console.log(`Downloading web search image ${targetIndex + 1}/${results.length}: ${imageUrl}`);
+
+                const dlRes = await fetch(imageUrl, {
+                  headers: {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                  }
+                });
+                if (dlRes.ok) {
+                  imageBuffer = await dlRes.arrayBuffer();
+                  contentType = dlRes.headers.get("content-type") || "image/jpeg";
+                  isWebSearch = true;
+                }
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Web image search scraping failed, falling back to Pollinations:", err);
       }
-      console.error("HuggingFace API error:", errText);
-      return NextResponse.json(
-        { error: "Image generation failed. Please try again." },
-        { status: hfRes.status }
-      );
     }
 
-    // HF returns raw image bytes
-    const imageBuffer = await hfRes.arrayBuffer();
+    if (!imageBuffer) {
+      const randomSeed = Math.floor(Math.random() * 10000000);
+      const encodedPrompt = encodeURIComponent(fullPrompt);
+      let url = `${POLLINATIONS_IMAGE_URL}${encodedPrompt}?model=flux&width=${dimensions.width}&height=${dimensions.height}&seed=${randomSeed}&nologo=true`;
+      if (apiKey) {
+        url += `&key=${apiKey}`;
+      }
+
+      const res = await fetch(url, {
+        method: "GET",
+        headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
+      });
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "Unknown error");
+        console.error("Pollinations AI error:", errText);
+        return NextResponse.json(
+          { error: "Image generation failed. Please try again." },
+          { status: res.status }
+        );
+      }
+
+      imageBuffer = await res.arrayBuffer();
+      contentType = "image/png";
+    }
+
     const base64Image = Buffer.from(imageBuffer).toString("base64");
-    const dataUrl = `data:image/png;base64,${base64Image}`;
+    const dataUrl = `data:${contentType};base64,${base64Image}`;
 
     // --- Auto-save to Media Library ---
-    // Same storage bucket + dedup pattern as manual uploads in /api/media-library,
-    // so AI-generated images show up in the Library tab without an extra step.
     let libraryItem = null;
     let saveError: string | null = null;
 
     try {
       const fileBytes = Buffer.from(imageBuffer);
       const hash = createHash("sha256").update(fileBytes).digest("hex");
-      const fileName = `ai-generated-${Date.now()}.png`;
-      const storagePath = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.png`;
+      const fileExtension = contentType.split("/")[1] || "png";
+      const fileName = isWebSearch
+        ? `web-search-${Date.now()}.${fileExtension}`
+        : `ai-generated-${Date.now()}.${fileExtension}`;
+      const storagePath = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExtension}`;
 
       const { data: storageData, error: storageError } = await supabase.storage
         .from("media-library")
         .upload(storagePath, fileBytes, {
           cacheControl: "3600",
-          contentType: "image/png",
+          contentType: contentType,
           upsert: false,
         });
 
@@ -136,7 +180,6 @@ export async function POST(req: NextRequest) {
           .single();
 
         if (dbError) {
-          // Roll back the uploaded file if the DB insert failed
           await supabase.storage.from("media-library").remove([storageData.path]);
           saveError = dbError.message;
         } else {
@@ -148,8 +191,6 @@ export async function POST(req: NextRequest) {
       saveError = saveErr instanceof Error ? saveErr.message : "Failed to save to library";
     }
 
-    // Image generation itself succeeded even if the library save didn't,
-    // so we still return the image - just flag the save outcome separately.
     return NextResponse.json({
       imageUrl: dataUrl,
       prompt: fullPrompt,

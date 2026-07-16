@@ -13,6 +13,8 @@ create table if not exists public.automation_settings (
   platforms text[] not null default '{}',
   categories text[] not null default '{}',
   keywords text[] not null default '{}',
+  approval_email text,
+  timezone text not null default 'UTC',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (user_id)

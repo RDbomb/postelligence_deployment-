@@ -20,12 +20,13 @@ export async function GET() {
   if (!data) {
     return NextResponse.json({
       settings: {
-        is_enabled: false,
+        is_enabled: true,
         post_time: "09:00:00",
         mode: "manual",
         platforms: [],
         categories: [],
         keywords: [],
+        approval_email: user.email || "",
       }
     });
   }
@@ -39,18 +40,20 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
-    const { is_enabled, post_time, mode, platforms, categories, keywords } = await req.json();
+    const { is_enabled, post_time, mode, platforms, categories, keywords, approval_email, timezone } = await req.json();
 
     const { data, error } = await supabase
       .from("automation_settings")
       .upsert({
         user_id: user.id,
-        is_enabled: !!is_enabled,
+        is_enabled: is_enabled !== undefined ? !!is_enabled : true,
         post_time: post_time || "09:00:00",
         mode: mode || "manual",
         platforms: platforms || [],
         categories: categories || [],
         keywords: keywords || [],
+        approval_email: approval_email || user.email || "",
+        timezone: timezone || "UTC",
       }, { onConflict: "user_id" })
       .select()
       .single();

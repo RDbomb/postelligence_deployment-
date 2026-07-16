@@ -34,6 +34,7 @@ interface AutomationSettings {
   platforms: string[];
   categories: string[];
   keywords: string[];
+  approval_email?: string | null;
 }
 
 interface AutomationLog {
@@ -76,14 +77,24 @@ const AVAILABLE_CATEGORIES = [
 export default function AutomationClient({ user, initialSettings, initialLogs }: Props) {
   const router = useRouter();
 
+  // Convert UTC post_time from DB to local time for the input
+  const getInitialLocalTime = () => {
+    if (!initialSettings.post_time) return "09:00";
+    const [h, m] = initialSettings.post_time.split(":").map(Number);
+    const d = new Date();
+    d.setUTCHours(h, m, 0, 0);
+    return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  };
+
   // Settings states
-  const [isEnabled, setIsEnabled] = useState(initialSettings.is_enabled);
-  const [postTime, setPostTime] = useState(initialSettings.post_time || "09:00");
+  const [isEnabled, setIsEnabled] = useState(initialSettings.is_enabled !== false);
+  const [postTime, setPostTime] = useState(getInitialLocalTime());
   const [mode, setMode] = useState<"manual" | "automatic">(initialSettings.mode || "manual");
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(initialSettings.platforms || []);
   const [selectedCategories, setSelectedCategories] = useState<string[]>(initialSettings.categories || ["world"]);
   const [keywordInput, setKeywordInput] = useState("");
   const [keywords, setKeywords] = useState<string[]>(initialSettings.keywords || []);
+  const [approvalEmail, setApprovalEmail] = useState(initialSettings.approval_email || user.email || "");
 
   // Logs states
   const [logs, setLogs] = useState<AutomationLog[]>(initialLogs);
@@ -145,6 +156,41 @@ export default function AutomationClient({ user, initialSettings, initialLogs }:
     }
   };
 
+  const getUtcPostTime = (localTime: string) => {
+    const [h, m] = localTime.split(":").map(Number);
+    const d = new Date();
+    d.setHours(h, m, 0, 0);
+    return `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}:00`;
+  };
+
+  // Toggle Content Automation Active/Paused
+  const handleToggleAutomation = async () => {
+    const nextState = !isEnabled;
+    setIsEnabled(nextState);
+    try {
+      const res = await fetch("/api/automation/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          is_enabled: nextState,
+          post_time: getUtcPostTime(postTime),
+          mode,
+          platforms: selectedPlatforms,
+          categories: selectedCategories,
+          keywords,
+          approval_email: approvalEmail,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update status");
+      showToast(nextState ? "Content Automation Enabled." : "Content Automation Paused.");
+    } catch (err: any) {
+      showToast("Failed to update status", "error");
+      setIsEnabled(!nextState); // rollback
+    }
+  };
+
   // Save Settings to Database
   const handleSaveSettings = async () => {
     setSaving(true);
@@ -155,20 +201,23 @@ export default function AutomationClient({ user, initialSettings, initialLogs }:
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           is_enabled: isEnabled,
-          post_time: postTime,
+          post_time: getUtcPostTime(postTime),
           mode,
           platforms: selectedPlatforms,
           categories: selectedCategories,
           keywords,
+          approval_email: approvalEmail,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         }),
       });
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to save settings");
-      showToast("Automation settings updated.");
+
+      showToast("Automation configurations saved.");
     } catch (err: any) {
-      setActionError(err.message || "Failed to update settings");
-      showToast("Failed to update settings", "error");
+      setActionError(err.message || "Failed to save configurations");
+      showToast("Failed to save configurations", "error");
     } finally {
       setSaving(false);
     }
@@ -338,7 +387,7 @@ export default function AutomationClient({ user, initialSettings, initialLogs }:
   };
 
   const pendingQueue = logs.filter((l) => l.status === "pending");
-  const pastLogs = logs.filter((l) => l.status !== "pending");
+  const pastLogs = logs;
 
   return (
     <div className="dashboard-light relative min-h-screen bg-[#f6f7f1] text-[#1f2528]">
@@ -372,6 +421,25 @@ export default function AutomationClient({ user, initialSettings, initialLogs }:
               Auto-generate drafts from Google Trends and publish them directly to your socials.
             </p>
           </div>
+
+          {/* Big ON/OFF Toggle Button */}
+          <div className="flex items-center gap-3 bg-white border border-[#1f2528]/8 px-4 py-2.5 rounded-2xl shadow-sm">
+            <span className={`text-[10px] font-extrabold uppercase tracking-widest ${isEnabled ? 'text-[#2f7867]' : 'text-slate-400'}`}>
+              {isEnabled ? 'Automation Active' : 'Automation Paused'}
+            </span>
+            <button
+              onClick={handleToggleAutomation}
+              className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-300 ease-in-out focus:outline-none ${
+                isEnabled ? 'bg-[#2f7867]' : 'bg-slate-200'
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-300 ease-in-out ${
+                  isEnabled ? 'translate-x-5' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
         </div>
 
         {actionError && (
@@ -390,19 +458,6 @@ export default function AutomationClient({ user, initialSettings, initialLogs }:
                   <Sliders className="h-5 w-5 text-[#2f7867]" />
                   <h2 className="font-black text-sm text-[#1f2528] tracking-tight">Automation Settings</h2>
                 </div>
-                {/* Active switch */}
-                <button
-                  onClick={() => setIsEnabled(!isEnabled)}
-                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                    isEnabled ? "bg-[#2f7867]" : "bg-slate-200"
-                  }`}
-                >
-                  <span
-                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
-                      isEnabled ? "translate-x-5" : "translate-x-0"
-                    }`}
-                  />
-                </button>
               </div>
 
               <div className="mt-6 space-y-6">
@@ -420,7 +475,7 @@ export default function AutomationClient({ user, initialSettings, initialLogs }:
                     >
                       <span className="text-xs font-bold text-[#1f2528]">Manual Approval</span>
                       <span className="mt-1 text-[10px] leading-relaxed text-slate-400">
-                        Saves drafts to the queue. Requires manual approval.
+                        Generated 10 minutes before posting time. Sent to your email for approval.
                       </span>
                     </button>
                     <button
@@ -433,11 +488,28 @@ export default function AutomationClient({ user, initialSettings, initialLogs }:
                     >
                       <span className="text-xs font-bold text-[#1f2528]">Fully Automatic</span>
                       <span className="mt-1 text-[10px] leading-relaxed text-slate-400">
-                        Posts are created and published directly on schedule.
+                        Generated 10 minutes before posting time and added to scheduled calendar.
                       </span>
                     </button>
                   </div>
                 </div>
+
+                {/* Approval Email */}
+                {mode === "manual" && (
+                  <div>
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Approval Notification Email</label>
+                    <input
+                      type="email"
+                      value={approvalEmail}
+                      onChange={(e) => setApprovalEmail(e.target.value)}
+                      placeholder="e.g. yourname@domain.com"
+                      className="mt-2 block w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-[#1f2528] shadow-sm focus:border-[#2f7867] focus:outline-none"
+                    />
+                    <p className="mt-1 text-[10px] text-slate-400 leading-relaxed">
+                      Approval drafts and links will be sent to this email address exactly 10 minutes before posting.
+                    </p>
+                  </div>
+                )}
 
                 {/* Post Time */}
                 <div>
@@ -530,28 +602,45 @@ export default function AutomationClient({ user, initialSettings, initialLogs }:
                 </div>
 
                 {/* Save settings CTA */}
-                <div className="flex gap-2 border-t border-slate-100 pt-5">
+                <div className="border-t border-slate-100 pt-5">
                   <Button
                     onClick={handleSaveSettings}
                     disabled={saving}
-                    className="flex-1 rounded-xl bg-[#2f7867] text-white shadow hover:bg-[#255f52] transition text-xs font-bold"
+                    className="w-full rounded-xl bg-[#2f7867] text-white shadow hover:bg-[#255f52] transition text-xs font-bold flex items-center justify-center gap-2 py-3"
                   >
                     {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                     Save Configurations
                   </Button>
-                  <Button
-                    variant="outline"
-                    onClick={handleTestTrigger}
-                    disabled={triggering}
-                    className="rounded-xl border-slate-200 hover:bg-slate-50 transition text-xs font-bold text-slate-600 flex items-center gap-1.5"
-                    title="Force Run Generator"
-                  >
-                    {triggering ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
-                    Test Run
-                  </Button>
                 </div>
               </div>
             </div>
+
+            {/* Email Preview Card */}
+            {mode === "manual" && (
+              <div className="rounded-2xl border border-emerald-100 bg-[#eaf3ed]/30 p-5 shadow-sm space-y-3">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-[#2f7867]" />
+                  <h3 className="text-xs font-black text-[#1f2528] tracking-tight">Interactive Email Preview</h3>
+                </div>
+                <p className="text-[10px] text-slate-500 leading-relaxed">
+                  Here is a mockup of the interactive approvals email you will receive in your inbox:
+                </p>
+                <div className="rounded-xl border border-slate-150 bg-white p-4 shadow-sm text-left space-y-3 pointer-events-none scale-[0.98]">
+                  <div>
+                    <span className="text-[8px] font-black uppercase text-[#2f7867]">PostSync Automated Draft</span>
+                    <h4 className="text-xs font-black text-[#1f2528] mt-0.5">Example: Tech Trends Live</h4>
+                  </div>
+                  <div className="rounded-lg bg-slate-50 p-2 text-[10px] text-slate-500 font-medium italic border border-slate-100">
+                    "AI agents are taking over corporate administration task schedules..."
+                  </div>
+                  <div className="flex gap-1.5 pt-1">
+                    <div className="rounded bg-[#2f7867] px-2.5 py-1 text-[8px] font-black text-white">Approve & Schedule</div>
+                    <div className="rounded bg-[#2f7867]/10 px-2.5 py-1 text-[8px] font-black text-[#2f7867] border border-slate-200">Publish Now</div>
+                    <div className="rounded bg-white px-2.5 py-1 text-[8px] font-black text-rose-500 border border-rose-200">Reject</div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Storage Info Alert */}
             <div className="rounded-2xl border border-sky-100 bg-sky-50/50 p-4 text-xs leading-relaxed text-sky-800 flex gap-3">
@@ -562,147 +651,9 @@ export default function AutomationClient({ user, initialSettings, initialLogs }:
             </div>
           </div>
 
-          {/* RIGHT COLUMN: Queue & Execution Logs */}
+          {/* RIGHT COLUMN: Execution Logs */}
           <div className="lg:col-span-7 space-y-8">
-            {/* 1. Pending Approvals Queue */}
-            <div>
-              <h2 className="text-base font-black text-[#1f2528] tracking-tight flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-[#2f7867]" /> Pending Approvals ({pendingQueue.length})
-              </h2>
-
-              <div className="mt-4 space-y-4">
-                {pendingQueue.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white/50 p-12 text-center">
-                    <CheckCircle2 className="h-10 w-10 text-slate-300" />
-                    <p className="mt-2 text-xs font-bold text-[#1f2528]">No posts pending review.</p>
-                    <p className="mt-0.5 text-[10px] text-slate-400">
-                      When trends match your settings, they will populate here for review.
-                    </p>
-                  </div>
-                ) : (
-                  pendingQueue.map((log) => {
-                    const isEditing = editingLogId === log.id;
-                    const charCount = isEditing ? editingCaption.length : log.caption.length;
-                    const isTooLong = charCount > 500;
-
-                    return (
-                      <div key={log.id} className="rounded-2xl border border-[#1f2528]/10 bg-white p-5 shadow-sm space-y-4">
-                        <div className="flex items-start justify-between border-b border-slate-100 pb-3">
-                          <div>
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                              Generated Trend Draft
-                            </span>
-                            <h3 className="font-black text-sm text-[#1f2528] tracking-tight">{log.trend_title}</h3>
-                          </div>
-                          <span className="rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-600 border border-amber-200">
-                            Needs Approval
-                          </span>
-                        </div>
-
-                        {/* Media visual if present */}
-                        {log.media_url && (
-                          <div className="relative aspect-[16/9] w-full overflow-hidden rounded-xl bg-slate-50 border border-slate-100">
-                            <img src={log.media_url} alt="" className="h-full w-full object-cover" />
-                          </div>
-                        )}
-
-                        {/* Caption input or display */}
-                        <div>
-                          {isEditing ? (
-                            <div className="space-y-1.5">
-                              <textarea
-                                value={editingCaption}
-                                onChange={(e) => setEditingCaption(e.target.value)}
-                                className="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs font-medium text-[#1f2528] shadow-inner focus:outline-none focus:border-[#2f7867]"
-                                rows={4}
-                              />
-                              <div className="flex items-center justify-between text-[10px] font-bold text-slate-400">
-                                <span>Double check compliance limits</span>
-                                <span className={isTooLong ? "text-rose-500 font-extrabold" : ""}>
-                                  {charCount}/500 chars
-                                </span>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="rounded-xl bg-[#f8f9f5] p-3 border border-[#1f2528]/5 text-xs text-slate-600 leading-relaxed font-medium whitespace-pre-wrap">
-                              {log.caption}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Actions */}
-                        <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-                          <div className="flex gap-1.5">
-                            {isEditing ? (
-                              <>
-                                <Button
-                                  onClick={() => handleSaveEdit(log.id)}
-                                  className="h-8 rounded-lg bg-[#2f7867] text-white text-[10px] font-black"
-                                >
-                                  <Save className="h-3 w-3" /> Save Edits
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  onClick={() => setEditingLogId(null)}
-                                  className="h-8 rounded-lg border-slate-200 text-slate-500 text-[10px] font-black"
-                                >
-                                  Cancel
-                                </Button>
-                              </>
-                            ) : (
-                              <Button
-                                variant="outline"
-                                onClick={() => {
-                                  setEditingLogId(log.id);
-                                  setEditingCaption(log.caption);
-                                }}
-                                className="h-8 rounded-lg border-slate-200 text-slate-600 text-[10px] font-black flex items-center gap-1"
-                              >
-                                <Edit2 className="h-3 w-3" /> Edit Draft
-                                <span className="text-[9px] font-medium text-slate-400 ml-1">({log.caption.length}/500)</span>
-                              </Button>
-                            )}
-                          </div>
-
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              onClick={() => handleRejectLog(log.id)}
-                              disabled={processingLogId === log.id}
-                              className="h-8 rounded-lg border-rose-200 bg-rose-50/50 text-rose-500 hover:bg-rose-50 text-[10px] font-black"
-                            >
-                              <X className="h-3 w-3" /> Reject
-                            </Button>
-                            <Button
-                              variant="outline"
-                              onClick={() => handleSchedulePost(log)}
-                              disabled={processingLogId === log.id || isTooLong}
-                              className="h-8 rounded-lg border-sky-200 bg-sky-50/50 text-sky-600 hover:bg-sky-50 text-[10px] font-black"
-                            >
-                              Approve & Schedule
-                            </Button>
-                            <Button
-                              onClick={() => handlePublishNow(log)}
-                              disabled={processingLogId === log.id || isTooLong}
-                              className="h-8 rounded-lg bg-[#2f7867] text-white hover:bg-[#255f52] text-[10px] font-black"
-                            >
-                              {processingLogId === log.id ? (
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                              ) : (
-                                <Check className="h-3 w-3" />
-                              )}
-                              Approve & Publish
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-
-            {/* 2. Automation Execution Logs History */}
+            {/* Automation Execution Logs History */}
             <div>
               <h2 className="text-base font-black text-[#1f2528] tracking-tight flex items-center gap-2">
                 <History className="h-4 w-4 text-slate-400" /> Activity History ({pastLogs.length})
@@ -755,6 +706,8 @@ export default function AutomationClient({ user, initialSettings, initialLogs }:
                                       ? "bg-sky-50 border-sky-200 text-sky-600"
                                       : log.status === "rejected"
                                       ? "bg-slate-50 border-slate-200 text-slate-400"
+                                      : log.status === "pending"
+                                      ? "bg-amber-50 border-amber-200 text-amber-600"
                                       : "bg-rose-50 border-rose-200 text-rose-500"
                                   }`}
                                 >
@@ -764,6 +717,8 @@ export default function AutomationClient({ user, initialSettings, initialLogs }:
                                     ? "Approved"
                                     : log.status === "rejected"
                                     ? "Rejected"
+                                    : log.status === "pending"
+                                    ? "Pending Approval"
                                     : "Failed"}
                                 </span>
                               </td>

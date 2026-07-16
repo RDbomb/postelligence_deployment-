@@ -177,24 +177,618 @@ async function processPost(post: any): Promise<{ id: string; status: string }> {
   return { id: post.id, status: finalStatus };
 }
 
-Deno.serve(async (_req) => {
+const POLLINATIONS_TEXT_URL = "https://text.pollinations.ai/";
+const POLLINATIONS_IMAGE_URL = "https://image.pollinations.ai/prompt/";
+
+function getNextPostTime(postTimeStr: string): Date {
+  const [h, m, s] = postTimeStr.split(":").map(Number);
+  const now = new Date();
+  const target = new Date();
+  target.setHours(h, m, s || 0, 0);
+
+  if (target.getTime() <= now.getTime()) {
+    target.setDate(target.getDate() + 1);
+  }
+  return target;
+}
+
+async function verifyToken(logId: string, userId: string, token: string): Promise<boolean> {
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+  const tokenPayload = logId + userId + serviceRoleKey;
+  const encoder = new TextEncoder();
+  const data = encoder.encode(tokenPayload);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const expectedToken = hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+  return token === expectedToken;
+}
+
+function renderHtmlResponse(message: string, success: boolean): Response {
+  const html = `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>PostSync Approval Panel</title>
+      <style>
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+          background-color: #f6f7f1;
+          color: #1f2528;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          height: 100vh;
+          margin: 0;
+          padding: 20px;
+          box-sizing: border-box;
+        }
+        .card {
+          background-color: white;
+          border: 1px solid rgba(31, 37, 40, 0.1);
+          border-radius: 24px;
+          padding: 40px;
+          text-align: center;
+          max-width: 480px;
+          width: 100%;
+          box-shadow: 0 12px 40px rgba(31, 37, 40, 0.05);
+        }
+        .icon {
+          font-size: 48px;
+          margin-bottom: 20px;
+        }
+        h1 {
+          font-size: 20px;
+          font-weight: 800;
+          margin: 0 0 10px 0;
+          letter-spacing: -0.02em;
+        }
+        p {
+          font-size: 14px;
+          color: #5a656c;
+          line-height: 1.5;
+          margin: 0 0 24px 0;
+          font-weight: 500;
+        }
+        .btn {
+          display: inline-block;
+          background-color: #2f7867;
+          color: white;
+          text-decoration: none;
+          padding: 12px 24px;
+          font-size: 13px;
+          font-weight: 700;
+          border-radius: 12px;
+          transition: background-color 150ms;
+        }
+        .btn:hover {
+          background-color: #255f52;
+        }
+        .error-icon {
+          color: #e11d48;
+        }
+        .success-icon {
+          color: #10b981;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="card">
+        <div class="icon ${success ? "success-icon" : "error-icon"}">
+          ${success ? "✓" : "⚠"}
+        </div>
+        <h1>${success ? "Action Completed" : "Action Failed"}</h1>
+        <p>${message}</p>
+        <a href="http://localhost:3000/automation" class="btn">Back to Automation</a>
+      </div>
+    </body>
+    </html>
+  `;
+  const headers = new Headers();
+  headers.set("content-type", "text/html; charset=utf-8");
+  return new Response(html, {
+    status: 200,
+    headers,
+  });
+}
+
+async function handleExternalApproval(logId: string, action: string, token: string): Promise<Response> {
+  try {
+    const { data: log, error: logErr } = await supabase
+      .from("automation_logs")
+      .select("*")
+      .eq("id", logId)
+      .single();
+
+    if (logErr || !log) {
+      return renderHtmlResponse("Log entry not found.", false);
+    }
+
+    if (log.status !== "pending") {
+      return renderHtmlResponse(`This draft has already been processed (Status: ${log.status}).`, false);
+    }
+
+    const isValid = await verifyToken(logId, log.user_id, token);
+    if (!isValid) {
+      return renderHtmlResponse("Security token validation failed. Access denied.", false);
+    }
+
+    if (action === "reject") {
+      await supabase
+        .from("automation_logs")
+        .update({ status: "rejected" })
+        .eq("id", logId);
+      return renderHtmlResponse("Success! This trend draft has been discarded.", true);
+    }
+
+    const { data: settings } = await supabase
+      .from("automation_settings")
+      .select("*")
+      .eq("user_id", log.user_id)
+      .single();
+
+    if (action === "publish") {
+      // 1. Create a scheduled post row set to publish now
+      const { data: post, error: postErr } = await supabase
+        .from("scheduled_posts")
+        .insert({
+          user_id: log.user_id,
+          title: log.trend_title,
+          description: log.caption,
+          media_urls: log.media_url ? [log.media_url] : [],
+          platforms: settings?.platforms || [],
+          scheduled_time: new Date().toISOString(),
+          status: "pending",
+        })
+        .select()
+        .single();
+
+      if (postErr) throw postErr;
+
+      // 2. Publish it immediately using the Edge Function's standard pipeline!
+      const pubRes = await processPost(post);
+      
+      if (pubRes.status === "failed") {
+        throw new Error("Publishing failed.");
+      }
+
+      // 3. Mark log as published
+      await supabase
+        .from("automation_logs")
+        .update({ 
+          status: "published",
+          scheduled_post_id: post.id 
+        })
+        .eq("id", logId);
+
+      return renderHtmlResponse("Success! Your post has been published live to your social channels.", true);
+    }
+
+    if (action === "schedule") {
+      const postTime = settings?.post_time || "09:00:00";
+      const targetTime = getNextPostTime(postTime);
+
+      const { data: post, error: postErr } = await supabase
+        .from("scheduled_posts")
+        .insert({
+          user_id: log.user_id,
+          title: log.trend_title,
+          description: log.caption,
+          media_urls: log.media_url ? [log.media_url] : [],
+          platforms: settings?.platforms || [],
+          scheduled_time: targetTime.toISOString(),
+          status: "pending",
+        })
+        .select()
+        .single();
+
+      if (postErr) throw postErr;
+
+      await supabase
+        .from("automation_logs")
+        .update({
+          status: "approved",
+          scheduled_post_id: post.id,
+        })
+        .eq("id", logId);
+
+      return renderHtmlResponse(`Success! Your post has been approved and scheduled.`, true);
+    }
+
+    return renderHtmlResponse("Unsupported action.", false);
+  } catch (err: any) {
+    return renderHtmlResponse(`Failed to process action: ${err.message || err}`, false);
+  }
+}
+
+async function runAutomationTrigger(origin: string) {
+  const { data: allSettings, error: allErr } = await supabase
+    .from("automation_settings")
+    .select("*")
+    .eq("is_enabled", true);
+
+  if (allErr || !allSettings) return;
+
+  for (const settings of allSettings) {
+    const targetTime = getNextPostTime(settings.post_time);
+    const diffMs = targetTime.getTime() - Date.now();
+    const diffMins = Math.floor(diffMs / 60000);
+
+    // Trigger if we are 10 minutes before posting time (accepts 8-12m buffer)
+    if (diffMins >= 8 && diffMins <= 12) {
+      try {
+        const { data: dbUser } = await supabase.auth.admin.getUserById(settings.user_id);
+        const email = dbUser?.user?.email || "";
+        await runAutomationForUser(settings.user_id, settings, email, origin);
+      } catch (e) {
+        console.error(`Automation trigger failed for user ${settings.user_id}:`, e);
+      }
+    }
+  }
+}
+
+async function runAutomationForUser(userId: string, settings: any, userEmail: string, origin: string) {
+  const { mode, platforms, categories, keywords, approval_email, post_time } = settings;
+
+  if (!platforms || platforms.length === 0) {
+    throw new Error("No target platforms configured for automation.");
+  }
+
+  // 1. Fetch News / Trend Topic
+  let trendTitle = "";
+  let trendExplanation = "";
+
+  try {
+    let rssUrl = "";
+    if (keywords && keywords.length > 0) {
+      const query = keywords.join(" ");
+      rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-US&gl=US&ceid=US:en`;
+    } else {
+      const cat = (categories && categories[0]) || "WORLD";
+      rssUrl = `https://news.google.com/rss/headlines/section/topic/${cat.toUpperCase()}?hl=en-US&gl=US&ceid=US:en`;
+    }
+
+    const feedRes = await fetch(rssUrl);
+    if (feedRes.ok) {
+      const xml = await feedRes.text();
+      const itemRegex = /<item>([\s\S]*?)<\/item>/;
+      const match = xml.match(itemRegex);
+      if (match) {
+        const content = match[1];
+        const rawTitle = content.match(/<title>([\s\S]*?)<\/title>/)?.[1] || "";
+        const rawDesc = content.match(/<description>([\s\S]*?)<\/description>/)?.[1] || "";
+
+        const unescape = (str: string) => str
+          .replace(/&amp;/g, "&")
+          .replace(/&lt;/g, "<")
+          .replace(/&gt;/g, ">")
+          .replace(/&quot;/g, '"')
+          .replace(/&#39;/g, "'")
+          .replace(/&apos;/g, "'")
+          .replace(/<[^>]*>/g, "");
+
+        trendTitle = unescape(rawTitle).replace(/\s+-\s+[^-]+$/, "").trim();
+        trendExplanation = unescape(rawDesc).trim();
+      }
+    }
+  } catch (e) {
+    console.error("RSS fetch failed, using fallback:", e);
+  }
+
+  if (!trendTitle) {
+    trendTitle = "AI Agents Transform Office Productivity";
+    trendExplanation = "Businesses are deploying autonomous AI agents to automate workflows, boosting operational efficiency by 40%.";
+  }
+
+  const systemPrompt = `You are a viral social media strategist and content copywriter. Generate a comprehensive, detailed, and high-performing social media post caption about the following trend.
+
+Trend: "${trendTitle}"
+Description: "${trendExplanation}"
+
+Requirements:
+- Keep the caption brief, engaging, and professional. The entire text must fit within a 2-3 sentence paragraph (max 280 characters).
+- Do NOT include any reasoning, planning, or character counting calculations in your response. 
+- Do NOT say "Let's count using approximate" or output any breakdown of characters or words.
+- Format structure: Start with an attention-grabbing hook, provide brief context, and end with a strong CTA and 2-3 hashtags.
+- Use emojis naturally.
+
+Return ONLY the plain, final social media caption itself. No wrapper quotes, no markdown headers, and absolutely no additional commentary.`;
+
+  const captionRes = await fetch(POLLINATIONS_TEXT_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      messages: [{ role: "user", content: systemPrompt }],
+      model: "openai",
+      temperature: 0.8,
+    }),
+  });
+
+  if (!captionRes.ok) {
+    throw new Error("Failed to generate caption");
+  }
+
+  const caption = (await captionRes.text()).trim();
+
+  // 3. Scrape Web Image or Generate Image
+  let imageBuffer: ArrayBuffer | null = null;
+  let contentType = "image/jpeg";
+
+  try {
+    const htmlRes = await fetch(`https://duckduckgo.com/?q=${encodeURIComponent(trendTitle)}`, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+      }
+    });
+    if (htmlRes.ok) {
+      const html = await htmlRes.text();
+      const vqdMatch = html.match(/vqd=['"]?([^'"]+)['"]?/);
+      if (vqdMatch) {
+        const vqd = vqdMatch[1];
+        const imagesRes = await fetch(`https://duckduckgo.com/i.js?q=${encodeURIComponent(trendTitle)}&o=json&vqd=${vqd}`, {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Referer": "https://duckduckgo.com/"
+          }
+        });
+        if (imagesRes.ok) {
+          const json = await imagesRes.json();
+          const results = json.results || [];
+          if (results.length > 0) {
+            const imageUrl = results[0].image;
+            const dlRes = await fetch(imageUrl, {
+              headers: {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+              }
+            });
+            if (dlRes.ok) {
+              imageBuffer = await dlRes.arrayBuffer();
+              contentType = dlRes.headers.get("content-type") || "image/jpeg";
+            }
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error("DDG visual search failed, falling back to AI generation:", err);
+  }
+
+  if (!imageBuffer) {
+    try {
+      const aiImgUrl = `${POLLINATIONS_IMAGE_URL}${encodeURIComponent(trendTitle)}?width=1024&height=1024&nologo=true`;
+      const aiImgRes = await fetch(aiImgUrl);
+      if (aiImgRes.ok) {
+        imageBuffer = await aiImgRes.arrayBuffer();
+        contentType = "image/png";
+      }
+    } catch (err) {
+      console.error("Pollinations AI image generation failed:", err);
+    }
+  }
+
+  // 4. Upload Visual to Supabase Storage
+  let publicMediaUrl = "";
+
+  if (imageBuffer) {
+    const fileExt = contentType.includes("png") ? "png" : "jpeg";
+    const storagePath = `${userId}/auto-${Date.now()}.${fileExt}`;
+
+    const { data: storageData, error: storageError } = await supabase.storage
+      .from("media-library")
+      .upload(storagePath, new Uint8Array(imageBuffer), {
+        cacheControl: "3600",
+        contentType: contentType,
+        upsert: false,
+      });
+
+    if (!storageError && storageData) {
+      const { data: { publicUrl } } = supabase.storage
+        .from("media-library")
+        .getPublicUrl(storageData.path);
+
+      publicMediaUrl = publicUrl;
+
+      await supabase
+        .from("media_library")
+        .insert({
+          user_id: userId,
+          file_name: `auto-${Date.now()}.${fileExt}`,
+          file_url: publicUrl,
+          file_type: "image",
+          file_size: imageBuffer.byteLength,
+        });
+    }
+  }
+
+  // 5. Execute Mode Actions
+  if (mode === "automatic") {
+    const targetTime = getNextPostTime(post_time);
+
+    const { data: post, error: postErr } = await supabase
+      .from("scheduled_posts")
+      .insert({
+        user_id: userId,
+        title: trendTitle,
+        description: caption,
+        media_urls: publicMediaUrl ? [publicMediaUrl] : [],
+        platforms: platforms || [],
+        scheduled_time: targetTime.toISOString(),
+        status: "pending",
+      })
+      .select()
+      .single();
+
+    if (postErr) throw postErr;
+
+    await supabase
+      .from("automation_logs")
+      .insert({
+        user_id: userId,
+        trend_title: trendTitle,
+        caption: caption,
+        media_url: publicMediaUrl,
+        mode: "automatic",
+        status: "approved",
+        scheduled_post_id: post.id,
+      });
+
+  } else {
+    const { data: logEntry, error: logErr } = await supabase
+      .from("automation_logs")
+      .insert({
+        user_id: userId,
+        trend_title: trendTitle,
+        caption: caption,
+        media_url: publicMediaUrl,
+        mode: "manual",
+        status: "pending",
+      })
+      .select()
+      .single();
+
+    if (logErr) throw logErr;
+
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    if (resendApiKey) {
+      try {
+        const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+        const tokenPayload = logEntry.id + userId + serviceRoleKey;
+        const encoder = new TextEncoder();
+        const data = encoder.encode(tokenPayload);
+        const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const token = hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+
+        const scheduleUrl = `${origin}/functions/v1/auto-publish?logId=${logEntry.id}&action=schedule&token=${token}`;
+        const publishUrl = `${origin}/functions/v1/auto-publish?logId=${logEntry.id}&action=publish&token=${token}`;
+        const rejectUrl = `${origin}/functions/v1/auto-publish?logId=${logEntry.id}&action=reject&token=${token}`;
+
+        let formattedLocalTime = post_time.slice(0, 5);
+        try {
+          const [h, m] = post_time.split(":").map(Number);
+          const tDate = new Date();
+          tDate.setUTCHours(h, m, 0, 0);
+          const formatter = new Intl.DateTimeFormat("en-US", {
+            timeStyle: "short",
+            timeZone: settings.timezone || "UTC",
+          });
+          formattedLocalTime = formatter.format(tDate);
+        } catch (e) {
+          console.error("Failed to format local time:", e);
+        }
+
+        const emailHtml = `
+          <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #f6f7f1; padding: 24px 0;">
+            <tr>
+              <td align="center">
+                <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 580px; background-color: #ffffff; border: 1px solid #e1e3de; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(31,37,40,0.03);">
+                  <tr>
+                    <td style="padding: 32px;">
+                      <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                        <tr>
+                          <td>
+                            <p style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: #2f7867; margin: 0 0 6px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;">PostSync Engine</p>
+                            <h2 style="font-size: 22px; font-weight: 900; color: #1f2528; margin: 0 0 20px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; letter-spacing: -0.5px;">New Trend Draft Generated</h2>
+                          </td>
+                        </tr>
+                      </table>
+
+                      <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #fcfdfb; border: 1px solid #eef0eb; border-radius: 12px; margin-bottom: 24px;">
+                        <tr>
+                          <td style="padding: 20px;">
+                            <h4 style="font-size: 14px; font-weight: 800; color: #1f2528; margin: 0 0 10px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;">Topic: ${trendTitle}</h4>
+                            <p style="font-size: 13px; color: #2b3338; line-height: 1.6; margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; white-space: pre-wrap;">${caption}</p>
+                          </td>
+                        </tr>
+                      </table>
+
+                      ${publicMediaUrl ? `
+                      <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom: 24px;">
+                        <tr>
+                          <td>
+                            <img src="${publicMediaUrl}" alt="Trend Visual" width="100%" style="width: 100%; max-width: 100%; height: auto; display: block; border-radius: 12px; border: 1px solid #eaeaea;" />
+                          </td>
+                        </tr>
+                      </table>
+                      ` : ""}
+
+                      <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom: 24px;">
+                        <tr>
+                          <td>
+                            <p style="font-size: 13px; color: #5a656c; line-height: 1.6; margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;">
+                              This post was generated exactly 10 minutes before your target posting time (${formattedLocalTime}). Please review the options below to approve or discard it:
+                            </p>
+                          </td>
+                        </tr>
+                      </table>
+
+                      <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom: 20px;">
+                        <tr>
+                          <td>
+                            <a href="${scheduleUrl}" style="display: inline-block; background-color: #2f7867; color: #ffffff; font-size: 13px; font-weight: 750; padding: 12px 20px; text-decoration: none; border-radius: 10px; margin-right: 8px; margin-bottom: 8px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; text-align: center;">Approve & Schedule</a>
+                            <a href="${publishUrl}" style="display: inline-block; background-color: #f3f6f1; color: #2f7867; font-size: 13px; font-weight: 750; padding: 12px 20px; text-decoration: none; border-radius: 10px; border: 1px solid rgba(47, 120, 103, 0.15); margin-right: 8px; margin-bottom: 8px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; text-align: center;">Publish Now</a>
+                            <a href="${rejectUrl}" style="display: inline-block; background-color: #ffffff; color: #e11d48; font-size: 13px; font-weight: 750; padding: 12px 20px; text-decoration: none; border-radius: 10px; border: 1px solid #fecdd3; margin-bottom: 8px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; text-align: center;">Reject</a>
+                          </td>
+                        </tr>
+                      </table>
+
+                      <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                        <tr>
+                          <td style="border-top: 1px solid #eef0eb; padding-top: 24px; text-align: center;">
+                            <p style="font-size: 11px; color: #a1a59b; margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; font-weight: 600; letter-spacing: 0.5px;">PostSync &middot; Autonomous Campaigns</p>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        `;
+
+        await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${resendApiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            from: "PostSync <onboarding@resend.dev>",
+            to: [approval_email || userEmail],
+            subject: `Approval Required: ${trendTitle.slice(0, 45)}`,
+            html: emailHtml,
+          }),
+        });
+      } catch (e) {
+        console.error("Resend email failed:", e);
+      }
+    }
+  }
+}
+
+Deno.serve(async (req) => {
+  const url = new URL(req.url);
+  const action = url.searchParams.get("action");
+  const logId = url.searchParams.get("logId");
+  const token = url.searchParams.get("token");
+
+  // Route 1: Handle approval callback
+  if (action && logId && token) {
+    return await handleExternalApproval(logId, action, token);
+  }
+
+  // Route 2: Run scheduled publisher tick + automation trigger checks
   const startTime = Date.now();
   const results: { id: string; status: string }[] = [];
 
   try {
-    // Atomically CLAIM due posts (pending -> publishing) instead of just
-    // SELECTing them. A plain SELECT here was the root cause of posts
-    // publishing twice or thrice: it left rows as "pending" the whole time
-    // they were being worked on, so a second scheduler run — the Vercel cron
-    // hitting /api/scheduler/run, an overlapping pg_cron tick, or a manual
-    // retry — could pick up the exact same rows and publish them again in
-    // parallel. The claim_due_scheduled_posts() function uses
-    // `FOR UPDATE SKIP LOCKED` so each row can only ever be claimed by one
-    // caller, no matter how many schedulers are running or how often they
-    // overlap. It also recovers posts stuck in "publishing" from a run that
-    // crashed/timed out (retrying them a bounded number of times) and gives
-    // up with an explicit "failed" status if a post still can't get through
-    // after repeated attempts, instead of leaving it silently stuck forever.
+    // Run automation trigger checks for all active users
+    const origin = url.origin;
+    await runAutomationTrigger(origin);
+
+    // Atomically claim and process scheduled posts (original logic)
     const { data: duePosts, error } = await supabase.rpc("claim_due_scheduled_posts", {
       p_batch_size: BATCH_LIMIT,
     });
@@ -204,28 +798,23 @@ Deno.serve(async (_req) => {
       return new Response(JSON.stringify({ error: error.message }), { status: 500 });
     }
 
-    if (!duePosts || duePosts.length === 0) {
-      console.log("No due posts");
-      return new Response(JSON.stringify({ message: "No due posts" }), { status: 200 });
-    }
+    if (duePosts && duePosts.length > 0) {
+      console.log(`Found ${duePosts.length} due posts`);
+      for (let i = 0; i < duePosts.length; i += CONCURRENCY) {
+        if (Date.now() - startTime > MAX_RUN_MS) {
+          console.warn(`Timeout guard hit after ${results.length} posts — stopping early`);
+          break;
+        }
 
-    console.log(`Found ${duePosts.length} due posts`);
+        const batch = duePosts.slice(i, i + CONCURRENCY);
+        const settled = await Promise.allSettled(batch.map((post) => processPost(post)));
 
-    // Process in parallel batches of CONCURRENCY
-    for (let i = 0; i < duePosts.length; i += CONCURRENCY) {
-      if (Date.now() - startTime > MAX_RUN_MS) {
-        console.warn(`Timeout guard hit after ${results.length} posts — stopping early`);
-        break;
-      }
-
-      const batch = duePosts.slice(i, i + CONCURRENCY);
-      const settled = await Promise.allSettled(batch.map((post) => processPost(post)));
-
-      for (const outcome of settled) {
-        if (outcome.status === "fulfilled") {
-          results.push(outcome.value);
-        } else {
-          console.error("processPost rejected:", outcome.reason);
+        for (const outcome of settled) {
+          if (outcome.status === "fulfilled") {
+            results.push(outcome.value);
+          } else {
+            console.error("processPost rejected:", outcome.reason);
+          }
         }
       }
     }
@@ -234,7 +823,7 @@ Deno.serve(async (_req) => {
     console.log(`Done: ${results.length} posts in ${duration}ms`);
 
     return new Response(
-      JSON.stringify({ processed: results, total: results.length, duration_ms: duration }),
+      JSON.stringify({ ok: true, processed: results, total: results.length, duration_ms: duration }),
       { status: 200 }
     );
 

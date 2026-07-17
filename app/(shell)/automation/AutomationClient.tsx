@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Sparkles,
   Play,
@@ -18,7 +18,8 @@ import {
   AlertTriangle,
   ExternalLink,
   Save,
-  Info
+  Info,
+  Calendar
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -35,6 +36,13 @@ interface AutomationSettings {
   categories: string[];
   keywords: string[];
   approval_email?: string | null;
+  schedule_type?: string;
+  post_times?: string[];
+  post_days?: string[];
+  post_day_of_month?: number;
+  frontend_url?: string;
+  use_same_settings?: boolean;
+  time_configs?: Record<string, { platforms: string[], categories: string[], keywords: string[] }>;
 }
 
 interface AutomationLog {
@@ -46,6 +54,9 @@ interface AutomationLog {
   status: "pending" | "approved" | "rejected" | "published" | "failed";
   scheduled_post_id?: string | null;
   created_at: string;
+  scheduled_posts?: {
+    platforms: string[];
+  } | null;
 }
 
 interface Props {
@@ -60,8 +71,6 @@ const AVAILABLE_PLATFORMS = [
   { id: "facebook", name: "Facebook" },
   { id: "linkedin", name: "LinkedIn" },
   { id: "bluesky", name: "Bluesky" },
-  { id: "youtube", name: "YouTube" },
-  { id: "twitter", name: "Twitter/X" },
 ];
 
 const AVAILABLE_CATEGORIES = [
@@ -76,25 +85,41 @@ const AVAILABLE_CATEGORIES = [
 
 export default function AutomationClient({ user, initialSettings, initialLogs }: Props) {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
-  // Convert UTC post_time from DB to local time for the input
-  const getInitialLocalTime = () => {
-    if (!initialSettings.post_time) return "09:00";
-    const [h, m] = initialSettings.post_time.split(":").map(Number);
-    const d = new Date();
-    d.setUTCHours(h, m, 0, 0);
-    return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  // Convert UTC post_times from DB to local times for inputs
+  const getInitialLocalTimes = () => {
+    const rawTimes = initialSettings.post_times || (initialSettings.post_time ? [initialSettings.post_time] : ["09:00:00"]);
+    return rawTimes.map((timeStr: string) => {
+      const [h, m] = timeStr.split(":").map(Number);
+      const d = new Date();
+      d.setUTCHours(h, m, 0, 0);
+      return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+    });
   };
 
   // Settings states
   const [isEnabled, setIsEnabled] = useState(initialSettings.is_enabled !== false);
-  const [postTime, setPostTime] = useState(getInitialLocalTime());
+  const [postTimes, setPostTimes] = useState<string[]>(getInitialLocalTimes());
+  const [scheduleType, setScheduleType] = useState<"daily" | "weekly" | "weekdays" | "monthly">(
+    (initialSettings.schedule_type as any) || "daily"
+  );
+  const [postDays, setPostDays] = useState<string[]>(
+    initialSettings.post_days || ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+  );
+  const [postDayOfMonth, setPostDayOfMonth] = useState<number>(initialSettings.post_day_of_month || 1);
+
   const [mode, setMode] = useState<"manual" | "automatic">(initialSettings.mode || "manual");
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(initialSettings.platforms || []);
   const [selectedCategories, setSelectedCategories] = useState<string[]>(initialSettings.categories || ["world"]);
   const [keywordInput, setKeywordInput] = useState("");
   const [keywords, setKeywords] = useState<string[]>(initialSettings.keywords || []);
   const [approvalEmail, setApprovalEmail] = useState(initialSettings.approval_email || user.email || "");
+
+  // Multi-time config states
+  const [useSameSettings, setUseSameSettings] = useState<boolean>(initialSettings.use_same_settings !== false);
+  const [timeConfigs, setTimeConfigs] = useState<Record<string, { platforms: string[], categories: string[], keywords: string[] }>>(initialSettings.time_configs || {});
+  const [selectedTimeForConfig, setSelectedTimeForConfig] = useState<string>("all");
 
   // Logs states
   const [logs, setLogs] = useState<AutomationLog[]>(initialLogs);
@@ -118,8 +143,40 @@ export default function AutomationClient({ user, initialSettings, initialLogs }:
     }
   }, [toast]);
 
+  // Handle email redirection toast notifications
+  useEffect(() => {
+    const status = searchParams.get("status");
+    const msg = searchParams.get("message");
+    if (status && msg) {
+      showToast(msg, status === "success" ? "success" : "error");
+
+      // Clean up URL query parameters
+      const url = new URL(window.location.href);
+      url.searchParams.delete("status");
+      url.searchParams.delete("message");
+      window.history.replaceState({}, "", url.pathname + url.search);
+    }
+  }, [searchParams]);
+
   const showToast = (msg: string, type: "success" | "error" = "success") => {
     setToast({ msg, type });
+  };
+
+  // Convert local selectedTimeForConfig ("17:15") to UTC key ("11:45:00")
+  const localTimeToUtcStr = (localTime: string): string => {
+    if (!localTime || localTime === "all") return "";
+    const [h, m] = localTime.split(":").map(Number);
+    const d = new Date();
+    d.setHours(h, m, 0, 0);
+    return `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}:00`;
+  };
+
+  const formatLocalTimeDisplay = (timeStr: string) => {
+    if (!timeStr || timeStr === "all") return "";
+    const [h, m] = timeStr.split(":").map(Number);
+    const ampm = h >= 12 ? "PM" : "AM";
+    const displayHour = h % 12 || 12;
+    return `${String(displayHour).padStart(2, "0")}:${String(m).padStart(2, "0")} ${ampm}`;
   };
 
   // Keyboard keywords input helper
@@ -127,40 +184,89 @@ export default function AutomationClient({ user, initialSettings, initialLogs }:
     if (e.key === "Enter") {
       e.preventDefault();
       const val = keywordInput.trim().toLowerCase();
-      if (val && !keywords.includes(val)) {
-        setKeywords([...keywords, val]);
-        setKeywordInput("");
+      if (!val) return;
+
+      if (useSameSettings || selectedTimeForConfig === "all") {
+        if (!keywords.includes(val)) {
+          setKeywords([...keywords, val]);
+          setKeywordInput("");
+        }
+      } else {
+        const utcKey = localTimeToUtcStr(selectedTimeForConfig);
+        const currentConf = timeConfigs[utcKey] || { platforms: selectedPlatforms, categories: selectedCategories, keywords: keywords };
+        const kws = currentConf.keywords || [];
+        if (!kws.includes(val)) {
+          setTimeConfigs({
+            ...timeConfigs,
+            [utcKey]: { ...currentConf, keywords: [...kws, val] }
+          });
+          setKeywordInput("");
+        }
       }
     }
   };
 
   const handleRemoveKeyword = (kw: string) => {
-    setKeywords(keywords.filter((k) => k !== kw));
+    if (useSameSettings || selectedTimeForConfig === "all") {
+      setKeywords(keywords.filter((k) => k !== kw));
+    } else {
+      const utcKey = localTimeToUtcStr(selectedTimeForConfig);
+      const currentConf = timeConfigs[utcKey] || { platforms: selectedPlatforms, categories: selectedCategories, keywords: keywords };
+      const kws = currentConf.keywords || [];
+      setTimeConfigs({
+        ...timeConfigs,
+        [utcKey]: { ...currentConf, keywords: kws.filter((k) => k !== kw) }
+      });
+    }
   };
 
   // Toggle platform select
   const togglePlatform = (id: string) => {
-    if (selectedPlatforms.includes(id)) {
-      setSelectedPlatforms(selectedPlatforms.filter((p) => p !== id));
+    if (useSameSettings || selectedTimeForConfig === "all") {
+      if (selectedPlatforms.includes(id)) {
+        setSelectedPlatforms(selectedPlatforms.filter((p) => p !== id));
+      } else {
+        setSelectedPlatforms([...selectedPlatforms, id]);
+      }
     } else {
-      setSelectedPlatforms([...selectedPlatforms, id]);
+      const utcKey = localTimeToUtcStr(selectedTimeForConfig);
+      const currentConf = timeConfigs[utcKey] || { platforms: selectedPlatforms, categories: selectedCategories, keywords: keywords };
+      const platforms = currentConf.platforms || [];
+      const nextPlatforms = platforms.includes(id) ? platforms.filter((p) => p !== id) : [...platforms, id];
+      setTimeConfigs({
+        ...timeConfigs,
+        [utcKey]: { ...currentConf, platforms: nextPlatforms }
+      });
     }
   };
 
   // Toggle category select
   const toggleCategory = (id: string) => {
-    if (selectedCategories.includes(id)) {
-      setSelectedCategories(selectedCategories.filter((c) => c !== id));
+    if (useSameSettings || selectedTimeForConfig === "all") {
+      if (selectedCategories.includes(id)) {
+        setSelectedCategories(selectedCategories.filter((c) => c !== id));
+      } else {
+        setSelectedCategories([...selectedCategories, id]);
+      }
     } else {
-      setSelectedCategories([...selectedCategories, id]);
+      const utcKey = localTimeToUtcStr(selectedTimeForConfig);
+      const currentConf = timeConfigs[utcKey] || { platforms: selectedPlatforms, categories: selectedCategories, keywords: keywords };
+      const categories = currentConf.categories || [];
+      const nextCategories = categories.includes(id) ? categories.filter((c) => c !== id) : [...categories, id];
+      setTimeConfigs({
+        ...timeConfigs,
+        [utcKey]: { ...currentConf, categories: nextCategories }
+      });
     }
   };
 
-  const getUtcPostTime = (localTime: string) => {
-    const [h, m] = localTime.split(":").map(Number);
-    const d = new Date();
-    d.setHours(h, m, 0, 0);
-    return `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}:00`;
+  const getUtcPostTimes = (localTimes: string[]) => {
+    return localTimes.map((localTime) => {
+      const [h, m] = localTime.split(":").map(Number);
+      const d = new Date();
+      d.setHours(h, m, 0, 0);
+      return `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}:00`;
+    });
   };
 
   // Toggle Content Automation Active/Paused
@@ -173,13 +279,19 @@ export default function AutomationClient({ user, initialSettings, initialLogs }:
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           is_enabled: nextState,
-          post_time: getUtcPostTime(postTime),
+          post_times: getUtcPostTimes(postTimes),
+          schedule_type: scheduleType,
+          post_days: postDays,
+          post_day_of_month: postDayOfMonth,
           mode,
           platforms: selectedPlatforms,
           categories: selectedCategories,
           keywords,
           approval_email: approvalEmail,
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          frontend_url: window.location.origin,
+          use_same_settings: useSameSettings,
+          time_configs: timeConfigs,
         }),
       });
       const data = await res.json();
@@ -201,13 +313,19 @@ export default function AutomationClient({ user, initialSettings, initialLogs }:
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           is_enabled: isEnabled,
-          post_time: getUtcPostTime(postTime),
+          post_times: getUtcPostTimes(postTimes),
+          schedule_type: scheduleType,
+          post_days: postDays,
+          post_day_of_month: postDayOfMonth,
           mode,
           platforms: selectedPlatforms,
           categories: selectedCategories,
           keywords,
           approval_email: approvalEmail,
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          frontend_url: window.location.origin,
+          use_same_settings: useSameSettings,
+          time_configs: timeConfigs,
         }),
       });
 
@@ -389,6 +507,20 @@ export default function AutomationClient({ user, initialSettings, initialLogs }:
   const pendingQueue = logs.filter((l) => l.status === "pending");
   const pastLogs = logs;
 
+  // Active configurations based on selectedTimeForConfig
+  const utcKey = localTimeToUtcStr(selectedTimeForConfig);
+  const activePlatforms = useSameSettings || selectedTimeForConfig === "all"
+    ? selectedPlatforms
+    : (timeConfigs[utcKey]?.platforms || selectedPlatforms);
+
+  const activeCategories = useSameSettings || selectedTimeForConfig === "all"
+    ? selectedCategories
+    : (timeConfigs[utcKey]?.categories || selectedCategories);
+
+  const activeKeywords = useSameSettings || selectedTimeForConfig === "all"
+    ? keywords
+    : (timeConfigs[utcKey]?.keywords || keywords);
+
   return (
     <div className="dashboard-light relative min-h-screen bg-[#f6f7f1] text-[#1f2528]">
       {/* Background Gradients */}
@@ -418,7 +550,7 @@ export default function AutomationClient({ user, initialSettings, initialLogs }:
             <p className="text-xs font-bold uppercase tracking-[0.28em] text-[#2f7867]/70">Scheduler Engine</p>
             <h1 className="mt-1 text-3xl font-black tracking-[-0.03em] text-[#1f2528]">Content Automation</h1>
             <p className="mt-1 text-sm text-slate-500">
-              Auto-generate drafts from Google Trends and publish them directly to your socials.
+              Auto-generate drafts and publish them directly to your socials.
             </p>
           </div>
 
@@ -511,34 +643,207 @@ export default function AutomationClient({ user, initialSettings, initialLogs }:
                   </div>
                 )}
 
-                {/* Post Time */}
+                {/* Advanced Recurrence Pattern */}
                 <div>
                   <label className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                    <Clock className="h-3.5 w-3.5" /> Posting Schedule (Daily)
+                    <Calendar className="h-3.5 w-3.5" /> Recurrence Pattern
                   </label>
-                  <input
-                    type="time"
-                    value={postTime.slice(0, 5)}
-                    onChange={(e) => setPostTime(e.target.value + ":00")}
+                  <select
+                    value={scheduleType}
+                    onChange={(e) => setScheduleType(e.target.value as any)}
                     className="mt-2 block w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-[#1f2528] shadow-sm focus:border-[#2f7867] focus:outline-none"
-                  />
+                  >
+                    <option value="daily">Daily</option>
+                    <option value="weekdays">Every weekday (Monday to Friday)</option>
+                    <option value="weekly">Weekly (Custom days)</option>
+                    <option value="monthly">Monthly</option>
+                  </select>
+                </div>
+
+                {/* Weekly Day Toggles */}
+                {scheduleType === "weekly" && (
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      Active Days
+                    </label>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"].map((day) => {
+                        const selected = postDays.includes(day);
+                        const label = day.slice(0, 3).toUpperCase();
+                        return (
+                          <button
+                            key={day}
+                            type="button"
+                            onClick={() => {
+                              if (postDays.includes(day)) {
+                                setPostDays(postDays.filter((d) => d !== day));
+                              } else {
+                                setPostDays([...postDays, day]);
+                              }
+                            }}
+                            className={`h-8 w-12 rounded-lg border text-[10px] font-black transition flex items-center justify-center ${
+                              selected
+                                ? "border-[#2f7867] bg-[#2f7867] text-white"
+                                : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Monthly Day Selector */}
+                {scheduleType === "monthly" && (
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      Day of the Month
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="31"
+                      value={postDayOfMonth}
+                      onChange={(e) => setPostDayOfMonth(Math.max(1, Math.min(31, Number(e.target.value))))}
+                      className="mt-2 block w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-[#1f2528] shadow-sm focus:border-[#2f7867] focus:outline-none"
+                    />
+                  </div>
+                )}
+
+                {/* Multiple Posting Times */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                    <Clock className="h-3.5 w-3.5" /> Posting Times
+                  </label>
+                  <div className="space-y-2">
+                    {postTimes.map((time, idx) => (
+                      <div key={idx} className="flex items-center gap-2">
+                        <input
+                          type="time"
+                          value={time.slice(0, 5)}
+                          onChange={(e) => {
+                            if (!e.target.value) return;
+                            const newTimes = [...postTimes];
+                            newTimes[idx] = e.target.value + ":00";
+                            setPostTimes(newTimes);
+                          }}
+                          className="block w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-[#1f2528] shadow-sm focus:border-[#2f7867] focus:outline-none"
+                        />
+                        {postTimes.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => setPostTimes(postTimes.filter((_, i) => i !== idx))}
+                            className="p-2.5 text-rose-500 hover:bg-rose-50 rounded-xl transition border border-transparent hover:border-rose-100"
+                            title="Remove Time"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setPostTimes([...postTimes, "09:00:00"])}
+                    className="mt-1 flex items-center gap-1 text-[10px] font-bold text-[#2f7867] hover:text-[#255f52] transition focus:outline-none"
+                  >
+                    + Add Posting Time
+                  </button>
+                </div>
+
+                {/* Multi-time Configuration Selector Mode */}
+                <div className="bg-[#2f7867]/5 border border-[#2f7867]/10 rounded-2xl p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-xs font-black text-[#1f2528] uppercase tracking-wide">Configure per post time</h4>
+                      <p className="text-[9px] text-slate-400 font-bold leading-normal">Use different platforms, categories, or keywords for each scheduled time.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const nextValue = !useSameSettings;
+                        setUseSameSettings(nextValue);
+                        if (nextValue) {
+                          setSelectedTimeForConfig("all");
+                        } else if (postTimes.length > 0) {
+                          setSelectedTimeForConfig(postTimes[0]);
+                        }
+                      }}
+                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                        !useSameSettings ? "bg-indigo-600" : "bg-slate-200"
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                          !useSameSettings ? "translate-x-4" : "translate-x-0"
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  {!useSameSettings && (
+                    <div className="flex flex-col gap-2 pt-2.5 border-t border-slate-200/50">
+                      <label className="text-[9px] font-black text-slate-400 uppercase tracking-wide">Editing settings for time:</label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {postTimes.map((timeStr) => (
+                          <button
+                            key={timeStr}
+                            type="button"
+                            onClick={() => setSelectedTimeForConfig(timeStr)}
+                            className={`px-3 py-1.5 rounded-lg text-[10px] font-black tracking-wide transition border ${
+                              selectedTimeForConfig === timeStr
+                                ? "bg-indigo-600 border-indigo-700 text-white shadow-sm"
+                                : "bg-white border-slate-200 text-slate-500 hover:bg-slate-50"
+                            }`}
+                          >
+                            {formatLocalTimeDisplay(timeStr)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Target Channels */}
                 <div>
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Target Channels</label>
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center justify-between">
+                    <span>Target Channels</span>
+                    {!useSameSettings && selectedTimeForConfig !== "all" && (
+                      <span className="text-[9px] text-indigo-600 font-black uppercase tracking-wide">
+                        [Editing {formatLocalTimeDisplay(selectedTimeForConfig)}]
+                      </span>
+                    )}
+                  </label>
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {AVAILABLE_PLATFORMS.map((p) => {
-                      const selected = selectedPlatforms.includes(p.id);
+                      const selected = activePlatforms.includes(p.id);
+                      
+                      // Official brand color styles when selected
+                      let activeStyle = "border-slate-200 bg-white text-slate-600 hover:bg-slate-50";
+                      if (selected) {
+                        if (p.id === "threads") {
+                          activeStyle = "bg-zinc-950 border-zinc-950 text-white shadow-sm";
+                        } else if (p.id === "instagram") {
+                          activeStyle = "bg-gradient-to-r from-[#f09433] via-[#e6683c] via-[#dc2743] via-[#cc2366] to-[#bc1888] border-transparent text-white shadow-sm";
+                        } else if (p.id === "facebook") {
+                          activeStyle = "bg-[#1877f2] border-[#1877f2] text-white shadow-sm";
+                        } else if (p.id === "linkedin") {
+                          activeStyle = "bg-[#0a66c2] border-[#0a66c2] text-white shadow-sm";
+                        } else if (p.id === "bluesky") {
+                          activeStyle = "bg-[#0560ff] border-[#0560ff] text-white shadow-sm";
+                        } else {
+                          activeStyle = "bg-indigo-600 border-indigo-700 text-white shadow-sm";
+                        }
+                      }
+
                       return (
                         <button
                           key={p.id}
+                          type="button"
                           onClick={() => togglePlatform(p.id)}
-                          className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition ${
-                            selected
-                              ? "border-[#2f7867] bg-[#2f7867] text-white"
-                              : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                          }`}
+                          className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition ${activeStyle}`}
                         >
                           {p.name}
                         </button>
@@ -556,14 +861,15 @@ export default function AutomationClient({ user, initialSettings, initialLogs }:
                     <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Monitoring Categories</label>
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       {AVAILABLE_CATEGORIES.map((c) => {
-                        const selected = selectedCategories.includes(c.id);
+                        const selected = activeCategories.includes(c.id);
                         return (
                           <button
                             key={c.id}
+                            type="button"
                             onClick={() => toggleCategory(c.id)}
                             className={`rounded-lg border px-2.5 py-1 text-[10px] font-bold transition ${
                               selected
-                                ? "border-[#2f7867] bg-[#2f7867]/10 text-[#2f7867]"
+                                ? "border-indigo-300 bg-indigo-50 text-indigo-700 shadow-sm"
                                 : "border-slate-150 bg-white text-slate-500 hover:bg-slate-50"
                             }`}
                           >
@@ -578,13 +884,13 @@ export default function AutomationClient({ user, initialSettings, initialLogs }:
                   <div>
                     <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Target Keywords</label>
                     <div className="mt-2 flex flex-wrap items-center gap-1.5 rounded-xl border border-slate-200 bg-white p-2">
-                      {keywords.map((kw) => (
+                      {activeKeywords.map((kw) => (
                         <span
                           key={kw}
-                          className="flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600 border border-slate-200"
+                          className="flex items-center gap-1 rounded-md bg-indigo-50/50 px-2 py-0.5 text-[10px] font-bold text-indigo-700 border border-indigo-150"
                         >
                           {kw}
-                          <button onClick={() => handleRemoveKeyword(kw)} className="text-slate-400 hover:text-slate-600">
+                          <button type="button" onClick={() => handleRemoveKeyword(kw)} className="text-indigo-400 hover:text-indigo-600">
                             <X className="h-3 w-3" />
                           </button>
                         </span>
@@ -594,7 +900,7 @@ export default function AutomationClient({ user, initialSettings, initialLogs }:
                         value={keywordInput}
                         onChange={(e) => setKeywordInput(e.target.value)}
                         onKeyDown={handleAddKeyword}
-                        placeholder={keywords.length === 0 ? "Type keywords and hit Enter..." : "Add keyword..."}
+                        placeholder={activeKeywords.length === 0 ? "Type keywords and hit Enter..." : "Add keyword..."}
                         className="flex-1 bg-transparent px-1 text-xs outline-none min-w-[80px]"
                       />
                     </div>
@@ -667,13 +973,14 @@ export default function AutomationClient({ user, initialSettings, initialLogs }:
                         <th className="px-5 py-3.5">Trigger Time</th>
                         <th className="px-5 py-3.5">Trend Topic</th>
                         <th className="px-5 py-3.5">Mode</th>
+                        <th className="px-5 py-3.5">Platforms</th>
                         <th className="px-5 py-3.5">Status</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 text-xs font-bold text-[#1f2528]">
                       {pastLogs.length === 0 ? (
                         <tr>
-                          <td colSpan={4} className="px-5 py-10 text-center text-[10px] text-slate-400">
+                          <td colSpan={5} className="px-5 py-10 text-center text-[10px] text-slate-400">
                             No automation run history recorded yet.
                           </td>
                         </tr>
@@ -696,6 +1003,24 @@ export default function AutomationClient({ user, initialSettings, initialLogs }:
                               </td>
                               <td className="px-5 py-3.5 capitalize font-medium text-slate-400">
                                 {log.mode}
+                              </td>
+                              <td className="px-5 py-3.5">
+                                {(() => {
+                                  const platforms = log.scheduled_posts?.platforms || selectedPlatforms || [];
+                                  if (platforms.length === 0) return <span className="text-slate-300 font-normal">-</span>;
+                                  return (
+                                    <div className="flex flex-wrap gap-1 max-w-[120px]">
+                                      {platforms.map((p: string) => (
+                                        <span
+                                          key={p}
+                                          className="inline-block bg-[#2f7867]/10 border border-[#2f7867]/15 rounded px-1.5 py-0.5 text-[9px] font-black text-[#2f7867] uppercase tracking-wide"
+                                        >
+                                          {p}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  );
+                                })()}
                               </td>
                               <td className="px-5 py-3.5">
                                 <span

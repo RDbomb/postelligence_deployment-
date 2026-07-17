@@ -40,20 +40,43 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
-    const { is_enabled, post_time, mode, platforms, categories, keywords, approval_email, timezone } = await req.json();
+    const { 
+      is_enabled, 
+      post_time, 
+      mode, 
+      platforms, 
+      categories, 
+      keywords, 
+      approval_email, 
+      timezone,
+      schedule_type,
+      post_times,
+      post_days,
+      post_day_of_month,
+      frontend_url,
+      use_same_settings,
+      time_configs
+    } = await req.json();
 
     const { data, error } = await supabase
       .from("automation_settings")
       .upsert({
         user_id: user.id,
         is_enabled: is_enabled !== undefined ? !!is_enabled : true,
-        post_time: post_time || "09:00:00",
+        post_time: (post_times && post_times[0]) || post_time || "09:00:00",
         mode: mode || "manual",
         platforms: platforms || [],
         categories: categories || [],
         keywords: keywords || [],
         approval_email: approval_email || user.email || "",
         timezone: timezone || "UTC",
+        schedule_type: schedule_type || "daily",
+        post_times: post_times || ["09:00:00"],
+        post_days: post_days || ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"],
+        post_day_of_month: post_day_of_month !== undefined ? Number(post_day_of_month) : 1,
+        frontend_url: frontend_url || "http://localhost:3000",
+        use_same_settings: use_same_settings !== undefined ? !!use_same_settings : true,
+        time_configs: time_configs || {},
       }, { onConflict: "user_id" })
       .select()
       .single();

@@ -20,6 +20,51 @@ function getNextPostTime(postTimeStr: string): Date {
   return target;
 }
 
+function getNextPostTimeUTC(postTimeStr: string): Date {
+  const [h, m, s] = postTimeStr.split(":").map(Number);
+  const now = new Date();
+  const target = new Date();
+  target.setUTCHours(h, m, s || 0, 0);
+
+  if (target.getTime() <= now.getTime()) {
+    target.setUTCDate(target.getUTCDate() + 1);
+  }
+  return target;
+}
+
+function isScheduleActiveOnDay(targetTime: Date, settings: any): boolean {
+  const tz = settings.timezone || "UTC";
+  const type = settings.schedule_type || "daily";
+
+  if (type === "daily") return true;
+
+  const dayOfWeek = new Intl.DateTimeFormat("en-US", {
+    weekday: "long",
+    timeZone: tz,
+  }).format(targetTime).toLowerCase();
+
+  if (type === "weekdays") {
+    return ["monday", "tuesday", "wednesday", "thursday", "friday"].includes(dayOfWeek);
+  }
+
+  if (type === "weekly") {
+    const activeDays = settings.post_days || [];
+    return activeDays.map((d: string) => d.toLowerCase()).includes(dayOfWeek);
+  }
+
+  if (type === "monthly") {
+    const localDayOfMonth = Number(
+      new Intl.DateTimeFormat("en-US", {
+        day: "numeric",
+        timeZone: tz,
+      }).format(targetTime)
+    );
+    return localDayOfMonth === Number(settings.post_day_of_month || 1);
+  }
+
+  return false;
+}
+
 export async function GET(req: NextRequest) {
   return triggerAutomation(req);
 }
@@ -53,26 +98,43 @@ async function triggerAutomation(req: NextRequest) {
       return NextResponse.json({ error: `Failed to fetch active settings: ${allErr.message}` }, { status: 500 });
     }
 
-    const results = [];
-    for (const settings of (allSettings || [])) {
-      const targetTime = getNextPostTime(settings.post_time);
-      const diffMs = targetTime.getTime() - Date.now();
-      const diffMins = Math.floor(diffMs / 60000);
+    const results: any[] = [];
+    const evaluationTime = new Date();
+    const promises: Promise<void>[] = [];
 
-      // Trigger if we are 10 minutes before posting time (accepts 8-12m buffer)
-      if (diffMins >= 8 && diffMins <= 12) {
-        try {
-          // Fetch user's registered email to fallback on
-          const { data: { user: dbUser } } = await baseClient.auth.admin.getUserById(settings.user_id);
-          const email = dbUser?.email || "";
-          
-          const runRes = await runAutomationForUser(baseClient, settings.user_id, settings, email, req.nextUrl.origin, false);
-          results.push({ user_id: settings.user_id, success: true, response: runRes });
-        } catch (e: any) {
-          results.push({ user_id: settings.user_id, success: false, error: e.message || String(e) });
+    for (const settings of (allSettings || [])) {
+      const times = settings.post_times || [settings.post_time || "09:00:00"];
+      for (const timeStr of times) {
+        const targetTime = getNextPostTimeUTC(timeStr);
+        const triggerTime = new Date(targetTime.getTime() - 10 * 60000);
+        
+        const isSameMinute = 
+          evaluationTime.getUTCFullYear() === triggerTime.getUTCFullYear() &&
+          evaluationTime.getUTCMonth() === triggerTime.getUTCMonth() &&
+          evaluationTime.getUTCDate() === triggerTime.getUTCDate() &&
+          evaluationTime.getUTCHours() === triggerTime.getUTCHours() &&
+          evaluationTime.getUTCMinutes() === triggerTime.getUTCMinutes();
+
+        if (isSameMinute) {
+          if (isScheduleActiveOnDay(targetTime, settings)) {
+            promises.push((async () => {
+              try {
+                // Fetch user's registered email to fallback on
+                const { data: { user: dbUser } } = await baseClient.auth.admin.getUserById(settings.user_id);
+                const email = dbUser?.email || "";
+                
+                const runRes = await runAutomationForUser(baseClient, settings.user_id, settings, email, req.nextUrl.origin, false, timeStr);
+                results.push({ user_id: settings.user_id, success: true, response: runRes, timeSlot: timeStr });
+              } catch (e: any) {
+                results.push({ user_id: settings.user_id, success: false, error: e.message || String(e), timeSlot: timeStr });
+              }
+            })());
+          }
         }
       }
     }
+
+    await Promise.all(promises);
 
     return NextResponse.json({ message: "Global automation cron completed", results });
   }
@@ -116,13 +178,32 @@ async function triggerAutomation(req: NextRequest) {
 
     // Time Check for single manual trigger runs (bypass if manual test)
     if (!isManualTest) {
-      const targetTime = getNextPostTime(settings.post_time);
-      const diffMs = targetTime.getTime() - Date.now();
-      const diffMins = Math.floor(diffMs / 60000);
+      const times = settings.post_times || [settings.post_time || "09:00:00"];
+      let matched = false;
+      const evaluationTime = new Date();
 
-      if (diffMins < 8 || diffMins > 12) {
+      for (const timeStr of times) {
+        const targetTime = getNextPostTimeUTC(timeStr);
+        const triggerTime = new Date(targetTime.getTime() - 10 * 60000);
+        
+        const isSameMinute = 
+          evaluationTime.getUTCFullYear() === triggerTime.getUTCFullYear() &&
+          evaluationTime.getUTCMonth() === triggerTime.getUTCMonth() &&
+          evaluationTime.getUTCDate() === triggerTime.getUTCDate() &&
+          evaluationTime.getUTCHours() === triggerTime.getUTCHours() &&
+          evaluationTime.getUTCMinutes() === triggerTime.getUTCMinutes();
+
+        if (isSameMinute) {
+          if (isScheduleActiveOnDay(targetTime, settings)) {
+            matched = true;
+            break;
+          }
+        }
+      }
+
+      if (!matched) {
         return NextResponse.json({
-          message: `Not the scheduled run time (runs 10 minutes before posting). Current diff: ${diffMins} minutes.`,
+          message: `Not the scheduled run time (runs 10 minutes before posting).`,
         });
       }
     }
@@ -136,9 +217,41 @@ async function triggerAutomation(req: NextRequest) {
   }
 }
 
+function cleanCaption(text: string): string {
+  if (!text) return "";
+  
+  // 1. Remove the standard Pollinations support block
+  let cleaned = text.replace(/(?:\r?\n)*---\s*\r?\n\*\*Support Pollinations\.AI\*\*[\s\S]*/gi, "");
+  cleaned = cleaned.replace(/(?:\r?\n)*---\s*\r?\nSupport Pollinations\.AI[\s\S]*/gi, "");
+  
+  // 2. Remove any other mentions of Powered by Pollinations or Ad footers
+  cleaned = cleaned.replace(/(?:\r?\n)*Powered by Pollinations\.AI[\s\S]*/gi, "");
+  cleaned = cleaned.replace(/(?:\r?\n)*\*\*Support Pollinations\.AI\*\*[\s\S]*/gi, "");
+  cleaned = cleaned.replace(/(?:\r?\n)*🌸\s*\*\*Ad\*\*\s*🌸[\s\S]*/gi, "");
+  
+  // 3. Remove trailing/leading quotes or markdown code blocks if the LLM returned them
+  cleaned = cleaned.replace(/^["'`\s]+|["'`\s]+$/g, "").trim();
+  
+  return cleaned;
+}
+
 // core automation script
-async function runAutomationForUser(supabase: any, userId: string, settings: any, userEmail: string, origin: string, isTest = false) {
-  const { mode, platforms, categories, keywords, approval_email, post_time } = settings;
+async function runAutomationForUser(supabase: any, userId: string, settings: any, userEmail: string, origin: string, isTest = false, activePostTime?: string) {
+  const { mode, approval_email } = settings;
+  const post_time = activePostTime || settings.post_time || "09:00:00";
+
+  let platforms = settings.platforms;
+  let categories = settings.categories;
+  let keywords = settings.keywords;
+
+  if (settings.use_same_settings === false && settings.time_configs) {
+    const customConfig = settings.time_configs[post_time];
+    if (customConfig) {
+      if (customConfig.platforms) platforms = customConfig.platforms;
+      if (customConfig.categories) categories = customConfig.categories;
+      if (customConfig.keywords) keywords = customConfig.keywords;
+    }
+  }
 
   if (!platforms || platforms.length === 0) {
     throw new Error("No target platforms configured for automation.");
@@ -149,6 +262,17 @@ async function runAutomationForUser(supabase: any, userId: string, settings: any
   let trendExplanation = "";
 
   try {
+    // Query recently used titles for this user to avoid duplicates
+    const { data: recentLogs } = await supabase
+      .from("automation_logs")
+      .select("trend_title")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(30);
+    const usedTitles = new Set(
+      (recentLogs || []).map((l: any) => l.trend_title.toLowerCase().trim())
+    );
+
     let rssUrl = "";
     if (keywords && keywords.length > 0) {
       const query = keywords.join(" ");
@@ -161,24 +285,47 @@ async function runAutomationForUser(supabase: any, userId: string, settings: any
     const feedRes = await fetch(rssUrl);
     if (feedRes.ok) {
       const xml = await feedRes.text();
-      const itemRegex = /<item>([\s\S]*?)<\/item>/;
-      const match = xml.match(itemRegex);
-      if (match) {
+      const itemRegex = /<item>([\s\S]*?)<\/item>/g;
+      
+      const unescape = (str: string) => str
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&apos;/g, "'")
+        .replace(/<[^>]*>/g, "");
+
+      let match;
+      let fallbackTitle = "";
+      let fallbackDesc = "";
+
+      while ((match = itemRegex.exec(xml)) !== null) {
         const content = match[1];
         const rawTitle = content.match(/<title>([\s\S]*?)<\/title>/)?.[1] || "";
         const rawDesc = content.match(/<description>([\s\S]*?)<\/description>/)?.[1] || "";
 
-        const unescape = (str: string) => str
-          .replace(/&amp;/g, "&")
-          .replace(/&lt;/g, "<")
-          .replace(/&gt;/g, ">")
-          .replace(/&quot;/g, '"')
-          .replace(/&#39;/g, "'")
-          .replace(/&apos;/g, "'")
-          .replace(/<[^>]*>/g, "");
+        const candidateTitle = unescape(rawTitle).replace(/\s+-\s+[^-]+$/, "").trim();
+        const candidateDesc = unescape(rawDesc).trim();
 
-        trendTitle = unescape(rawTitle).replace(/\s+-\s+[^-]+$/, "").trim();
-        trendExplanation = unescape(rawDesc).trim();
+        if (candidateTitle) {
+          if (!fallbackTitle) {
+            fallbackTitle = candidateTitle;
+            fallbackDesc = candidateDesc;
+          }
+
+          if (!usedTitles.has(candidateTitle.toLowerCase().trim())) {
+            trendTitle = candidateTitle;
+            trendExplanation = candidateDesc;
+            break;
+          }
+        }
+      }
+
+      // If all parsed items are already used, fallback to the top headline
+      if (!trendTitle) {
+        trendTitle = fallbackTitle;
+        trendExplanation = fallbackDesc;
       }
     }
   } catch (e) {
@@ -219,7 +366,8 @@ Return ONLY the plain, final social media caption itself. No wrapper quotes, no 
     throw new Error("Failed to generate caption");
   }
 
-  const caption = (await captionRes.text()).trim();
+  const rawCaptionText = await captionRes.text();
+  const caption = cleanCaption(rawCaptionText);
 
   // 3. Scrape Web Image or Generate Image
   let imageBuffer: ArrayBuffer | null = null;

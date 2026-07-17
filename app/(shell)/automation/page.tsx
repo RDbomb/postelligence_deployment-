@@ -25,10 +25,15 @@ export default async function AutomationPage() {
     keywords: [],
   };
 
-  // Fetch initial logs
+  // Fetch initial logs with referenced scheduled post platforms
   const { data: logs } = await supabase
     .from("automation_logs")
-    .select("*")
+    .select(`
+      *,
+      scheduled_posts (
+        platforms
+      )
+    `)
     .eq("user_id", user.id)
     .order("created_at", { ascending: false });
 
@@ -36,7 +41,7 @@ export default async function AutomationPage() {
     <AutomationClient
       user={user}
       initialSettings={initialSettings}
-      initialLogs={logs || []}
+      initialLogs={(logs as any) || []}
     />
   );
 }

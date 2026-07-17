@@ -192,6 +192,51 @@ function getNextPostTime(postTimeStr: string): Date {
   return target;
 }
 
+function getNextPostTimeUTC(postTimeStr: string): Date {
+  const [h, m, s] = postTimeStr.split(":").map(Number);
+  const now = new Date();
+  const target = new Date();
+  target.setUTCHours(h, m, s || 0, 0);
+
+  if (target.getTime() <= now.getTime()) {
+    target.setUTCDate(target.getUTCDate() + 1);
+  }
+  return target;
+}
+
+function isScheduleActiveOnDay(targetTime: Date, settings: any): boolean {
+  const tz = settings.timezone || "UTC";
+  const type = settings.schedule_type || "daily";
+
+  if (type === "daily") return true;
+
+  const dayOfWeek = new Intl.DateTimeFormat("en-US", {
+    weekday: "long",
+    timeZone: tz,
+  }).format(targetTime).toLowerCase();
+
+  if (type === "weekdays") {
+    return ["monday", "tuesday", "wednesday", "thursday", "friday"].includes(dayOfWeek);
+  }
+
+  if (type === "weekly") {
+    const activeDays = settings.post_days || [];
+    return activeDays.map((d: string) => d.toLowerCase()).includes(dayOfWeek);
+  }
+
+  if (type === "monthly") {
+    const localDayOfMonth = Number(
+      new Intl.DateTimeFormat("en-US", {
+        day: "numeric",
+        timeZone: tz,
+      }).format(targetTime)
+    );
+    return localDayOfMonth === Number(settings.post_day_of_month || 1);
+  }
+
+  return false;
+}
+
 async function verifyToken(logId: string, userId: string, token: string): Promise<boolean> {
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
   const tokenPayload = logId + userId + serviceRoleKey;
@@ -203,94 +248,16 @@ async function verifyToken(logId: string, userId: string, token: string): Promis
   return token === expectedToken;
 }
 
-function renderHtmlResponse(message: string, success: boolean): Response {
-  const html = `
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>PostSync Approval Panel</title>
-      <style>
-        body {
-          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-          background-color: #f6f7f1;
-          color: #1f2528;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          height: 100vh;
-          margin: 0;
-          padding: 20px;
-          box-sizing: border-box;
-        }
-        .card {
-          background-color: white;
-          border: 1px solid rgba(31, 37, 40, 0.1);
-          border-radius: 24px;
-          padding: 40px;
-          text-align: center;
-          max-width: 480px;
-          width: 100%;
-          box-shadow: 0 12px 40px rgba(31, 37, 40, 0.05);
-        }
-        .icon {
-          font-size: 48px;
-          margin-bottom: 20px;
-        }
-        h1 {
-          font-size: 20px;
-          font-weight: 800;
-          margin: 0 0 10px 0;
-          letter-spacing: -0.02em;
-        }
-        p {
-          font-size: 14px;
-          color: #5a656c;
-          line-height: 1.5;
-          margin: 0 0 24px 0;
-          font-weight: 500;
-        }
-        .btn {
-          display: inline-block;
-          background-color: #2f7867;
-          color: white;
-          text-decoration: none;
-          padding: 12px 24px;
-          font-size: 13px;
-          font-weight: 700;
-          border-radius: 12px;
-          transition: background-color 150ms;
-        }
-        .btn:hover {
-          background-color: #255f52;
-        }
-        .error-icon {
-          color: #e11d48;
-        }
-        .success-icon {
-          color: #10b981;
-        }
-      </style>
-    </head>
-    <body>
-      <div class="card">
-        <div class="icon ${success ? "success-icon" : "error-icon"}">
-          ${success ? "✓" : "⚠"}
-        </div>
-        <h1>${success ? "Action Completed" : "Action Failed"}</h1>
-        <p>${message}</p>
-        <a href="http://localhost:3000/automation" class="btn">Back to Automation</a>
-      </div>
-    </body>
-    </html>
-  `;
-  const headers = new Headers();
-  headers.set("content-type", "text/html; charset=utf-8");
-  return new Response(html, {
-    status: 200,
-    headers,
-  });
+function redirectResponse(status: "success" | "error" | "warning", message: string, frontendUrl?: string, logId?: string): Response {
+  let base = frontendUrl || "https://localhost:3000";
+  if (base === "http://localhost:3000") {
+    base = "https://localhost:3000";
+  }
+  let url = `${base}/automation/action-completed?status=${status}&message=${encodeURIComponent(message)}`;
+  if (logId) {
+    url += `&log_id=${logId}`;
+  }
+  return Response.redirect(url, 302);
 }
 
 async function handleExternalApproval(logId: string, action: string, token: string): Promise<Response> {
@@ -302,16 +269,25 @@ async function handleExternalApproval(logId: string, action: string, token: stri
       .single();
 
     if (logErr || !log) {
-      return renderHtmlResponse("Log entry not found.", false);
+      return redirectResponse("error", "Log entry not found.", undefined, logId);
     }
 
+    // Load settings early to get the correct frontend_url
+    const { data: settings } = await supabase
+      .from("automation_settings")
+      .select("*")
+      .eq("user_id", log.user_id)
+      .single();
+    
+    const frontendUrl = settings?.frontend_url || "http://localhost:3000";
+
     if (log.status !== "pending") {
-      return renderHtmlResponse(`This draft has already been processed (Status: ${log.status}).`, false);
+      return redirectResponse("warning", `This draft has already been processed (Status: ${log.status}).`, frontendUrl, logId);
     }
 
     const isValid = await verifyToken(logId, log.user_id, token);
     if (!isValid) {
-      return renderHtmlResponse("Security token validation failed. Access denied.", false);
+      return redirectResponse("error", "Security token validation failed. Access denied.", frontendUrl, logId);
     }
 
     if (action === "reject") {
@@ -319,14 +295,8 @@ async function handleExternalApproval(logId: string, action: string, token: stri
         .from("automation_logs")
         .update({ status: "rejected" })
         .eq("id", logId);
-      return renderHtmlResponse("Success! This trend draft has been discarded.", true);
+      return redirectResponse("success", "Success! This trend draft has been discarded.", frontendUrl, logId);
     }
-
-    const { data: settings } = await supabase
-      .from("automation_settings")
-      .select("*")
-      .eq("user_id", log.user_id)
-      .single();
 
     if (action === "publish") {
       // 1. Create a scheduled post row set to publish now
@@ -362,7 +332,7 @@ async function handleExternalApproval(logId: string, action: string, token: stri
         })
         .eq("id", logId);
 
-      return renderHtmlResponse("Success! Your post has been published live to your social channels.", true);
+      return redirectResponse("success", "Success! Your post has been published live to your social channels.", frontendUrl, logId);
     }
 
     if (action === "schedule") {
@@ -393,12 +363,22 @@ async function handleExternalApproval(logId: string, action: string, token: stri
         })
         .eq("id", logId);
 
-      return renderHtmlResponse(`Success! Your post has been approved and scheduled.`, true);
+      return redirectResponse("success", "Success! Your post has been approved and scheduled.", frontendUrl, logId);
     }
 
-    return renderHtmlResponse("Unsupported action.", false);
+    return redirectResponse("error", "Unsupported action.", frontendUrl, logId);
   } catch (err: any) {
-    return renderHtmlResponse(`Failed to process action: ${err.message || err}`, false);
+    let errUrl = "http://localhost:3000";
+    try {
+      if (logId) {
+        const { data: log } = await supabase.from("automation_logs").select("user_id").eq("id", logId).single();
+        if (log) {
+          const { data: s } = await supabase.from("automation_settings").select("frontend_url").eq("user_id", log.user_id).single();
+          if (s?.frontend_url) errUrl = s.frontend_url;
+        }
+      }
+    } catch (_) {}
+    return redirectResponse("error", `Failed to process action: ${err.message || err}`, errUrl, logId);
   }
 }
 
@@ -410,26 +390,76 @@ async function runAutomationTrigger(origin: string) {
 
   if (allErr || !allSettings) return;
 
-  for (const settings of allSettings) {
-    const targetTime = getNextPostTime(settings.post_time);
-    const diffMs = targetTime.getTime() - Date.now();
-    const diffMins = Math.floor(diffMs / 60000);
+  const evaluationTime = new Date();
+  const promises: Promise<void>[] = [];
 
-    // Trigger if we are 10 minutes before posting time (accepts 8-12m buffer)
-    if (diffMins >= 8 && diffMins <= 12) {
-      try {
-        const { data: dbUser } = await supabase.auth.admin.getUserById(settings.user_id);
-        const email = dbUser?.user?.email || "";
-        await runAutomationForUser(settings.user_id, settings, email, origin);
-      } catch (e) {
-        console.error(`Automation trigger failed for user ${settings.user_id}:`, e);
+  for (const settings of allSettings) {
+    const times = settings.post_times || [settings.post_time || "09:00:00"];
+    for (const timeStr of times) {
+      const targetTime = getNextPostTimeUTC(timeStr);
+      const triggerTime = new Date(targetTime.getTime() - 10 * 60000);
+      
+      const isSameMinute = 
+        evaluationTime.getUTCFullYear() === triggerTime.getUTCFullYear() &&
+        evaluationTime.getUTCMonth() === triggerTime.getUTCMonth() &&
+        evaluationTime.getUTCDate() === triggerTime.getUTCDate() &&
+        evaluationTime.getUTCHours() === triggerTime.getUTCHours() &&
+        evaluationTime.getUTCMinutes() === triggerTime.getUTCMinutes();
+
+      // Trigger if we are exactly 10 minutes before posting time (evaluating same UTC minute)
+      if (isSameMinute) {
+        if (isScheduleActiveOnDay(targetTime, settings)) {
+          promises.push((async () => {
+            try {
+              const { data: dbUser } = await supabase.auth.admin.getUserById(settings.user_id);
+              const email = dbUser?.user?.email || "";
+              await runAutomationForUser(settings.user_id, settings, email, origin, timeStr);
+            } catch (e) {
+              console.error(`Automation trigger failed for user ${settings.user_id} at time ${timeStr}:`, e);
+            }
+          })());
+        }
       }
     }
   }
+
+  await Promise.all(promises);
 }
 
-async function runAutomationForUser(userId: string, settings: any, userEmail: string, origin: string) {
-  const { mode, platforms, categories, keywords, approval_email, post_time } = settings;
+function cleanCaption(text: string): string {
+  if (!text) return "";
+  
+  // 1. Remove the standard Pollinations support block
+  let cleaned = text.replace(/(?:\r?\n)*---\s*\r?\n\*\*Support Pollinations\.AI\*\*[\s\S]*/gi, "");
+  cleaned = cleaned.replace(/(?:\r?\n)*---\s*\r?\nSupport Pollinations\.AI[\s\S]*/gi, "");
+  
+  // 2. Remove any other mentions of Powered by Pollinations or Ad footers
+  cleaned = cleaned.replace(/(?:\r?\n)*Powered by Pollinations\.AI[\s\S]*/gi, "");
+  cleaned = cleaned.replace(/(?:\r?\n)*\*\*Support Pollinations\.AI\*\*[\s\S]*/gi, "");
+  cleaned = cleaned.replace(/(?:\r?\n)*🌸\s*\*\*Ad\*\*\s*🌸[\s\S]*/gi, "");
+  
+  // 3. Remove trailing/leading quotes or markdown code blocks if the LLM returned them
+  cleaned = cleaned.replace(/^["'`\s]+|["'`\s]+$/g, "").trim();
+  
+  return cleaned;
+}
+
+async function runAutomationForUser(userId: string, settings: any, userEmail: string, origin: string, activePostTime: string) {
+  const { mode, approval_email } = settings;
+  const post_time = activePostTime;
+
+  let platforms = settings.platforms;
+  let categories = settings.categories;
+  let keywords = settings.keywords;
+
+  if (settings.use_same_settings === false && settings.time_configs) {
+    const customConfig = settings.time_configs[post_time];
+    if (customConfig) {
+      if (customConfig.platforms) platforms = customConfig.platforms;
+      if (customConfig.categories) categories = customConfig.categories;
+      if (customConfig.keywords) keywords = customConfig.keywords;
+    }
+  }
 
   if (!platforms || platforms.length === 0) {
     throw new Error("No target platforms configured for automation.");
@@ -440,6 +470,17 @@ async function runAutomationForUser(userId: string, settings: any, userEmail: st
   let trendExplanation = "";
 
   try {
+    // Query recently used titles for this user to avoid duplicates
+    const { data: recentLogs } = await supabase
+      .from("automation_logs")
+      .select("trend_title")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(30);
+    const usedTitles = new Set(
+      (recentLogs || []).map((l: any) => l.trend_title.toLowerCase().trim())
+    );
+
     let rssUrl = "";
     if (keywords && keywords.length > 0) {
       const query = keywords.join(" ");
@@ -452,24 +493,47 @@ async function runAutomationForUser(userId: string, settings: any, userEmail: st
     const feedRes = await fetch(rssUrl);
     if (feedRes.ok) {
       const xml = await feedRes.text();
-      const itemRegex = /<item>([\s\S]*?)<\/item>/;
-      const match = xml.match(itemRegex);
-      if (match) {
+      const itemRegex = /<item>([\s\S]*?)<\/item>/g;
+      
+      const unescape = (str: string) => str
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&apos;/g, "'")
+        .replace(/<[^>]*>/g, "");
+
+      let match;
+      let fallbackTitle = "";
+      let fallbackDesc = "";
+
+      while ((match = itemRegex.exec(xml)) !== null) {
         const content = match[1];
         const rawTitle = content.match(/<title>([\s\S]*?)<\/title>/)?.[1] || "";
         const rawDesc = content.match(/<description>([\s\S]*?)<\/description>/)?.[1] || "";
 
-        const unescape = (str: string) => str
-          .replace(/&amp;/g, "&")
-          .replace(/&lt;/g, "<")
-          .replace(/&gt;/g, ">")
-          .replace(/&quot;/g, '"')
-          .replace(/&#39;/g, "'")
-          .replace(/&apos;/g, "'")
-          .replace(/<[^>]*>/g, "");
+        const candidateTitle = unescape(rawTitle).replace(/\s+-\s+[^-]+$/, "").trim();
+        const candidateDesc = unescape(rawDesc).trim();
 
-        trendTitle = unescape(rawTitle).replace(/\s+-\s+[^-]+$/, "").trim();
-        trendExplanation = unescape(rawDesc).trim();
+        if (candidateTitle) {
+          if (!fallbackTitle) {
+            fallbackTitle = candidateTitle;
+            fallbackDesc = candidateDesc;
+          }
+
+          if (!usedTitles.has(candidateTitle.toLowerCase().trim())) {
+            trendTitle = candidateTitle;
+            trendExplanation = candidateDesc;
+            break;
+          }
+        }
+      }
+
+      // If all parsed items are already used, fallback to the top headline
+      if (!trendTitle) {
+        trendTitle = fallbackTitle;
+        trendExplanation = fallbackDesc;
       }
     }
   } catch (e) {
@@ -509,7 +573,8 @@ Return ONLY the plain, final social media caption itself. No wrapper quotes, no 
     throw new Error("Failed to generate caption");
   }
 
-  const caption = (await captionRes.text()).trim();
+  const rawCaptionText = await captionRes.text();
+  const caption = cleanCaption(rawCaptionText);
 
   // 3. Scrape Web Image or Generate Image
   let imageBuffer: ArrayBuffer | null = null;

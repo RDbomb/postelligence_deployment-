@@ -37,7 +37,7 @@ export async function GET(request: Request) {
     }
 
     const response = NextResponse.redirect(url);
-    response.cookies.delete("postsync_threads_oauth_state");
+    response.cookies.delete("postelligence_threads_oauth_state");
 
     return response;
   };
@@ -64,7 +64,7 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL("/", requestUrl.origin));
   }
 
-  const raw = cookies().get("postsync_threads_oauth_state")?.value;
+  const raw = cookies().get("postelligence_threads_oauth_state")?.value;
 
   let cookieState: {
     state?: string;

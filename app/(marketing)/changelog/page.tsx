@@ -12,7 +12,7 @@ const entries = [
   { date: "April 2026", tag: "New", tagColor: "#20613a", tagBg: "#eaf7ef", icon: Calendar, iconColor: "#0077B5", iconBg: "#e8f1fb", accentColor: "#0077B5", title: "Drag-and-drop calendar rescheduling", copy: "Move scheduled posts across days directly on the visual calendar — no dialogs required. Just drag, drop, and you're done.", highlights: ["Visual calendar", "No dialog friction", "Instant reschedule"] },
   { date: "March 2026", tag: "New", tagColor: "#20613a", tagBg: "#eaf7ef", icon: Library, iconColor: "#7a5a00", iconBg: "#fff5d7", accentColor: "#d05945", title: "Expanded media library", copy: "Smart search, AI tagging, and bulk uploads make finding the right asset instant. Your visual library finally works as hard as you do.", highlights: ["AI tagging", "Bulk upload", "Smart search"] },
   { date: "February 2026", tag: "Improved", tagColor: "#7a5a00", tagBg: "#fff5d7", icon: ShieldCheck, iconColor: "#1f2528", iconBg: "#eceeec", accentColor: "#627078", title: "Hardened OAuth security", copy: "Refreshed encryption for all stored sessions plus clearer per-platform permission controls. Your account data is safer than ever.", highlights: ["Refreshed encryption", "Per-platform perms", "Session hardening"] },
-  { date: "January 2026", tag: "Launch", tagColor: "#7c5cbf", tagBg: "#f5f0ff", icon: Sparkles, iconColor: "#d05945", iconBg: "#fff0ed", accentColor: "#d05945", title: "PostSync launches publicly", copy: "Unified composer, AI Studio, scheduling, and analytics — all in one calm workspace. The beginning of a new way to create and publish.", highlights: ["Unified composer", "AI Studio", "Analytics"] },
+  { date: "January 2026", tag: "Launch", tagColor: "#7c5cbf", tagBg: "#f5f0ff", icon: Sparkles, iconColor: "#d05945", iconBg: "#fff0ed", accentColor: "#d05945", title: "Postelligence launches publicly", copy: "Unified composer, AI Studio, scheduling, and analytics — all in one calm workspace. The beginning of a new way to create and publish.", highlights: ["Unified composer", "AI Studio", "Analytics"] },
 ];
 
 const stats = [
@@ -37,7 +37,7 @@ export default function ChangelogPage() {
           <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.65, delay: 0.08, ease: [0.22, 1, 0.36, 1] }} className="marketing-display mx-auto mt-7 max-w-3xl">
             What&apos;s new in
             <br />
-            <span className="bg-gradient-to-r from-[#2f7867] via-[#56a98f] to-[#d05945] bg-clip-text text-transparent">PostSync.</span>
+            <span className="bg-gradient-to-r from-[#2f7867] via-[#56a98f] to-[#d05945] bg-clip-text text-transparent">Postelligence.</span>
           </motion.h1>
           <motion.p initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.18 }} className="mx-auto mt-7 max-w-xl text-lg leading-relaxed text-[#4f5b62]">
             Every feature, fix, and platform we ship — in plain language, as it happens.
@@ -93,7 +93,7 @@ export default function ChangelogPage() {
             <div className="flex flex-col items-center gap-5 rounded-3xl border border-[#2f7867]/20 bg-gradient-to-b from-[#f0f8f5] to-[#f6f7f1] p-10 text-center">
               <p className="text-xs font-bold uppercase tracking-widest text-[#2f7867]">Stay in the loop</p>
               <h2 className="text-2xl font-bold tracking-[-0.03em] text-[#1f2528]">New features ship weekly.</h2>
-              <p className="max-w-sm text-sm leading-relaxed text-[#5a656c]">Join PostSync and you&apos;ll always be on the latest version — no manual updates, ever.</p>
+              <p className="max-w-sm text-sm leading-relaxed text-[#5a656c]">Join Postelligence and you&apos;ll always be on the latest version — no manual updates, ever.</p>
               <Link href="/login" className="marketing-cta-primary">Get started free<ArrowRight className="h-4 w-4" /></Link>
             </div>
           </Reveal>

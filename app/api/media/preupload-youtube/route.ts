@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
     };
 
     const metaPart = JSON.stringify(metadata);
-    const boundary = "postsync_boundary";
+    const boundary = "postelligence_boundary";
     const body = [
       `--${boundary}`,
       "Content-Type: application/json; charset=UTF-8",

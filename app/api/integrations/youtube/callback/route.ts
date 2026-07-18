@@ -45,7 +45,7 @@ export async function GET(request: Request) {
 
   const redirectWithClearedState = (url: URL) => {
     const response = NextResponse.redirect(url);
-    response.cookies.delete("postsync_youtube_oauth_state");
+    response.cookies.delete("postelligence_youtube_oauth_state");
     return response;
   };
 
@@ -69,7 +69,7 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL("/", requestUrl.origin));
   }
 
-  const cookieState = readStateCookie(cookies().get("postsync_youtube_oauth_state")?.value);
+  const cookieState = readStateCookie(cookies().get("postelligence_youtube_oauth_state")?.value);
 
   if (cookieState?.state !== state || cookieState?.userId !== user.id) {
     return redirectWithClearedState(

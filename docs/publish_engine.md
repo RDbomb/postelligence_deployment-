@@ -2,7 +2,7 @@
 
 File: `app/api/posts/publish/route.ts` (~900 lines — the largest single file in the project)
 
-This is the **core feature** of PostSync: a single API route that takes one post and fans it out to every platform the user selected, each with its own upload/publish quirks.
+This is the **core feature** of Postelligence: a single API route that takes one post and fans it out to every platform the user selected, each with its own upload/publish quirks.
 
 ---
 
@@ -163,7 +163,7 @@ async function resolveMediaUrl(attachment, fallbackUrl, userId) {
 }
 ```
 
-**Why this exists:** Some platform APIs (Twitter, LinkedIn, YouTube, Bluesky) accept **raw file bytes** directly — PostSync uploads the file straight to them. But others (Facebook, Instagram, Threads, Pinterest) require a **publicly fetchable URL** — their servers download the media themselves. Rather than writing separate "upload to storage" logic in 4 different platform functions, it's done **once**, here, and the resulting URL is passed to whichever platform needs it.
+**Why this exists:** Some platform APIs (Twitter, LinkedIn, YouTube, Bluesky) accept **raw file bytes** directly — Postelligence uploads the file straight to them. But others (Facebook, Instagram, Threads, Pinterest) require a **publicly fetchable URL** — their servers download the media themselves. Rather than writing separate "upload to storage" logic in 4 different platform functions, it's done **once**, here, and the resulting URL is passed to whichever platform needs it.
 
 ---
 

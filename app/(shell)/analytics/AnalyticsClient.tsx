@@ -108,7 +108,7 @@ function LineChartTooltip({ active, payload, label }: TooltipProps<number, strin
 type PlatformRow = { platform: string; status: string; message: string; name: string };
 
 const PERMISSION_ISSUES: Record<string, { title: string; explanation: string; action: string | null; docsUrl: string | null }> = {
-  linkedin: { title: "LinkedIn analytics not available", explanation: "LinkedIn has closed the r_member_social permission to new apps, which means no third-party tool can read post likes or comments via the API right now. This is a LinkedIn platform restriction — not a PostSync issue. Publishing still works perfectly.", action: null, docsUrl: null },
+  linkedin: { title: "LinkedIn analytics not available", explanation: "LinkedIn has closed the r_member_social permission to new apps, which means no third-party tool can read post likes or comments via the API right now. This is a LinkedIn platform restriction — not a Postelligence issue. Publishing still works perfectly.", action: null, docsUrl: null },
   facebook: { title: "Meta analytics permissions required", explanation: "Reading post engagement on Facebook requires the pages_read_user_content permission, which needs Meta's business verification and app review.", action: "Start Meta app review", docsUrl: "https://developers.facebook.com/docs/permissions/reference/pages_read_user_content" },
   instagram: { title: "Meta analytics permissions required", explanation: "Instagram post insights require pages_read_user_content and a Business or Creator account. Personal accounts cannot access reach or engagement data via the API.", action: "Start Meta app review", docsUrl: "https://developers.facebook.com/docs/permissions/reference/pages_read_user_content" },
 };
@@ -277,7 +277,7 @@ export default function AnalyticsClient({
             <div>
               <Badge variant="outline" className="mb-3 border-[#2f7867]/20 bg-[#eaf7ef] text-[#2f7867]"><RadioTower className="h-3.5 w-3.5" />Unified analytics</Badge>
               <h1 className="text-3xl font-black tracking-tight text-[#1f2528] md:text-4xl">Analytics Dashboard</h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Live metrics from connected platforms, combined with PostSync publishing history.</p>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Live metrics from connected platforms, combined with Postelligence publishing history.</p>
               <div className="mt-3 flex flex-wrap items-center gap-3">
                 <button onClick={() => void handleRefresh()} disabled={isPending || cacheStatus === "refreshing"} className="flex items-center gap-2 rounded-xl border border-[#1f2528]/10 bg-[#f9faf7] px-4 py-2 text-sm font-bold text-[#1f2528] transition hover:bg-[#eaf3ed] hover:text-[#2f7867] disabled:opacity-60 disabled:cursor-not-allowed">
                   <RefreshCw className={cn("h-3.5 w-3.5", (isPending || cacheStatus === "refreshing") && "animate-spin")} />

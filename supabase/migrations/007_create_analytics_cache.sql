@@ -1,5 +1,5 @@
 -- ============================================================
--- PostSync: Analytics Cache Table
+-- Postelligence: Analytics Cache Table
 -- Migration: 007
 -- ============================================================
 --
@@ -17,7 +17,7 @@
 --      then write the result here for next time.
 --
 -- COLUMNS:
---   user_id       → one row per PostSync user (unique constraint)
+--   user_id       → one row per Postelligence user (unique constraint)
 --   data          → full AnalyticsDashboardData JSON blob
 --   cached_at     → when the data was last fetched from platform APIs
 --   is_refreshing → prevents duplicate background refreshes running

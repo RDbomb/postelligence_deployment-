@@ -86,7 +86,8 @@ export async function POST(req: NextRequest) {
               const json = await imagesRes.json();
               const results = json.results || [];
               if (results.length > 0) {
-                const targetIndex = pinterestIndex % results.length;
+                const randomOffset = Math.floor(Math.random() * Math.min(results.length, 10));
+                const targetIndex = (pinterestIndex + randomOffset) % results.length;
                 const imageUrl = results[targetIndex].image;
                 console.log(`Downloading web search image ${targetIndex + 1}/${results.length}: ${imageUrl}`);
 

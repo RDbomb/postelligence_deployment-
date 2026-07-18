@@ -6,7 +6,7 @@
 
 ## Overview
 
-LinkedIn is connected via OAuth 2.0 using OpenID Connect. Users authenticate through LinkedIn's official login flow, and their LinkedIn profile is saved to the database. PostSync uses the `Sign In with LinkedIn using OpenID Connect` product which provides access to profile data and the ability to post content.
+LinkedIn is connected via OAuth 2.0 using OpenID Connect. Users authenticate through LinkedIn's official login flow, and their LinkedIn profile is saved to the database. Postelligence uses the `Sign In with LinkedIn using OpenID Connect` product which provides access to profile data and the ability to post content.
 
 ---
 
@@ -41,7 +41,7 @@ To force the login page to always appear (e.g. for switching accounts):
 ## Developer App Setup
 
 - **Platform:** LinkedIn Developer Portal — `linkedin.com/developers`
-- **App name:** `postsync`
+- **App name:** `postelligence`
 - **Client ID:** `77pll4k9nhr1ri`
 - **App type:** Standalone app
 
@@ -110,7 +110,7 @@ lib/integrations/linkedin.ts                       — OAuth helpers
 ## Deployment Notes
 
 When deploying to production:
-1. Go to LinkedIn Developer Portal → `postsync` app → **Auth** tab
+1. Go to LinkedIn Developer Portal → `postelligence` app → **Auth** tab
 2. Add `https://yourdomain.com/auth/linkedin/callback` to **Authorized redirect URLs**
 3. Set `LINKEDIN_CLIENT_ID` and `LINKEDIN_CLIENT_SECRET` in your production environment variables
 

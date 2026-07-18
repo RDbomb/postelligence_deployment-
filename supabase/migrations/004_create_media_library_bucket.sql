@@ -1,5 +1,5 @@
 -- ============================================================
--- PostSync: Media Library Storage Bucket
+-- Postelligence: Media Library Storage Bucket
 -- Migration: 004
 -- Run this in the Supabase SQL editor or via CLI
 -- ============================================================

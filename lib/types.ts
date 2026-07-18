@@ -1,4 +1,4 @@
-// PostSync extended types for Drafts, Library, Scheduling
+// Postelligence extended types for Drafts, Library, Scheduling
 
 export interface Draft {
   id: string;

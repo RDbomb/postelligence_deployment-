@@ -1,6 +1,6 @@
-# PostSync Marketing Landing Page documentation
+# Postelligence Marketing Landing Page documentation
 
-This document provides a comprehensive technical and design breakdown of the **PostSync Marketing Landing Page** (`app/(marketing)/page.tsx`), detailing its visual design system, structure, components, animations, and SEO setups.
+This document provides a comprehensive technical and design breakdown of the **Postelligence Marketing Landing Page** (`app/(marketing)/page.tsx`), detailing its visual design system, structure, components, animations, and SEO setups.
 
 ---
 
@@ -31,7 +31,7 @@ The page is organized into the following logical layout sections to guide conver
 ### 1. Navigation Header (Global Layout)
 - Displays the `BrandMark` component on the left.
 - Interactive navigation links: *Features*, *Platforms*, *Pricing*, *Changelog*, *About*.
-- Right side: Call-To-Action (CTA) link for **Try PostSync Free**.
+- Right side: Call-To-Action (CTA) link for **Try Postelligence Free**.
 
 ### 2. Hero Section
 - **Visual Pill**: An upfront badge *"The unified composer for purpose-driven creators"*.
@@ -63,7 +63,7 @@ The page is organized into the following logical layout sections to guide conver
 
 ## 🎭 Animations & Transitions
 
-PostSync utilizes **Framer Motion** to drive a premium sense of interaction:
+Postelligence utilizes **Framer Motion** to drive a premium sense of interaction:
 
 - **Reveal on Scroll (`Reveal`)**: Custom scroll-based animation wrapper that animates items up (`y: 16` to `0`) and fades them in (`opacity: 0` to `1`) using smooth bezier transitions (`duration: 0.6`, `ease: [0.22, 1, 0.36, 1]`).
 - **Interactive Hover Shifts**: Bento cards apply `whileHover={{ y: -6, scale: 1.01 }}` transitions, creating a tangible sense of weight and tactile connection.

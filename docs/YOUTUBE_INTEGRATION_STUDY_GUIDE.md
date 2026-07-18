@@ -1,11 +1,11 @@
-# PostSync YouTube Integration Study Guide
+# Postelligence YouTube Integration Study Guide
 
-This guide explains how YouTube account connection was integrated into PostSync from scratch. It follows the code currently running on `http://localhost:3000`.
+This guide explains how YouTube account connection was integrated into Postelligence from scratch. It follows the code currently running on `http://localhost:3000`.
 
 The integration is separate from Google login:
 
-- **Supabase Google login** authenticates a person into PostSync.
-- **YouTube OAuth** grants an already-authenticated PostSync user permission to access and manage a YouTube channel.
+- **Supabase Google login** authenticates a person into Postelligence.
+- **YouTube OAuth** grants an already-authenticated Postelligence user permission to access and manage a YouTube channel.
 
 Never use the YouTube connection flow as a replacement for application authentication.
 
@@ -14,9 +14,9 @@ Never use the YouTube connection flow as a replacement for application authentic
 The completed integration allows an authenticated user to:
 
 1. Click **Connect YouTube** in the existing Connected Accounts dashboard panel.
-2. Authorize PostSync through Google OAuth.
+2. Authorize Postelligence through Google OAuth.
 3. Grant YouTube read and upload permissions.
-4. Return to PostSync through a secure callback.
+4. Return to Postelligence through a secure callback.
 5. Exchange Google's short-lived authorization code for access and refresh tokens.
 6. Fetch the user's YouTube channel name, ID, thumbnail, and metadata.
 7. Store the connection.
@@ -120,11 +120,11 @@ export const YOUTUBE_SCOPES = [
 
 ### `youtube.readonly`
 
-Allows PostSync to read the authenticated user's YouTube account and channel information.
+Allows Postelligence to read the authenticated user's YouTube account and channel information.
 
 ### `youtube.upload`
 
-Allows PostSync to upload and manage videos on behalf of the user.
+Allows Postelligence to upload and manage videos on behalf of the user.
 
 Only request scopes the product actually needs. More powerful scopes increase user concern and Google verification requirements.
 
@@ -237,7 +237,7 @@ This keeps the external callback URL clean while keeping integration API code gr
 
 1. Google did not return an OAuth error.
 2. Both `code` and `state` exist.
-3. The PostSync user is still logged in.
+3. The Postelligence user is still logged in.
 4. The returned state matches the HTTP-only state cookie.
 5. The state cookie belongs to the current user.
 
@@ -306,7 +306,7 @@ The callback first attempts to save the connection in Supabase's `social_account
 For the current localhost setup, if that table is unavailable, the app uses an encrypted local fallback in:
 
 ```text
-.postsync-data/social-accounts.json
+.postelligence-data/social-accounts.json
 ```
 
 The local fallback:
@@ -357,7 +357,7 @@ The backend:
 4. Returns `{ "ok": true }`.
 5. Redirects the UI to `/dashboard?youtube=disconnected`.
 
-This disconnects the account inside PostSync. A production implementation may also revoke the Google token using Google's token-revocation endpoint.
+This disconnects the account inside Postelligence. A production implementation may also revoke the Google token using Google's token-revocation endpoint.
 
 ## 8. Reusable Social Account Model
 
@@ -398,9 +398,9 @@ Production improvement: encrypt access and refresh tokens before storing them. R
 - OAuth state is random and validated.
 - State is stored in an HTTP-only cookie.
 - OAuth attempts expire after ten minutes.
-- Callback requires an authenticated PostSync user.
+- Callback requires an authenticated Postelligence user.
 - Local tokens are encrypted with AES-256-GCM.
-- `.env.local` and `.postsync-data` are Git-ignored.
+- `.env.local` and `.postelligence-data` are Git-ignored.
 - Supabase migration uses Row Level Security.
 
 ### Required before production
@@ -448,7 +448,7 @@ http://localhost:3000/dashboard
 
 ### Manual test checklist
 
-1. Log in to PostSync.
+1. Log in to Postelligence.
 2. Open the dashboard.
 3. Confirm YouTube displays **Connect YouTube**.
 4. Click Connect YouTube.

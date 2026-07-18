@@ -39,7 +39,7 @@ export function LoginShowcase() {
             <div>
               <p className="text-xs font-black text-[#1f2528]">OAuth 2.0 Protocol Active</p>
               <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
-                PostSync communicates directly with social platforms through official APIs. We never store or ask for your social media account passwords.
+                Postelligence communicates directly with social platforms through official APIs. We never store or ask for your social media account passwords.
               </p>
             </div>
           </div>

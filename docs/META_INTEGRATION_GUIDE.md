@@ -203,7 +203,7 @@ Each connected Instagram account stores:
 If Supabase saving fails, the app falls back to the local encrypted store in:
 
 ```text
-.postsync-data/social-accounts.json
+.postelligence-data/social-accounts.json
 ```
 
 ## The Page-Not-Returned Fix

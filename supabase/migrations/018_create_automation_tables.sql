@@ -1,5 +1,5 @@
 -- ============================================================
--- PostSync: Automation Settings and Logs tables
+-- Postelligence: Automation Settings and Logs tables
 -- Migration: 018
 -- ============================================================
 

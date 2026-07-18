@@ -65,7 +65,7 @@ export async function exchangeRedditCode(origin: string, code: string) {
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
       Authorization: `Basic ${credentials}`,
-      "User-Agent": "PostSync/1.0"
+      "User-Agent": "Postelligence/1.0"
     },
     body
   });
@@ -82,7 +82,7 @@ export async function fetchRedditUser(accessToken: string) {
   const response = await fetch("https://oauth.reddit.com/api/v1/me", {
     headers: {
       Authorization: `Bearer ${accessToken}`,
-      "User-Agent": "PostSync/1.0"
+      "User-Agent": "Postelligence/1.0"
     }
   });
 

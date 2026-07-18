@@ -1,5 +1,5 @@
 -- ============================================================
--- PostSync: Atomic claiming for the auto-publish scheduler
+-- Postelligence: Atomic claiming for the auto-publish scheduler
 -- Migration: 015
 -- ============================================================
 --

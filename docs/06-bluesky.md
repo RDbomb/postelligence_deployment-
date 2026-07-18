@@ -6,7 +6,7 @@
 
 ## Overview
 
-Bluesky uses a completely different authentication model from all other platforms. Instead of OAuth, Bluesky uses the **AT Protocol** with **App Passwords**. There is no developer app to register, no OAuth redirect, and no client credentials needed. Users simply generate an app password from their Bluesky account settings and enter it in PostSync.
+Bluesky uses a completely different authentication model from all other platforms. Instead of OAuth, Bluesky uses the **AT Protocol** with **App Passwords**. There is no developer app to register, no OAuth redirect, and no client credentials needed. Users simply generate an app password from their Bluesky account settings and enter it in Postelligence.
 
 ---
 
@@ -17,7 +17,7 @@ Bluesky uses a completely different authentication model from all other platform
    - **Bluesky handle** (e.g. `yourname.bsky.social`)
    - **App password** (generated at `bsky.app → Settings → App Passwords`)
 3. User submits the form
-4. PostSync sends a `POST` request to `/api/integrations/bluesky/connect` with the handle and app password
+4. Postelligence sends a `POST` request to `/api/integrations/bluesky/connect` with the handle and app password
 5. The API calls `https://bsky.social/xrpc/com.atproto.server.createSession` with the credentials
 6. Bluesky returns an `accessJwt` and `refreshJwt`
 7. The user's profile is fetched using the access token
@@ -35,14 +35,14 @@ An app password is a separate password specifically for third-party apps. It giv
 2. Click your profile → **Settings**
 3. Navigate to **App Passwords**
 4. Click **Add App Password**
-5. Give it a name (e.g. "PostSync")
+5. Give it a name (e.g. "Postelligence")
 6. Copy the generated password (shown only once)
 
 ---
 
 ## No Developer App Required
 
-Unlike every other platform in PostSync, Bluesky requires **zero setup on the developer side**. There is no:
+Unlike every other platform in Postelligence, Bluesky requires **zero setup on the developer side**. There is no:
 - App registration
 - Client ID or Secret
 - OAuth redirect URI

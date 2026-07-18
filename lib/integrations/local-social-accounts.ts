@@ -34,7 +34,7 @@ type SaveMetaAccountInput = {
   metadata: Record<string, unknown>;
 };
 
-const dataDirectory = path.join(process.cwd(), ".postsync-data");
+const dataDirectory = path.join(process.cwd(), ".postelligence-data");
 const storePath = path.join(dataDirectory, "social-accounts.json");
 const temporaryStorePath = path.join(dataDirectory, "social-accounts.tmp.json");
 

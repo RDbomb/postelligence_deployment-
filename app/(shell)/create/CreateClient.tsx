@@ -728,7 +728,7 @@ export default function CreateClient({
       if (!response.ok) throw new Error(data.error || "Publishing failed.");
       setPublishResults(data.results || []);
       if (data.published > 0) {
-        window.localStorage.removeItem("postsync-draft");
+        window.localStorage.removeItem("postelligence-draft");
       }
     } catch (error) {
       setPublishError(error instanceof Error ? error.message : "Publishing failed.");
@@ -787,7 +787,7 @@ export default function CreateClient({
               </div>
               <Badge className="border-[#2f7867]/20 bg-[#eaf7ef] text-[#2f7867]">{selectedConnectedPlatforms.length}/{selectedPlatforms.length || 0} ready</Badge>
             </div>
-            <div className="flex gap-2 overflow-x-auto pb-1">
+            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-slate-100">
               {platforms.map((platform) => {
                 const selected = selectedPlatforms.includes(platform.id);
                 const platformCfg = PLATFORM_CONFIG.find((c) => c.id === platform.id);
@@ -795,18 +795,18 @@ export default function CreateClient({
                 return (
                   <button key={platform.id} onClick={() => togglePlatform(platform.id)} disabled={!isAvailable}
                     title={!isAvailable ? "This integration is coming soon." : platform.connected ? platform.handle : "Connect this account before publishing"}
-                    className={cn("flex min-w-[132px] items-center gap-3 rounded-lg border bg-white px-3 py-2.5 text-left transition hover:bg-[#f2f4ef]", (!platform.connected || !isAvailable) && "opacity-60", !isAvailable && "cursor-not-allowed hover:bg-white", !selected && "border-[#1f2528]/10")}
-                    style={selected && isAvailable ? { borderColor: `${platform.color}66`, backgroundColor: `${platform.color}12` } : undefined}>
-                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-[#1f2528]/10 bg-white" style={{ color: platform.color }}>
+                    className={cn("flex min-w-[160px] shrink-0 items-center gap-3.5 rounded-xl border bg-white px-4 py-3 text-left transition-all duration-200 hover:bg-[#f2f4ef] shadow-sm", (!platform.connected || !isAvailable) && "opacity-60", !isAvailable && "cursor-not-allowed hover:bg-white", !selected && "border-slate-200/80")}
+                    style={selected && isAvailable ? { borderColor: `${platform.color}77`, backgroundColor: `${platform.color}0d`, transform: "scale(1.02)", boxShadow: `0 4px 12px ${platform.color}15` } : undefined}>
+                    <span className="grid h-9.5 w-9.5 shrink-0 place-items-center rounded-xl border border-slate-100 bg-white shadow-sm transition-transform duration-200" style={{ color: platform.color }}>
                       <PlatformLogo id={platform.id} className="h-5 w-5" />
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-black text-[#1f2528]">{platform.name}</span>
-                      <span className={cn("block truncate text-xs", !isAvailable ? "text-amber-500 font-bold" : platform.connected ? "text-slate-500" : "text-rose-500")}>
+                      <span className="block text-xs font-black text-slate-800 tracking-tight leading-snug">{platform.name}</span>
+                      <span className={cn("block truncate text-[10px] font-bold mt-0.5", !isAvailable ? "text-amber-500" : platform.connected ? "text-slate-450" : "text-rose-500")}>
                         {!isAvailable ? "Coming soon" : platform.connected ? platform.handle : "Not connected"}
                       </span>
                     </span>
-                    {selected && isAvailable && <Check className="h-4 w-4 shrink-0" style={{ color: platform.color }} />}
+                    {selected && isAvailable && <Check className="h-4.5 w-4.5 shrink-0" style={{ color: platform.color }} />}
                   </button>
                 );
               })}

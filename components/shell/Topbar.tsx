@@ -36,7 +36,7 @@ interface SearchResult {
 export default function Topbar({ onMobileMenuToggle }: TopbarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const pageTitle = titles[pathname] || "PostSync Workspace";
+  const pageTitle = titles[pathname] || "Postelligence Workspace";
 
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);

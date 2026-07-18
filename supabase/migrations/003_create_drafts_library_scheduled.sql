@@ -1,5 +1,5 @@
 -- ============================================================
--- PostSync: Drafts, Media Library, and Scheduled Posts tables
+-- Postelligence: Drafts, Media Library, and Scheduled Posts tables
 -- Migration: 003
 -- ============================================================
 

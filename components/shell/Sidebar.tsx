@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -51,6 +51,11 @@ export default function Sidebar({ user, open, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
+
+  useEffect(() => {
+    setAvatarError(false);
+  }, [user?.user_metadata?.avatar_url]);
 
   const name = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split("@")[0] || "Creator";
   const initials = name.slice(0, 2).toUpperCase();
@@ -165,11 +170,12 @@ export default function Sidebar({ user, open, onToggle }: SidebarProps) {
               open ? "gap-3 px-1" : "justify-center px-0"
             }`}
           >
-            {user?.user_metadata?.avatar_url ? (
+            {user?.user_metadata?.avatar_url && !avatarError ? (
               <img
                 src={user.user_metadata.avatar_url}
                 alt={name}
                 className="h-9 w-9 rounded-full object-cover border border-[#1f2528]/12 shrink-0"
+                onError={() => setAvatarError(true)}
               />
             ) : (
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#2f7867]/10 text-xs font-bold text-[#2f7867] border border-[#2f7867]/20">

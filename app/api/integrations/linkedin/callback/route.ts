@@ -24,7 +24,7 @@ export async function GET(request: Request) {
     url.searchParams.set("linkedin", status);
     if (message) url.searchParams.set("message", message);
     const response = NextResponse.redirect(url);
-    response.cookies.delete("postsync_linkedin_oauth_state");
+    response.cookies.delete("postelligence_linkedin_oauth_state");
     return response;
   };
 
@@ -34,7 +34,7 @@ export async function GET(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.redirect(new URL("/", requestUrl.origin));
 
-  const raw = cookies().get("postsync_linkedin_oauth_state")?.value;
+  const raw = cookies().get("postelligence_linkedin_oauth_state")?.value;
   let cookieState: { state?: string; userId?: string; workspaceId?: string | null } | null = null;
   try { cookieState = raw ? JSON.parse(raw) : null; } catch { cookieState = null; }
 

@@ -8,7 +8,7 @@ import { PageTransition } from "@/components/marketing/PageTransition";
 import { Reveal } from "@/components/marketing/Reveal";
 
 const features = [
-  { icon: PenLine, title: "Unified Composer", copy: "Write once with rich media support. PostSync auto-formats and optimizes for every platform — character limits, hashtags, and all.", tag: "Create", color: "#2f7867", bg: "#eaf7ef", highlight: "Write once, publish everywhere" },
+  { icon: PenLine, title: "Unified Composer", copy: "Write once with rich media support. Postelligence auto-formats and optimizes for every platform — character limits, hashtags, and all.", tag: "Create", color: "#2f7867", bg: "#eaf7ef", highlight: "Write once, publish everywhere" },
   { icon: Bot, title: "AI Studio", copy: "Generate captions, rewrite for tone, and brainstorm hooks — grounded in your brand voice, never generic.", tag: "Intelligence", color: "#6d5ad0", bg: "#f0eeff", highlight: "Your voice, amplified by AI" },
   { icon: Calendar, title: "Visual Calendar", copy: "See your entire content week at a glance. Drag, drop, and reschedule in seconds without breaking your flow.", tag: "Schedule", color: "#0077B5", bg: "#e8f1fb", highlight: "Total schedule visibility" },
   { icon: Globe2, title: "Multi-platform Publishing", copy: "LinkedIn, Instagram, YouTube, Threads, Bluesky, Pinterest and more — one workflow, every channel.", tag: "Distribute", color: "#d05945", bg: "#fff0ed", highlight: "7+ platforms, one click" },
@@ -45,7 +45,7 @@ export default function FeaturesPage() {
             <span className="bg-gradient-to-r from-[#2f7867] via-[#56a98f] to-[#d05945] bg-clip-text text-transparent">publish with purpose.</span>
           </motion.h1>
           <motion.p initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.18 }} className="mx-auto mt-7 max-w-2xl text-lg leading-relaxed text-[#4f5b62]">
-            Every tool in PostSync shares one goal: remove friction between your ideas and your audience. No clutter. No duplicate work. Just a calm, powerful workspace.
+            Every tool in Postelligence shares one goal: remove friction between your ideas and your audience. No clutter. No duplicate work. Just a calm, powerful workspace.
           </motion.p>
           <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.26 }} className="mt-10 flex flex-wrap items-center justify-center gap-3">
             {highlights.map((h) => (
@@ -105,9 +105,9 @@ export default function FeaturesPage() {
               <div className="pointer-events-none absolute -bottom-16 -left-16 h-64 w-64 rounded-full bg-[#d05945]/10 blur-3xl" />
               <p className="relative text-xs font-bold uppercase tracking-widest text-[#56a98f]">Everything you need</p>
               <h2 className="relative mx-auto mt-5 max-w-2xl text-3xl font-bold tracking-[-0.03em] text-white md:text-4xl">One workspace for your entire content operation.</h2>
-              <p className="relative mx-auto mt-5 max-w-xl text-base leading-relaxed text-white/55">From the first draft to the final publish, PostSync handles every step so you can focus on what matters — creating content your audience loves.</p>
+              <p className="relative mx-auto mt-5 max-w-xl text-base leading-relaxed text-white/55">From the first draft to the final publish, Postelligence handles every step so you can focus on what matters — creating content your audience loves.</p>
               <div className="relative mt-10 flex flex-wrap items-center justify-center gap-4">
-                <Link href="/login" className="marketing-cta-primary">Try PostSync free<ArrowRight className="h-4 w-4" /></Link>
+                <Link href="/login" className="marketing-cta-primary">Try Postelligence free<ArrowRight className="h-4 w-4" /></Link>
                 <Link href="/platforms" className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-6 py-3 text-sm font-semibold text-white backdrop-blur-sm hover:bg-white/15 transition-colors">View integrations</Link>
               </div>
             </div>

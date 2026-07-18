@@ -2,7 +2,7 @@
 
 ## What is a Team Workspace?
 
-A Team Workspace is PostSync's collaborative mode, sitting alongside the solo (personal) mode. Instead of one person drafting, scheduling, and publishing alone, a workspace has multiple members with different roles — someone writes content, someone approves and schedules it, someone reviews performance — all inside the same shared social accounts, drafts, calendar, and analytics.
+A Team Workspace is Postelligence's collaborative mode, sitting alongside the solo (personal) mode. Instead of one person drafting, scheduling, and publishing alone, a workspace has multiple members with different roles — someone writes content, someone approves and schedules it, someone reviews performance — all inside the same shared social accounts, drafts, calendar, and analytics.
 
 Solo and team functionality are deliberately kept in separate clients (`TeamComposeClient.tsx`, `TeamScheduleClient.tsx`, etc.) so team-specific logic (roles, approvals, comments) never leaks into the simpler solo flows.
 

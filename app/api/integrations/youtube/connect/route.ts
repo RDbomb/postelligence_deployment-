@@ -41,7 +41,7 @@ export async function GET(request: Request) {
     const response = NextResponse.redirect(oauthUrl);
 
     response.cookies.set(
-      "postsync_youtube_oauth_state",
+      "postelligence_youtube_oauth_state",
       JSON.stringify({ state, userId: user.id, workspaceId: workspaceId || null }),
       {
         httpOnly: true,

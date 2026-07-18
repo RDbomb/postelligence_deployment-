@@ -1,4 +1,4 @@
-# PostSync
+# Postelligence
 
 A social media management dashboard that lets you write one post and publish it to multiple platforms simultaneously — LinkedIn, YouTube, Bluesky, Instagram, Facebook, Threads, and more.
 
@@ -150,7 +150,7 @@ npx supabase functions deploy bluesky-video-upload --project-ref YOUR_PROJECT_RE
 ## Project Structure
 
 ```
-PostSync/
+Postelligence/
 ├── app/
 │   ├── page.tsx                        # Landing / login page
 │   ├── auth/                           # OAuth callbacks (Google + per platform)

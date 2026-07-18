@@ -39,7 +39,7 @@ export async function GET(request: Request) {
     const response = NextResponse.redirect(oauthUrl);
 
     response.cookies.set(
-      "postsync_linkedin_oauth_state",
+      "postelligence_linkedin_oauth_state",
       JSON.stringify({ state, userId: user.id, workspaceId: workspaceId || null }),
       { httpOnly: true, maxAge: 60 * 10, path: "/", sameSite: "lax", secure: requestUrl.protocol === "https:" }
     );

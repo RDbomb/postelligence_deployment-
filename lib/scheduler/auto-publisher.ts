@@ -226,7 +226,7 @@ async function publishLinkedIn(account: StoredAccount, post: ScheduledPost, atta
 
   if (attachment?.type.startsWith("video/")) {
     const videoUrn = await uploadLinkedInVideo(account.access_token, author, attachment);
-    body.content = { media: { title: post.title || attachment.name || "PostSync video", id: videoUrn } };
+    body.content = { media: { title: post.title || attachment.name || "Postelligence video", id: videoUrn } };
   } else if (imageAttachments.length > 1) {
     const imageUrns = (await Promise.all(imageAttachments.map((file) => uploadLinkedInImage(account.access_token!, author, file))))
       .filter((id): id is string => Boolean(id));
@@ -257,7 +257,7 @@ async function publishLinkedIn(account: StoredAccount, post: ScheduledPost, atta
 }
 
 async function uploadYouTubeVideo(accessToken: string, attachment: File, metadata: Record<string, unknown>) {
-  const boundary = `postsync-${crypto.randomUUID()}`;
+  const boundary = `postelligence-${crypto.randomUUID()}`;
   const metadataPart = Buffer.from(`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n`);
   const fileHeader = Buffer.from(`--${boundary}\r\nContent-Type: ${attachment.type || "application/octet-stream"}\r\n\r\n`);
   const closing = Buffer.from(`\r\n--${boundary}--`);
@@ -409,7 +409,7 @@ async function uploadBlueskyVideo(accessToken: string, did: string, attachment: 
   const bytes = await attachment.arrayBuffer();
   const uploadUrl = new URL(`${blueskyVideoServiceUrl}/xrpc/app.bsky.video.uploadVideo`);
   uploadUrl.searchParams.set("did", did);
-  uploadUrl.searchParams.set("name", attachment.name || "postsync-video.mp4");
+  uploadUrl.searchParams.set("name", attachment.name || "postelligence-video.mp4");
 
   const uploadPayload = await requireOk(
     await fetch(uploadUrl, {

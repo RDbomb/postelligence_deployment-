@@ -2,7 +2,7 @@
 
 ## What is the Analytics Dashboard?
 
-The Analytics Dashboard is the **unified metrics hub** of PostSync. It pulls live engagement data from every connected social platform — YouTube, Instagram, Facebook, Threads, Bluesky, LinkedIn — and combines it with PostSync's own publishing history from the `scheduled_posts` table to give the user a single, honest picture of how their content is performing.
+The Analytics Dashboard is the **unified metrics hub** of Postelligence. It pulls live engagement data from every connected social platform — YouTube, Instagram, Facebook, Threads, Bluesky, LinkedIn — and combines it with Postelligence's own publishing history from the `scheduled_posts` table to give the user a single, honest picture of how their content is performing.
 
 In simple words: instead of opening 6 different apps to check likes, comments, views, and follower counts, the user sees everything in one screen — with charts, per-platform breakdowns, and a filterable list of recent posts.
 
@@ -139,7 +139,7 @@ export type AnalyticsPost = {
 
 #### The `basePlatform()` function — the local fallback baseline
 
-Before any API call is made, `basePlatform()` builds a starter `PlatformAnalytics` object from data PostSync already owns:
+Before any API call is made, `basePlatform()` builds a starter `PlatformAnalytics` object from data Postelligence already owns:
 
 - `posts`, `published`, `queued`, `failed` — counted from `scheduled_posts` filtered to this platform.
 - `likes`, `comments`, `shares`, `reach`, `followers` — extracted from the `metadata` JSON column of `social_accounts` (if the platform stores any there).
@@ -182,7 +182,7 @@ Each fetcher follows the same contract: receives `(account: AnalyticsAccount, fa
 **LinkedIn** (`fetchLinkedIn`)
 1. Calls `GET /rest/posts?q=author&author=urn:li:person:<id>&count=20` with `LinkedIn-Version` and `X-Restli-Protocol-Version` headers.
 2. For each post, silently tries `GET /rest/socialActions/<encodedId>` → likes and comments per post.
-3. If `ACCESS_DENIED` or `r_member_social` errors are detected, returns `status: "partial"` or `"error"` with a message that LinkedIn has restricted this permission to new apps — not a PostSync bug.
+3. If `ACCESS_DENIED` or `r_member_social` errors are detected, returns `status: "partial"` or `"error"` with a message that LinkedIn has restricted this permission to new apps — not a Postelligence bug.
 4. Returns: likes, comments. Shares and reach are `null` (LinkedIn API doesn't expose these).
 
 #### Error Handling Philosophy
@@ -508,7 +508,7 @@ This component reads a platform row's `status` and `message` and decides which U
 - **Rose error box** — shown for any `status: "error"` without a recognized permission issue. Shows the raw error message with a link to Integrations.
 - **Plain grey text** — shown for `status: "synced"` or `status: "partial"` without a permission issue. Just the status message.
 
-This distinction matters because LinkedIn's `r_member_social` restriction affects **all** third-party apps, not just PostSync. Surfacing a clear explanation prevents users from thinking their account is broken or that PostSync has a bug.
+This distinction matters because LinkedIn's `r_member_social` restriction affects **all** third-party apps, not just Postelligence. Surfacing a clear explanation prevents users from thinking their account is broken or that Postelligence has a bug.
 
 ### The 7 Metric Cards
 
@@ -619,7 +619,7 @@ LINKEDIN_API_VERSION=202605
 | Issue | Likely Cause | Fix |
 |---|---|---|
 | Analytics page loads very slowly on first visit | Cache miss — fetching from 6 platform APIs in parallel | Normal on first load. After the first load, cache is written and subsequent loads are instant. |
-| LinkedIn shows "error" status | `r_member_social` not approved by LinkedIn | This affects all third-party tools, not just PostSync. Publishing still works. No fix available until LinkedIn re-opens the permission. |
+| LinkedIn shows "error" status | `r_member_social` not approved by LinkedIn | This affects all third-party tools, not just Postelligence. Publishing still works. No fix available until LinkedIn re-opens the permission. |
 | Facebook/Instagram shows "partial" | `pages_read_user_content` not approved | Complete Meta app review. Until then, post counts and page profile data still show. |
 | Cache is stale but page never refreshes | `is_refreshing` stuck as `true` after a failed refresh | The refresh route clears `is_refreshing` on error. If stuck, delete the row from `analytics_cache` in Supabase SQL Editor: `DELETE FROM analytics_cache WHERE user_id = '<your-user-id>';` |
 | `analytics_cache` table doesn't exist | Migration not run | Run the SQL from Part 6 above in Supabase SQL Editor. |
@@ -631,7 +631,7 @@ LINKEDIN_API_VERSION=202605
 
 ## Quick Interview-Ready Summary
 
-> "The Analytics Dashboard fetches live engagement data — likes, comments, shares, reach, followers — from each connected platform's API in parallel, combines it with PostSync's own `scheduled_posts` table for local publishing stats, and presents everything in one unified view with bar, pie, and line charts built with Recharts. To avoid slow page loads, we implemented a stale-while-revalidate cache on a Supabase `analytics_cache` table: data under 30 minutes old is served instantly, data between 30 and 60 minutes old is served immediately while a background refresh fires silently, and data older than 60 minutes is fetched fresh. Sensitive OAuth tokens are stripped server-side before the data is passed to the React client component. Platform-specific permission errors — like LinkedIn's `r_member_social` restriction — are detected and surfaced to the user with plain-English explanations rather than raw API error codes, so users understand why data is missing and what they can do about it."
+> "The Analytics Dashboard fetches live engagement data — likes, comments, shares, reach, followers — from each connected platform's API in parallel, combines it with Postelligence's own `scheduled_posts` table for local publishing stats, and presents everything in one unified view with bar, pie, and line charts built with Recharts. To avoid slow page loads, we implemented a stale-while-revalidate cache on a Supabase `analytics_cache` table: data under 30 minutes old is served instantly, data between 30 and 60 minutes old is served immediately while a background refresh fires silently, and data older than 60 minutes is fetched fresh. Sensitive OAuth tokens are stripped server-side before the data is passed to the React client component. Platform-specific permission errors — like LinkedIn's `r_member_social` restriction — are detected and surfaced to the user with plain-English explanations rather than raw API error codes, so users understand why data is missing and what they can do about it."
 
 ---
 

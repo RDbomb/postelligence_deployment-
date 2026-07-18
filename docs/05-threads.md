@@ -43,7 +43,7 @@ The Redirect Callback URLs field resets after the failed save. This is the same 
 ## Developer App Setup
 
 - **Platform:** Meta Developer Portal — `developers.facebook.com`
-- **App name:** `postsync2`
+- **App name:** `postelligence2`
 - **Threads App ID:** `1025230530064554`
 - **Threads App Secret:** Stored in `.env.local`
 - **Use case:** Access the Threads API
@@ -100,7 +100,7 @@ lib/integrations/threads.ts                       — OAuth + token helpers
 
 ## Deployment Steps
 
-1. Go to Meta Developer Portal → `postsync2` app
+1. Go to Meta Developer Portal → `postelligence2` app
 2. Navigate to **Use cases → Access the Threads API → Settings**
 3. Under **Redirect Callback URLs**, add: `https://yourdomain.com/auth/threads/callback`
 4. Click Save

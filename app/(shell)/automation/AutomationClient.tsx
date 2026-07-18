@@ -120,6 +120,7 @@ export default function AutomationClient({ user, initialSettings, initialLogs }:
   const [useSameSettings, setUseSameSettings] = useState<boolean>(initialSettings.use_same_settings !== false);
   const [timeConfigs, setTimeConfigs] = useState<Record<string, { platforms: string[], categories: string[], keywords: string[] }>>(initialSettings.time_configs || {});
   const [selectedTimeForConfig, setSelectedTimeForConfig] = useState<string>("all");
+  const [activePickerIdx, setActivePickerIdx] = useState<number | null>(null);
 
   // Logs states
   const [logs, setLogs] = useState<AutomationLog[]>(initialLogs);
@@ -507,6 +508,13 @@ export default function AutomationClient({ user, initialSettings, initialLogs }:
   const pendingQueue = logs.filter((l) => l.status === "pending");
   const pastLogs = logs;
 
+  const get24hTime = (h12: number, min: number, period: string): string => {
+    let h24 = h12;
+    if (period === "PM" && h12 < 12) h24 += 12;
+    if (period === "AM" && h12 === 12) h24 = 0;
+    return `${String(h24).padStart(2, "0")}:${String(min).padStart(2, "0")}:00`;
+  };
+
   // Active configurations based on selectedTimeForConfig
   const utcKey = localTimeToUtcStr(selectedTimeForConfig);
   const activePlatforms = useSameSettings || selectedTimeForConfig === "all"
@@ -718,31 +726,125 @@ export default function AutomationClient({ user, initialSettings, initialLogs }:
                     <Clock className="h-3.5 w-3.5" /> Posting Times
                   </label>
                   <div className="space-y-2">
-                    {postTimes.map((time, idx) => (
-                      <div key={idx} className="flex items-center gap-2">
-                        <input
-                          type="time"
-                          value={time.slice(0, 5)}
-                          onChange={(e) => {
-                            if (!e.target.value) return;
-                            const newTimes = [...postTimes];
-                            newTimes[idx] = e.target.value + ":00";
-                            setPostTimes(newTimes);
-                          }}
-                          className="block w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-[#1f2528] shadow-sm focus:border-[#2f7867] focus:outline-none"
-                        />
-                        {postTimes.length > 1 && (
+                    {postTimes.map((time, idx) => {
+                      const [h24Str, mStr] = time.split(":");
+                      const h24 = Number(h24Str || 9);
+                      const mDisplay = mStr || "00";
+                      const ampm = h24 >= 12 ? "PM" : "AM";
+                      const h12 = h24 % 12 || 12;
+                      const h12Str = String(h12).padStart(2, "0");
+
+                      return (
+                        <div key={idx} className="relative flex items-center gap-2">
+                          {/* Sleek Custom Trigger Button */}
                           <button
                             type="button"
-                            onClick={() => setPostTimes(postTimes.filter((_, i) => i !== idx))}
-                            className="p-2.5 text-rose-500 hover:bg-rose-50 rounded-xl transition border border-transparent hover:border-rose-100"
-                            title="Remove Time"
+                            onClick={() => setActivePickerIdx(activePickerIdx === idx ? null : idx)}
+                            className="flex items-center justify-between w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-[#1f2528] shadow-sm hover:border-indigo-300 transition text-left focus:outline-none"
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <span>{h12Str}:{mDisplay} {ampm}</span>
+                            <Clock className="h-3.5 w-3.5 text-slate-400" />
                           </button>
-                        )}
-                      </div>
-                    ))}
+
+                          {/* Custom Time Selector Dropdown Overlay */}
+                          {activePickerIdx === idx && (
+                            <>
+                              {/* Click-outside backdrop wrapper */}
+                              <div className="fixed inset-0 z-30" onClick={() => setActivePickerIdx(null)} />
+                              
+                              <div className="absolute top-[42px] left-0 z-40 bg-white border border-slate-200/80 rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.06)] p-3 flex gap-3 h-48 w-56 backdrop-blur-md animate-in fade-in slide-in-from-top-1 duration-150">
+                                
+                                {/* Hours Select Column */}
+                                <div className="flex-1 overflow-y-auto scrollbar-none h-full space-y-0.5 pr-1 border-r border-slate-100">
+                                  {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => {
+                                    const isActive = h === h12;
+                                    return (
+                                      <button
+                                        key={h}
+                                        type="button"
+                                        onClick={() => {
+                                          const nextTime = get24hTime(h, Number(mDisplay), ampm);
+                                          const newTimes = [...postTimes];
+                                          newTimes[idx] = nextTime;
+                                          setPostTimes(newTimes);
+                                        }}
+                                        className={`w-full py-1.5 rounded-lg text-center font-bold text-[11px] transition ${
+                                          isActive ? "bg-indigo-600 text-white" : "hover:bg-slate-50 text-slate-600"
+                                        }`}
+                                      >
+                                        {String(h).padStart(2, "0")}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+
+                                {/* Minutes Select Column */}
+                                <div className="flex-1 overflow-y-auto scrollbar-none h-full space-y-0.5 pr-1 border-r border-slate-100">
+                                  {Array.from({ length: 60 }, (_, i) => i).map((m) => {
+                                    const isActive = m === Number(mDisplay);
+                                    return (
+                                      <button
+                                        key={m}
+                                        type="button"
+                                        onClick={() => {
+                                          const nextTime = get24hTime(h12, m, ampm);
+                                          const newTimes = [...postTimes];
+                                          newTimes[idx] = nextTime;
+                                          setPostTimes(newTimes);
+                                        }}
+                                        className={`w-full py-1.5 rounded-lg text-center font-bold text-[11px] transition ${
+                                          isActive ? "bg-indigo-600 text-white" : "hover:bg-slate-50 text-slate-600"
+                                        }`}
+                                      >
+                                        {String(m).padStart(2, "0")}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+
+                                {/* Period Select Column (AM/PM) */}
+                                <div className="flex flex-col gap-1.5 justify-center pl-1">
+                                  {["AM", "PM"].map((p) => {
+                                    const isActive = p === ampm;
+                                    return (
+                                      <button
+                                        key={p}
+                                        type="button"
+                                        onClick={() => {
+                                          const nextTime = get24hTime(h12, Number(mDisplay), p);
+                                          const newTimes = [...postTimes];
+                                          newTimes[idx] = nextTime;
+                                          setPostTimes(newTimes);
+                                        }}
+                                        className={`px-2.5 py-2 rounded-lg text-center font-black text-[10px] transition border ${
+                                          isActive
+                                            ? "bg-indigo-600 border-indigo-700 text-white"
+                                            : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                                        }`}
+                                      >
+                                        {p}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+
+                              </div>
+                            </>
+                          )}
+
+                          {postTimes.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => setPostTimes(postTimes.filter((_, i) => i !== idx))}
+                              className="p-2.5 text-rose-500 hover:bg-rose-50 rounded-xl transition border border-transparent hover:border-rose-100 shrink-0"
+                              title="Remove Time"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                   <button
                     type="button"
@@ -862,16 +964,34 @@ export default function AutomationClient({ user, initialSettings, initialLogs }:
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       {AVAILABLE_CATEGORIES.map((c) => {
                         const selected = activeCategories.includes(c.id);
+                        
+                        let catActiveStyle = "border-slate-150 bg-white text-slate-500 hover:bg-slate-50";
+                        if (selected) {
+                          if (c.id === "world") {
+                            catActiveStyle = "border-sky-350 bg-sky-50 text-sky-700 shadow-sm";
+                          } else if (c.id === "technology") {
+                            catActiveStyle = "border-emerald-355 bg-emerald-50 text-emerald-700 shadow-sm";
+                          } else if (c.id === "business") {
+                            catActiveStyle = "border-amber-350 bg-amber-50 text-amber-700 shadow-sm";
+                          } else if (c.id === "sports") {
+                            catActiveStyle = "border-rose-350 bg-rose-50 text-rose-700 shadow-sm";
+                          } else if (c.id === "entertainment") {
+                            catActiveStyle = "border-purple-350 bg-purple-50 text-purple-700 shadow-sm";
+                          } else if (c.id === "science") {
+                            catActiveStyle = "border-indigo-350 bg-indigo-50 text-indigo-700 shadow-sm";
+                          } else if (c.id === "health") {
+                            catActiveStyle = "border-lime-350 bg-lime-50 text-lime-700 shadow-sm";
+                          } else {
+                            catActiveStyle = "border-indigo-350 bg-indigo-50 text-indigo-700 shadow-sm";
+                          }
+                        }
+
                         return (
                           <button
                             key={c.id}
                             type="button"
                             onClick={() => toggleCategory(c.id)}
-                            className={`rounded-lg border px-2.5 py-1 text-[10px] font-bold transition ${
-                              selected
-                                ? "border-indigo-300 bg-indigo-50 text-indigo-700 shadow-sm"
-                                : "border-slate-150 bg-white text-slate-500 hover:bg-slate-50"
-                            }`}
+                            className={`rounded-lg border px-2.5 py-1 text-[10px] font-bold transition ${catActiveStyle}`}
                           >
                             {c.name}
                           </button>
@@ -933,7 +1053,7 @@ export default function AutomationClient({ user, initialSettings, initialLogs }:
                 </p>
                 <div className="rounded-xl border border-slate-150 bg-white p-4 shadow-sm text-left space-y-3 pointer-events-none scale-[0.98]">
                   <div>
-                    <span className="text-[8px] font-black uppercase text-[#2f7867]">PostSync Automated Draft</span>
+                    <span className="text-[8px] font-black uppercase text-[#2f7867]">Postelligence Automated Draft</span>
                     <h4 className="text-xs font-black text-[#1f2528] mt-0.5">Example: Tech Trends Live</h4>
                   </div>
                   <div className="rounded-lg bg-slate-50 p-2 text-[10px] text-slate-500 font-medium italic border border-slate-100">

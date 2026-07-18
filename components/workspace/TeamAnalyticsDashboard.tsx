@@ -770,7 +770,7 @@ export default function TeamAnalyticsDashboard({ workspaceId, currentRole }: { w
       <p class="body-text">${(observations || "No observations recorded yet.").replace(/\n/g, "<br/>")}</p>
       <h2>Recommendations</h2>
       <p class="body-text">${(recommendations || "No recommendations recorded yet.").replace(/\n/g, "<br/>")}</p>
-      <footer>Report generator: PostSync Team Analytics &middot; Generated ${new Date().toLocaleString()} &middot; Reviewed by ${review?.reviewer_name || "Not yet reviewed"}</footer>
+      <footer>Report generator: Postelligence Team Analytics &middot; Generated ${new Date().toLocaleString()} &middot; Reviewed by ${review?.reviewer_name || "Not yet reviewed"}</footer>
     `;
     openPrintReport("Team Analytics Report", body);
   }
@@ -1221,7 +1221,7 @@ export default function TeamAnalyticsDashboard({ workspaceId, currentRole }: { w
 
             {/* Footer */}
             <div className="border-t border-white/10 pt-3 text-[11px] text-white/40">
-              Report generator: PostSync Team Analytics · Generated {new Date(data.generatedAt).toLocaleString()} · {isLocked ? `Officially submitted by ${submittedReport?.submitted_by_name || "—"}` : `Reviewed by ${review?.reviewer_name || "Not yet reviewed"}`}
+              Report generator: Postelligence Team Analytics · Generated {new Date(data.generatedAt).toLocaleString()} · {isLocked ? `Officially submitted by ${submittedReport?.submitted_by_name || "—"}` : `Reviewed by ${review?.reviewer_name || "Not yet reviewed"}`}
             </div>
           </div>
         )}

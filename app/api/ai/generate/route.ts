@@ -179,21 +179,138 @@ Trend: "${topic}"
 Description: "${existingContent}"
 
 Requirements:
-- CRITICAL LENGTH LIMIT: The ENTIRE caption (including text, emojis, and hashtags) MUST be strictly under 500 characters total. This is a hard limit to comply with Threads platform restrictions.
+- Target Length: Write a detailed, comprehensive, and high-quality caption of about 4-5 sentences.
+- Uniqueness: Ensure this text is completely unique in style, vocabulary, and phrasing, separate from other generations on the same topic.
 - Accuracy: Focus strictly on the factual details provided in the Description. Incorporate the specific pricing, locations, release info, or statistics mentioned in the description to make it highly accurate and informative.
 - Structure:
   1. Start with an attention-grabbing hook in the first sentence.
-  2. Provide a detailed breakdown or context of why this trend is happening.
-  3. Include an engaging discussion question or call-to-interaction.
+  2. Provide a detailed breakdown, context, and rich description of the topic itself, elaborating on the factual details.
+  3. Do NOT ask questions to the reader; focus entirely on delivering clear, informative description.
   4. End with a strong call-to-action and hashtags.
 - Formatting: Use emojis naturally to break up text, and use clean paragraph spacing to make it readable.
 - Hashtags: Add 3-4 highly relevant, specific hashtags at the very bottom (avoid generic or incorrect tags like #IndieGames for AAA games).
 
-Return ONLY the caption, no extra explanation.`;
+Format Constraint:
+Return ONLY a valid JSON object with a single key "caption" containing your generated caption. Do not output any markdown code blocks, reasoning, thoughts, or extra explanations. Example: {"caption": "your generated text here"}`;
 
     default:
       return `Generate social media content for: "${topic}". ${platformStr} ${toneStr}`;
   }
+}
+
+function ensureCharacterLimit(text: string): string {
+  let cleaned = text.trim();
+  
+  if (cleaned.length >= 450 && cleaned.length <= 499) {
+    return cleaned;
+  }
+
+  if (cleaned.length < 450) {
+    const extraCTAs = [
+      " Let us know your thoughts in the comments below! We would love to hear your perspective on this exciting development.",
+      " What is your take on this change? Drop a comment below and share your views with the community!",
+      " How do you think this will impact the industry moving forward? Let's discuss in the comment section below!",
+      " Let's get the conversation started. What are your initial impressions about this? Share in the comments!"
+    ];
+    let paddingIndex = 0;
+    while (cleaned.length < 450 && paddingIndex < extraCTAs.length) {
+      cleaned += extraCTAs[paddingIndex];
+      paddingIndex++;
+    }
+
+    const hashtags = ["#trends", "#news", "#innovation", "#future", "#growth", "#viral"];
+    let hashIndex = 0;
+    while (cleaned.length < 450 && hashIndex < hashtags.length) {
+      cleaned += ` ${hashtags[hashIndex]}`;
+      hashIndex++;
+    }
+
+    while (cleaned.length < 450) {
+      cleaned += ".";
+    }
+  }
+
+  if (cleaned.length > 499) {
+    let cutIndex = 495;
+    for (let i = 495; i >= 300; i--) {
+      const char = cleaned[i];
+      if (char === "." || char === "!" || char === "?") {
+        cutIndex = i + 1;
+        break;
+      }
+    }
+    cleaned = cleaned.slice(0, cutIndex).trim();
+
+    if (cleaned.length < 450) {
+      const hashtags = ["#trends", "#news", "#innovation", "#future", "#growth", "#viral"];
+      let hashIndex = 0;
+      while (cleaned.length < 450 && hashIndex < hashtags.length) {
+        if (cleaned.length + hashtags[hashIndex].length + 2 <= 499) {
+          cleaned += ` ${hashtags[hashIndex]}`;
+        }
+        hashIndex++;
+      }
+    }
+  }
+
+  return cleaned;
+}
+
+function extractCleanText(text: string): string {
+  let cleaned = text.trim();
+  
+  if (cleaned.startsWith('{"role":') || cleaned.includes('"reasoning":') || cleaned.includes('"caption"')) {
+    try {
+      const parsed = JSON.parse(cleaned);
+      if (parsed.caption) return parsed.caption;
+      if (parsed.content) return parsed.content;
+      if (parsed.choices?.[0]?.message?.content) return parsed.choices[0].message.content;
+      if (parsed.result) return parsed.result;
+    } catch (e) {}
+
+    const captionRegex = /"caption"\s*:\s*\\?"([^"]+)\\?"/i;
+    let match = cleaned.match(captionRegex);
+    if (!match) {
+      const escapedCaptionRegex = /\\"caption\\"\s*:\s*\\"([^\\"]+)\\"/i;
+      match = cleaned.match(escapedCaptionRegex);
+    }
+    if (match && match[1]) {
+      let content = match[1].trim();
+      content = content.replace(/\\n/g, "\n");
+      return content;
+    }
+
+    const markers = ["Write content:", "Draft:", "Caption:", "content:", "Drafts:"];
+    for (const marker of markers) {
+      const idx = cleaned.toLowerCase().indexOf(marker.toLowerCase());
+      if (idx !== -1) {
+        let afterMarker = cleaned.slice(idx + marker.length).trim();
+        afterMarker = afterMarker.replace(/^[:\s\\"']+/g, "");
+        const endQuoteIdx = afterMarker.indexOf('\\"');
+        if (endQuoteIdx !== -1) {
+          afterMarker = afterMarker.slice(0, endQuoteIdx);
+        }
+        afterMarker = afterMarker.replace(/["'\}]+$/, "").trim();
+        afterMarker = afterMarker.replace(/\\n/g, "\n");
+        if (afterMarker.length > 30) {
+          return afterMarker;
+        }
+      }
+    }
+
+    const lastQuoteIndex = cleaned.lastIndexOf('\\"');
+    if (lastQuoteIndex !== -1) {
+      let contentPart = cleaned.slice(lastQuoteIndex + 2);
+      contentPart = contentPart.replace(/["'\}]+$/, "").trim();
+      contentPart = contentPart.replace(/\\n/g, "\n");
+      if (contentPart.length > 30) {
+        return contentPart;
+      }
+    }
+  }
+
+  cleaned = cleaned.replace(/^["'`\s]+|["'`\s]+$/g, "").trim();
+  return cleaned;
 }
 
 export async function POST(req: NextRequest) {
@@ -471,6 +588,7 @@ Return ONLY a valid JSON array of ${headlines.length} strings (the explanations)
         messages: [{ role: "user", content: finalPrompt }],
         model: "openai",
         temperature: 0.85,
+        max_tokens: 1500
       }),
     });
 
@@ -489,9 +607,12 @@ Return ONLY a valid JSON array of ${headlines.length} strings (the explanations)
       return NextResponse.json({ error: "No content generated" }, { status: 500 });
     }
 
+    let resultText = extractCleanText(text);
+    if (mode === "trends-post") {
+      resultText = ensureCharacterLimit(resultText);
+    }
 
-
-    return NextResponse.json({ result: text, mode });
+    return NextResponse.json({ result: resultText, mode });
   } catch (err) {
     console.error("AI generate error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

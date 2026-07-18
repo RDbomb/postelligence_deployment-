@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
     const bytes = await videoFile.arrayBuffer();
     const uploadUrl = new URL("https://video.bsky.app/xrpc/app.bsky.video.uploadVideo");
     uploadUrl.searchParams.set("did", did);
-    uploadUrl.searchParams.set("name", videoFile.name || "postsync-video.mp4");
+    uploadUrl.searchParams.set("name", videoFile.name || "postelligence-video.mp4");
 
     // Retry up to 3 times
     let uploadRes: Response | null = null;

@@ -17,7 +17,7 @@ export async function GET(request: Request) {
     const response = NextResponse.redirect(oauthUrl);
 
     response.cookies.set(
-      "postsync_twitter_oauth_state",
+      "postelligence_twitter_oauth_state",
       JSON.stringify({ oauthToken, oauthTokenSecret, userId: user.id }),
       { httpOnly: true, maxAge: 60 * 10, path: "/", sameSite: "lax", secure: requestUrl.protocol === "https:" }
     );

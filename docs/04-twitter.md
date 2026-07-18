@@ -56,7 +56,7 @@ The code handles this automatically — `getTwitterRedirectUri()` in `lib/integr
 ## Developer App Setup
 
 - **Platform:** X Developer Portal — `developer.twitter.com`
-- **App name:** `postsync1`
+- **App name:** `postelligence1`
 - **App ID:** `33039318`
 - **Access tier:** Pay Per Use
 - **OAuth version:** OAuth 2.0 with PKCE
@@ -106,7 +106,7 @@ lib/integrations/twitter.ts                       — PKCE + OAuth helpers
 ## Deployment Notes
 
 When deploying to production:
-1. Go to X Developer Portal → `postsync1` → **User authentication settings**
+1. Go to X Developer Portal → `postelligence1` → **User authentication settings**
 2. Add `https://yourdomain.com/auth/twitter/callback` as an additional Callback URI
 3. Set `TWITTER_CLIENT_ID` and `TWITTER_CLIENT_SECRET` in your production environment variables
 4. Both localhost (127.0.0.1) and production URIs can be registered at the same time

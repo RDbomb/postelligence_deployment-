@@ -51,7 +51,7 @@ function ActionCompletedContent() {
         {/* Small Brand Header */}
         <div className="flex items-center justify-center gap-1.5 text-[9px] font-black text-slate-400 uppercase tracking-[0.25em] pt-1">
           <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#2f7867] animate-pulse" />
-          PostSync Engine
+          Postelligence Engine
         </div>
 
         {/* Success Icon Group */}
@@ -109,7 +109,7 @@ function ActionCompletedContent() {
 
         {/* Brand signature */}
         <div className="flex items-center justify-center gap-1.5 text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] pt-4 border-t border-slate-100">
-          <Sparkles className="h-3.5 w-3.5 text-[#2f7867]/60" /> PostSync Automation
+          <Sparkles className="h-3.5 w-3.5 text-[#2f7867]/60" /> Postelligence Automation
         </div>
 
       </div>

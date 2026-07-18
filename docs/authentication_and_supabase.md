@@ -2,7 +2,7 @@
 
 ## 1. What Problem This Solves
 
-Before a user can connect social accounts or publish posts, PostSync needs to know **"who is using the app right now?"**. This is handled entirely by **Supabase Auth**, using **Google Sign-In**.
+Before a user can connect social accounts or publish posts, Postelligence needs to know **"who is using the app right now?"**. This is handled entirely by **Supabase Auth**, using **Google Sign-In**.
 
 This is completely separate from the per-platform connections (Twitter, YouTube, etc.) — see `01-architecture-overview.md` for that distinction.
 
@@ -128,8 +128,8 @@ create table if not exists public.social_accounts (
 ### Reading this table like a beginner
 
 - **One row = one connected account on one platform, for one user.** A user could have 8 rows (one per platform).
-- `user_id` ties every row back to the logged-in Supabase user. This is how PostSync knows "these are *your* accounts, not someone else's."
-- `access_token` / `refresh_token` are the secret keys that let PostSync post on your behalf. They come from each platform's OAuth flow (see `04-twitter.md`, `META_INTEGRATION_GUIDE.md`, etc).
+- `user_id` ties every row back to the logged-in Supabase user. This is how Postelligence knows "these are *your* accounts, not someone else's."
+- `access_token` / `refresh_token` are the secret keys that let Postelligence post on your behalf. They come from each platform's OAuth flow (see `04-twitter.md`, `META_INTEGRATION_GUIDE.md`, etc).
 - `metadata` is a flexible JSON "junk drawer" — e.g. Pinterest stores a `board_id` here, Bluesky stores its `pdsHost`.
 - `unique (user_id, platform, account_id)` means you can't accidentally save the same account twice.
 
@@ -178,7 +178,7 @@ File: `lib/integrations/local-social-accounts.ts`
 
 If, for some reason, the `social_accounts` table doesn't exist yet (e.g. migrations weren't run on a fresh setup), the app doesn't crash. Instead:
 
-- It falls back to storing connected accounts in an **encrypted local JSON file** (`.postsync-data/social-accounts.json`) on the server's disk.
+- It falls back to storing connected accounts in an **encrypted local JSON file** (`.postelligence-data/social-accounts.json`) on the server's disk.
 - Tokens are encrypted using Node's built-in `crypto` module before being written to disk.
 
 This is purely a **developer convenience / fallback for local testing** — in production, the real Supabase table should always be used. You can see this fallback being checked in `app/dashboard/page.tsx`:
@@ -209,7 +209,7 @@ These are **public/anon keys** — safe to expose to the browser (hence `NEXT_PU
 
 ## 9. Quick Interview-Ready Summary
 
-> "PostSync uses Supabase for authentication via Google OAuth. When a user logs in, Supabase stores their session in HTTP-only cookies, so every server-side request can verify who's logged in via `supabase.auth.getUser()`. Separately, we maintain a `social_accounts` table — one row per connected social platform per user — protected by Row Level Security so users can only ever see their own data. Media files attached to posts are uploaded to a public Supabase Storage bucket, which gives us a public URL that we hand off to platform APIs like Facebook and Instagram."
+> "Postelligence uses Supabase for authentication via Google OAuth. When a user logs in, Supabase stores their session in HTTP-only cookies, so every server-side request can verify who's logged in via `supabase.auth.getUser()`. Separately, we maintain a `social_accounts` table — one row per connected social platform per user — protected by Row Level Security so users can only ever see their own data. Media files attached to posts are uploaded to a public Supabase Storage bucket, which gives us a public URL that we hand off to platform APIs like Facebook and Instagram."
 
 ---
 

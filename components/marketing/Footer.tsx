@@ -78,7 +78,7 @@ export function Footer() {
           </div>
 
           <div className="mt-10 flex flex-col gap-3 border-t border-[#1f2528]/8 pt-6 text-xs text-[#7c878d] sm:flex-row sm:items-center sm:justify-between">
-            <p>© {new Date().getFullYear()} PostSync. All rights reserved.</p>
+            <p>© {new Date().getFullYear()} Postelligence. All rights reserved.</p>
             <div className="flex gap-5">
               <Link href="#" className="hover:text-[#1f2528]">
                 Privacy

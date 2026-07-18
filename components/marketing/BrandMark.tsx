@@ -40,7 +40,7 @@ export function BrandMark({ size = "md", hideText = false }: BrandMarkProps) {
           className={`font-semibold tracking-[-0.03em] text-[#1f2528] ${s.text}`}
           style={{ fontSize: s.font === "0.78rem" ? undefined : undefined }}
         >
-          PostSync
+          Postelligence
         </span>
       )}
     </span>

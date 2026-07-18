@@ -5,8 +5,8 @@ import { ScrollProgress } from "@/components/marketing/ScrollProgress";
 
 export const metadata: Metadata = {
   title: {
-    default: "PostSync — Create once, publish everywhere",
-    template: "%s · PostSync"
+    default: "Postelligence — Create once, publish everywhere",
+    template: "%s · Postelligence"
   },
   description:
     "Create once, publish everywhere, and let AI keep your content moving across LinkedIn, Instagram, YouTube, and more."

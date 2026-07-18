@@ -101,7 +101,7 @@ export async function POST(
     return NextResponse.json({ error: "Invalid role. Must be manager, creator, or analyst." }, { status: 400 });
   }
 
-  // The invited email must belong to an existing PostSync account —
+  // The invited email must belong to an existing Postelligence account —
   // we never fire off an invite (or email) to an address that hasn't
   // signed up. listUsers() paginates at 50 by default, so page through
   // it rather than trusting the first page to contain the match.
@@ -118,7 +118,7 @@ export async function POST(
 
   if (!invitedUser) {
     return NextResponse.json(
-      { error: "No PostSync account exists for this email. They need to sign up before you can invite them." },
+      { error: "No Postelligence account exists for this email. They need to sign up before you can invite them." },
       { status: 404 }
     );
   }

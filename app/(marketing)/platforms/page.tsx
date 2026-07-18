@@ -204,7 +204,7 @@ const howItWorks = [
   {
     step: "02",
     title: "Write once",
-    desc: "Draft your content in PostSync. AI adapts tone, format, and length per platform automatically.",
+    desc: "Draft your content in Postelligence. AI adapts tone, format, and length per platform automatically.",
   },
   {
     step: "03",
@@ -256,7 +256,7 @@ export default function IntegrationsPage() {
             transition={{ duration: 0.6, delay: 0.18 }}
             className="mx-auto mt-7 max-w-2xl text-lg leading-relaxed text-[#4f5b62]"
           >
-            PostSync connects directly through each platform&apos;s native API — no scraping,
+            Postelligence connects directly through each platform&apos;s native API — no scraping,
             no broken embeds. Connect once and publish everywhere, for good.
           </motion.p>
 

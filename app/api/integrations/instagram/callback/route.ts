@@ -54,7 +54,7 @@ export async function GET(request: Request) {
     }
 
     const response = NextResponse.redirect(url);
-    response.cookies.delete("postsync_instagram_oauth_state");
+    response.cookies.delete("postelligence_instagram_oauth_state");
 
     return response;
   };
@@ -82,7 +82,7 @@ export async function GET(request: Request) {
   }
 
   const cookieState = readStateCookie(
-    cookies().get("postsync_instagram_oauth_state")?.value
+    cookies().get("postelligence_instagram_oauth_state")?.value
   );
 
   if (

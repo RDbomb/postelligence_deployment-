@@ -22,7 +22,7 @@ export async function GET(request: Request) {
     url.searchParams.set("twitter", status);
     if (message) url.searchParams.set("message", message);
     const response = NextResponse.redirect(url);
-    response.cookies.delete("postsync_twitter_oauth_state");
+    response.cookies.delete("postelligence_twitter_oauth_state");
     return response;
   };
 
@@ -32,7 +32,7 @@ export async function GET(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.redirect(new URL("/", requestUrl.origin));
 
-  const raw = cookies().get("postsync_twitter_oauth_state")?.value;
+  const raw = cookies().get("postelligence_twitter_oauth_state")?.value;
   let cookieState: { oauthToken?: string; oauthTokenSecret?: string; userId?: string } | null = null;
   try { cookieState = raw ? JSON.parse(raw) : null; } catch { cookieState = null; }
 

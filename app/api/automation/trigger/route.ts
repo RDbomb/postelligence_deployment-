@@ -235,6 +235,121 @@ function cleanCaption(text: string): string {
   return cleaned;
 }
 
+function ensureCharacterLimit(text: string): string {
+  let cleaned = text.trim();
+  
+  if (cleaned.length >= 450 && cleaned.length <= 499) {
+    return cleaned;
+  }
+
+  if (cleaned.length < 450) {
+    const extraCTAs = [
+      " Let us know your thoughts in the comments below! We would love to hear your perspective on this exciting development.",
+      " What is your take on this change? Drop a comment below and share your views with the community!",
+      " How do you think this will impact the industry moving forward? Let's discuss in the comment section below!",
+      " Let's get the conversation started. What are your initial impressions about this? Share in the comments!"
+    ];
+    let paddingIndex = 0;
+    while (cleaned.length < 450 && paddingIndex < extraCTAs.length) {
+      cleaned += extraCTAs[paddingIndex];
+      paddingIndex++;
+    }
+
+    const hashtags = ["#trends", "#news", "#innovation", "#future", "#growth", "#viral"];
+    let hashIndex = 0;
+    while (cleaned.length < 450 && hashIndex < hashtags.length) {
+      cleaned += ` ${hashtags[hashIndex]}`;
+      hashIndex++;
+    }
+
+    while (cleaned.length < 450) {
+      cleaned += ".";
+    }
+  }
+
+  if (cleaned.length > 499) {
+    let cutIndex = 495;
+    for (let i = 495; i >= 300; i--) {
+      const char = cleaned[i];
+      if (char === "." || char === "!" || char === "?") {
+        cutIndex = i + 1;
+        break;
+      }
+    }
+    cleaned = cleaned.slice(0, cutIndex).trim();
+
+    if (cleaned.length < 450) {
+      const hashtags = ["#trends", "#news", "#innovation", "#future", "#growth", "#viral"];
+      let hashIndex = 0;
+      while (cleaned.length < 450 && hashIndex < hashtags.length) {
+        if (cleaned.length + hashtags[hashIndex].length + 2 <= 499) {
+          cleaned += ` ${hashtags[hashIndex]}`;
+        }
+        hashIndex++;
+      }
+    }
+  }
+
+  return cleaned;
+}
+
+function extractCleanText(text: string): string {
+  let cleaned = text.trim();
+  
+  if (cleaned.startsWith('{"role":') || cleaned.includes('"reasoning":') || cleaned.includes('"caption"')) {
+    try {
+      const parsed = JSON.parse(cleaned);
+      if (parsed.caption) return parsed.caption;
+      if (parsed.content) return parsed.content;
+      if (parsed.choices?.[0]?.message?.content) return parsed.choices[0].message.content;
+      if (parsed.result) return parsed.result;
+    } catch (e) {}
+
+    const captionRegex = /"caption"\s*:\s*\\?"([^"]+)\\?"/i;
+    let match = cleaned.match(captionRegex);
+    if (!match) {
+      const escapedCaptionRegex = /\\"caption\\"\s*:\s*\\"([^\\"]+)\\"/i;
+      match = cleaned.match(escapedCaptionRegex);
+    }
+    if (match && match[1]) {
+      let content = match[1].trim();
+      content = content.replace(/\\n/g, "\n");
+      return content;
+    }
+
+    const markers = ["Write content:", "Draft:", "Caption:", "content:", "Drafts:"];
+    for (const marker of markers) {
+      const idx = cleaned.toLowerCase().indexOf(marker.toLowerCase());
+      if (idx !== -1) {
+        let afterMarker = cleaned.slice(idx + marker.length).trim();
+        afterMarker = afterMarker.replace(/^[:\s\\"']+/g, "");
+        const endQuoteIdx = afterMarker.indexOf('\\"');
+        if (endQuoteIdx !== -1) {
+          afterMarker = afterMarker.slice(0, endQuoteIdx);
+        }
+        afterMarker = afterMarker.replace(/["'\}]+$/, "").trim();
+        afterMarker = afterMarker.replace(/\\n/g, "\n");
+        if (afterMarker.length > 30) {
+          return afterMarker;
+        }
+      }
+    }
+
+    const lastQuoteIndex = cleaned.lastIndexOf('\\"');
+    if (lastQuoteIndex !== -1) {
+      let contentPart = cleaned.slice(lastQuoteIndex + 2);
+      contentPart = contentPart.replace(/["'\}]+$/, "").trim();
+      contentPart = contentPart.replace(/\\n/g, "\n");
+      if (contentPart.length > 30) {
+        return contentPart;
+      }
+    }
+  }
+
+  cleaned = cleaned.replace(/^["'`\s]+|["'`\s]+$/g, "").trim();
+  return cleaned;
+}
+
 // core automation script
 async function runAutomationForUser(supabase: any, userId: string, settings: any, userEmail: string, origin: string, isTest = false, activePostTime?: string) {
   const { mode, approval_email } = settings;
@@ -338,19 +453,22 @@ async function runAutomationForUser(supabase: any, userId: string, settings: any
     trendExplanation = "Businesses are deploying autonomous AI agents to automate workflows, boosting operational efficiency by 40%.";
   }
 
+  const variationSeed = `${userId}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
   const systemPrompt = `You are a viral social media strategist and content copywriter. Generate a comprehensive, detailed, and high-performing social media post caption about the following trend.
 
 Trend: "${trendTitle}"
 Description: "${trendExplanation}"
 
 Requirements:
-- Keep the caption brief, engaging, and professional. The entire text must fit within a 2-3 sentence paragraph (max 280 characters).
+- Target Length: Write a detailed, comprehensive, and high-quality caption of about 4-5 sentences.
+- Uniqueness: Ensure this text is completely unique in style, vocabulary, phrasing, and tone from other generations on the same topic (Variation Seed: ${variationSeed}).
 - Do NOT include any reasoning, planning, or character counting calculations in your response. 
 - Do NOT say "Let's count using approximate" or output any breakdown of characters or words.
-- Format structure: Start with an attention-grabbing hook, provide brief context, and end with a strong CTA and 2-3 hashtags.
+- Format structure: Start with an attention-grabbing hook, provide a detailed breakdown and rich description of the topic itself (do NOT ask questions to the reader), and end with a strong CTA and 2-3 hashtags.
 - Use emojis naturally.
 
-Return ONLY the plain, final social media caption itself. No wrapper quotes, no markdown headers, and absolutely no additional commentary.`;
+Format Constraint:
+Return ONLY a valid JSON object with a single key "caption" containing your generated caption. Do not output any markdown code blocks, reasoning, thoughts, or extra explanations. Example: {"caption": "your generated text here"}`;
 
   const captionRes = await fetch(POLLINATIONS_TEXT_URL, {
     method: "POST",
@@ -358,7 +476,8 @@ Return ONLY the plain, final social media caption itself. No wrapper quotes, no 
     body: JSON.stringify({
       messages: [{ role: "user", content: systemPrompt }],
       model: "openai",
-      temperature: 0.8,
+      temperature: 0.85,
+      max_tokens: 1500
     }),
   });
 
@@ -367,7 +486,7 @@ Return ONLY the plain, final social media caption itself. No wrapper quotes, no 
   }
 
   const rawCaptionText = await captionRes.text();
-  const caption = cleanCaption(rawCaptionText);
+  const caption = ensureCharacterLimit(cleanCaption(extractCleanText(rawCaptionText)));
 
   // 3. Scrape Web Image or Generate Image
   let imageBuffer: ArrayBuffer | null = null;
@@ -394,7 +513,8 @@ Return ONLY the plain, final social media caption itself. No wrapper quotes, no 
           const json = await imagesRes.json();
           const results = json.results || [];
           if (results.length > 0) {
-            const imageUrl = results[0].image;
+            const randomIndex = Math.floor(Math.random() * Math.min(results.length, 10));
+            const imageUrl = results[randomIndex].image;
             const dlRes = await fetch(imageUrl, {
               headers: {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -415,7 +535,16 @@ Return ONLY the plain, final social media caption itself. No wrapper quotes, no 
   // Fallback Image
   if (!imageBuffer) {
     try {
-      const aiImgUrl = `${POLLINATIONS_IMAGE_URL}${encodeURIComponent(trendTitle)}?width=1024&height=1024&nologo=true`;
+      const styles = [
+        "cinematic lighting, photorealistic, highly detailed, 8k",
+        "modern flat vector illustration style, vibrant corporate palette",
+        "minimalist modern technology design theme, studio backdrop",
+        "futuristic synthwave render, cyberpunk neon aesthetic",
+        "professional clean 3d render, soft shadow octane render"
+      ];
+      const randomStyle = styles[Math.floor(Math.random() * styles.length)];
+      const imageSeed = Math.floor(Math.random() * 10000000);
+      const aiImgUrl = `${POLLINATIONS_IMAGE_URL}${encodeURIComponent(trendTitle + ", " + randomStyle)}?width=1024&height=1024&nologo=true&seed=${imageSeed}`;
       const aiImgRes = await fetch(aiImgUrl);
       if (aiImgRes.ok) {
         imageBuffer = await aiImgRes.arrayBuffer();
@@ -546,7 +675,7 @@ Return ONLY the plain, final social media caption itself. No wrapper quotes, no 
                       <table border="0" cellpadding="0" cellspacing="0" width="100%">
                         <tr>
                           <td>
-                            <p style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: #2f7867; margin: 0 0 6px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;">PostSync Engine</p>
+                            <p style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: #2f7867; margin: 0 0 6px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;">Postelligence Engine</p>
                             <h2 style="font-size: 22px; font-weight: 900; color: #1f2528; margin: 0 0 20px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; letter-spacing: -0.5px;">New Trend Draft Generated</h2>
                           </td>
                         </tr>
@@ -599,7 +728,7 @@ Return ONLY the plain, final social media caption itself. No wrapper quotes, no 
                       <table border="0" cellpadding="0" cellspacing="0" width="100%">
                         <tr>
                           <td style="border-top: 1px solid #eef0eb; padding-top: 24px; text-align: center;">
-                            <p style="font-size: 11px; color: #a1a59b; margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; font-weight: 600; letter-spacing: 0.5px;">PostSync &middot; Autonomous Campaigns</p>
+                            <p style="font-size: 11px; color: #a1a59b; margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; font-weight: 600; letter-spacing: 0.5px;">Postelligence &middot; Autonomous Campaigns</p>
                           </td>
                         </tr>
                       </table>
@@ -618,7 +747,7 @@ Return ONLY the plain, final social media caption itself. No wrapper quotes, no 
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            from: "PostSync <onboarding@resend.dev>",
+            from: "Postelligence <onboarding@resend.dev>",
             to: [approval_email || userEmail],
             subject: `Approval Required: ${trendTitle.slice(0, 45)}`,
             html: emailHtml,

@@ -1,14 +1,14 @@
-# PostSync — Architecture & Project Overview
+# Postelligence — Architecture & Project Overview
 
-## 1. What is PostSync?
+## 1. What is Postelligence?
 
-PostSync is a **social media management dashboard**. A user logs in once, connects their social media accounts (Instagram, Facebook, LinkedIn, X/Twitter, Threads, Bluesky, Pinterest, YouTube), and from a single screen can:
+Postelligence is a **social media management dashboard**. A user logs in once, connects their social media accounts (Instagram, Facebook, LinkedIn, X/Twitter, Threads, Bluesky, Pinterest, YouTube), and from a single screen can:
 
 - Write **one post** (text + image/video).
 - Choose **which platforms** to publish it to.
-- Click **Publish**, and PostSync sends that post to every selected platform's API at the same time.
+- Click **Publish**, and Postelligence sends that post to every selected platform's API at the same time.
 
-In simple words: instead of opening 8 different apps and posting the same content 8 times, you do it once from PostSync.
+In simple words: instead of opening 8 different apps and posting the same content 8 times, you do it once from Postelligence.
 
 ---
 
@@ -30,7 +30,7 @@ In simple words: instead of opening 8 different apps and posting the same conten
 ## 3. High-Level Folder Structure
 
 ```text
-PostSync/
+Postelligence/
 ├── app/                          → Next.js App Router (pages + API routes)
 │   ├── page.tsx                  → Landing / login page
 │   ├── layout.tsx                → Root HTML layout, wraps every page
@@ -65,17 +65,17 @@ PostSync/
 
 ## 4. The Two Big Jobs of the App
 
-PostSync solves two completely separate problems, and it's important to understand they don't overlap:
+Postelligence solves two completely separate problems, and it's important to understand they don't overlap:
 
 ### Job 1 — "Who are you?" (Authentication)
-Handled by **Supabase Auth + Google Login**. This answers: *is this a real, logged-in PostSync user?*
+Handled by **Supabase Auth + Google Login**. This answers: *is this a real, logged-in Postelligence user?*
 → Explained in `02-authentication-and-supabase.md`.
 
 ### Job 2 — "Which social accounts can we post on your behalf?" (Integrations)
-Handled by **separate OAuth flows per platform** (YouTube, Meta, Twitter, etc). Each platform has its own developer app, its own tokens, and its own rules. PostSync stores these tokens in the `social_accounts` table.
+Handled by **separate OAuth flows per platform** (YouTube, Meta, Twitter, etc). Each platform has its own developer app, its own tokens, and its own rules. Postelligence stores these tokens in the `social_accounts` table.
 → Each platform has its own doc (`04-twitter.md`, `05-threads.md`, `META_INTEGRATION_GUIDE.md`, etc).
 
-**Key idea:** Logging into PostSync with Google does *not* automatically connect your YouTube/Gmail account for posting. Those are two different permission grants, done at two different times, for two different purposes.
+**Key idea:** Logging into Postelligence with Google does *not* automatically connect your YouTube/Gmail account for posting. Those are two different permission grants, done at two different times, for two different purposes.
 
 ---
 

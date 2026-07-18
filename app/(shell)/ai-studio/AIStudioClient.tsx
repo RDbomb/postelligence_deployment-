@@ -469,7 +469,7 @@ export default function AIStudioClient({ user }: { user: { email?: string | null
     if (!imgResult) return;
     const a = document.createElement("a");
     a.href = imgResult;
-    a.download = `postsync-ai-image-${Date.now()}.png`;
+    a.download = `postelligence-ai-image-${Date.now()}.png`;
     a.click();
   }
 
@@ -1187,7 +1187,7 @@ export default function AIStudioClient({ user }: { user: { email?: string | null
                         <div className="bg-gray-50 px-4 py-3 border-b border-gray-100 flex items-center gap-2.5 text-left">
                           <div className="h-8 w-8 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-xs">AI</div>
                           <div>
-                            <span className="block text-xs font-bold text-gray-800">PostSync Assistant</span>
+                            <span className="block text-xs font-bold text-gray-800">Postelligence Assistant</span>
                             <span className="block text-[0.62rem] text-gray-400">Campaign Preview</span>
                           </div>
                         </div>

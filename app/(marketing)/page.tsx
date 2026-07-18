@@ -39,7 +39,7 @@ const highlights = [
   {
     icon: CalendarDays,
     title: "Smart scheduling",
-    copy: "Plan your week visually and let PostSync handle the timing across time zones.",
+    copy: "Plan your week visually and let Postelligence handle the timing across time zones.",
     href: "/features"
   },
   {
@@ -66,7 +66,7 @@ const steps = [
   {
     step: "01",
     title: "Write once",
-    copy: "Draft your post in PostSync's composer with images, video, or just your words."
+    copy: "Draft your post in Postelligence's composer with images, video, or just your words."
   },
   {
     step: "02",
@@ -76,7 +76,7 @@ const steps = [
   {
     step: "03",
     title: "Publish everywhere",
-    copy: "Schedule once and PostSync syncs it across every connected account, on time."
+    copy: "Schedule once and Postelligence syncs it across every connected account, on time."
   }
 ];
 
@@ -85,7 +85,7 @@ const testimonials = [
     name: "Maya R.",
     role: "Independent newsletter writer",
     quote:
-      "I used to spend Sunday nights reformatting the same post six different ways. Now I write it once and PostSync handles the rest.",
+      "I used to spend Sunday nights reformatting the same post six different ways. Now I write it once and Postelligence handles the rest.",
     initials: "MR",
     color: "#2f7867"
   },
@@ -155,7 +155,7 @@ export default function HomePage() {
               transition={{ duration: 0.6, delay: 0.16 }}
               className="mt-7 max-w-xl text-lg leading-relaxed text-[#4f5b62] md:text-[1.15rem]"
             >
-              PostSync is the calm, intelligent workspace for creators who refuse to repeat
+              Postelligence is the calm, intelligent workspace for creators who refuse to repeat
               themselves. Write once — AI adapts, schedules, and syncs across every channel.
             </motion.p>
 
@@ -212,7 +212,7 @@ export default function HomePage() {
             <div className="text-center mb-12">
               <p className="marketing-eyebrow">Unified Flow</p>
               <h2 className="marketing-section-title mt-4">
-                How PostSync works
+                How Postelligence works
               </h2>
               <p className="mt-4 text-[1.05rem] leading-relaxed text-[#4f5b62] max-w-xl mx-auto">
                 Draft once, and watch AI prepare and synchronize updates natively across all your key social channels in seconds.
@@ -332,7 +332,7 @@ export default function HomePage() {
                 </div>
                 <h3 className="text-lg font-bold tracking-tight text-[#1f2528]">Direct integration</h3>
                 <p className="mt-2 text-sm leading-relaxed text-[#627078]">
-                  PostSync connects natively without third-party scrapers or plugins. Experience secure, instant, and reliable publishing.
+                  Postelligence connects natively without third-party scrapers or plugins. Experience secure, instant, and reliable publishing.
                 </p>
               </div>
               <div className="mt-6 flex items-center gap-2">
@@ -357,7 +357,7 @@ export default function HomePage() {
               Step into a calmer publishing workflow.
             </h2>
             <p className="mt-4 text-[1.05rem] leading-relaxed text-[#4f5b62]">
-              See how PostSync cleans up the friction, manual reformatting, and tab-switching of traditional social publishing.
+              See how Postelligence cleans up the friction, manual reformatting, and tab-switching of traditional social publishing.
             </p>
           </Reveal>
 
@@ -371,7 +371,7 @@ export default function HomePage() {
                   <div className="flex items-center justify-between border-b border-[#1f2528]/5 pb-4 mb-6">
                     <h3 className="text-lg font-bold tracking-tight text-[#d05945] flex items-center gap-2">
                       <span className="h-2 w-2 rounded-full bg-[#d05945]" />
-                      Without PostSync
+                      Without Postelligence
                     </h3>
                     <span className="text-[0.65rem] px-2 py-0.5 rounded bg-[#fff0ed] text-[#a53b28] font-bold">Chaos</span>
                   </div>
@@ -413,7 +413,7 @@ export default function HomePage() {
                   <div className="flex items-center justify-between border-b border-[#1f2528]/5 pb-4 mb-6">
                     <h3 className="text-lg font-bold tracking-tight text-[#2f7867] flex items-center gap-2">
                       <span className="h-2 w-2 rounded-full bg-[#2f7867] animate-pulse" />
-                      With PostSync
+                      With Postelligence
                     </h3>
                     <span className="text-[0.65rem] px-2 py-0.5 rounded bg-[#eaf7ef] text-[#20613a] font-bold">Calm</span>
                   </div>
@@ -460,7 +460,7 @@ export default function HomePage() {
               Calmer workflows, louder results.
             </h2>
             <p className="mt-4 text-[1.05rem] leading-relaxed text-[#4f5b62]">
-              Here is why writers, marketers, and independent teams rely on PostSync every day.
+              Here is why writers, marketers, and independent teams rely on Postelligence every day.
             </p>
           </Reveal>
 

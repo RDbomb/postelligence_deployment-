@@ -40,8 +40,16 @@ function YouTubeLogo() {
 
 function ThreadsLogo() {
   return (
-    <svg viewBox="0 0 24 24" className="h-8 w-8" fill="#000000">
-      <path d="M12.02 0c-3.15 0-5.84 1.05-7.79 3.04C2.28 5.03 1.25 7.73 1.25 10.9v.08c0 3.08 1 5.72 2.92 7.68 1.94 1.98 4.63 3.02 7.79 3.02a11.9 11.9 0 0 0 6.64-1.92l.14-.1c.36-.26.47-.73.28-1.12a.91.91 0 0 0-1.18-.43l-.12.08a10.05 10.05 0 0 1-5.76 1.66c-2.65 0-4.9-.86-6.52-2.5-1.57-1.6-2.38-3.79-2.38-6.33v-.08c0-2.61.8-4.83 2.37-6.42A9.77 9.77 0 0 1 12.02 1.83c2.66 0 4.9.84 6.5 2.45 1.58 1.58 2.4 3.75 2.4 6.3v1.8c0 1.2-.42 2.22-1.22 2.98-.8.76-1.84 1.15-3.04 1.15-1.1 0-2.07-.36-2.8-.97-.73-.62-1.14-1.55-1.18-2.67.63-.39 1.18-.94 1.58-1.62.4-.68.62-1.48.62-2.34 0-1.66-.54-3-1.6-3.87C12.22 7.15 10.74 6.7 9.02 6.7c-2.4 0-4.32 1.03-5.58 2.98A10.22 10.22 0 0 0 2.22 15c0 2.1.58 3.78 1.68 4.9a6.23 6.23 0 0 0 4.62 1.76c1.47 0 2.85-.36 4.02-1.07.38-.23.51-.72.3-1.1a.91.91 0 0 0-1.22-.3l-.06.03a4.7 4.7 0 0 1-3.04.83c-1.1 0-2-.36-2.6-.96-.64-.66-.98-1.68-.98-2.96 0-1.62.46-2.96 1.34-3.9 1-.94 2.34-1.43 3.86-1.43 1.1 0 2 .28 2.63.8.63.53.97 1.3.97 2.23V14c0 1.72.6 3.16 1.75 4.22C16.03 19.3 17.58 19.8 19.46 19.8c1.72 0 3.2-.56 4.34-1.65A6.09 6.09 0 0 0 25.4 13.8v-1.8c0-3.15-1.02-5.83-2.98-7.79C20.46 2.27 17.78 1.25 14.6 1.25c-.86 0-1.7.08-2.58.23l-.15.02c-.44.07-.74.47-.68.91a.91.91 0 0 0 .91.77c.8-.13 1.6-.2 2.5-.2 2.8 0 5.17.9 6.84 2.62a9.12 9.12 0 0 1 2.5 6.44v1.8c0 1.38-.43 2.52-1.25 3.33-.82.81-1.9 1.23-3.15 1.23-1.22 0-2.22-.43-2.9-1.24a5.05 5.05 0 0 1-.95-3.2v-1.8c0-1.13-.38-2.07-1.1-2.68a3.78 3.78 0 0 0-2.35-.9c-1.5 0-2.63.4-3.27 1.24a7 7 0 0 0-.96 3.7c0 1.34.34 2.45.98 3.23.64.78 1.54 1.17 2.62 1.17.87 0 1.62-.25 2.18-.72.2-.17.26-.47.12-.7a.9.9 0 0 0-1.18-.2c-.33.22-.72.32-1.14.32-.57 0-1.04-.2-1.37-.62a3.83 3.83 0 0 1-.5-2.26c0-1.74.48-2.9 1.4-3.38.45-.23.95-.35 1.48-.35.9 0 1.55.3 1.88.94.33.64.5 1.53.5 2.6v1.82z" />
+    <svg viewBox="0 0 16 16" className="h-8 w-8" fill="#000000">
+      <path d="M6.321 6.016c-.27-.18-1.166-.802-1.166-.802.756-1.081 1.753-1.502 3.132-1.502.975 0 1.803.327 2.394.948s.928 1.509 1.005 2.644q.492.207.905.484c1.109.745 1.719 1.86 1.719 3.137 0 2.716-2.226 5.075-6.256 5.075C4.594 16 1 13.987 1 7.994 1 2.034 4.482 0 8.044 0 9.69 0 13.55.243 15 5.036l-1.36.353C12.516 1.974 10.163 1.43 8.006 1.43c-3.565 0-5.582 2.171-5.582 6.79 0 4.143 2.254 6.343 5.63 6.343 2.777 0 4.847-1.443 4.847-3.556 0-1.438-1.208-2.127-1.27-2.127-.236 1.234-.868 3.31-3.644 3.31-1.618 0-3.013-1.118-3.013-2.582 0-2.09 1.984-2.847 3.55-2.847.586 0 1.294.04 1.663.114 0-.637-.54-1.728-1.9-1.728-1.25 0-1.566.405-1.967.868ZM8.716 8.19c-2.04 0-2.304.87-2.304 1.416 0 .878 1.043 1.168 1.6 1.168 1.02 0 2.067-.282 2.232-2.423a6.2 6.2 0 0 0-1.528-.161"/>
+    </svg>
+  );
+}
+
+function FacebookLogo() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-8 w-8" fill="#1877F2">
+      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
     </svg>
   );
 }
@@ -81,19 +89,20 @@ function XLogo() {
 export function HomeHeroVisual() {
   const platforms = [
     { name: "LinkedIn", color: "#1d5b95", bg: "#e8f1fb", initialAngle: 0, logo: LinkedInLogo },
-    { name: "Instagram", color: "#a53b28", bg: "#fff0ed", initialAngle: 45, logo: InstagramLogo },
-    { name: "YouTube", color: "#FF0000", bg: "#fff5d7", initialAngle: 90, logo: YouTubeLogo },
-    { name: "Threads", color: "#000000", bg: "#eceeec", initialAngle: 135, logo: ThreadsLogo },
-    { name: "Bluesky", color: "#0085ff", bg: "#e7f3fb", initialAngle: 180, logo: BlueskyLogo },
-    { name: "Pinterest", color: "#BD081C", bg: "#fbe9ee", initialAngle: 225, logo: PinterestLogo },
-    { name: "Reddit", color: "#FF4500", bg: "#fff1e3", initialAngle: 270, logo: RedditLogo },
-    { name: "X", color: "#000000", bg: "#eceeec", initialAngle: 315, logo: XLogo },
+    { name: "Instagram", color: "#a53b28", bg: "#fff0ed", initialAngle: 40, logo: InstagramLogo },
+    { name: "YouTube", color: "#FF0000", bg: "#fff5d7", initialAngle: 80, logo: YouTubeLogo },
+    { name: "Threads", color: "#000000", bg: "#eceeec", initialAngle: 120, logo: ThreadsLogo },
+    { name: "Facebook", color: "#1877F2", bg: "#e7f3ff", initialAngle: 160, logo: FacebookLogo },
+    { name: "Bluesky", color: "#0085ff", bg: "#e7f3fb", initialAngle: 200, logo: BlueskyLogo },
+    { name: "Pinterest", color: "#BD081C", bg: "#fbe9ee", initialAngle: 240, logo: PinterestLogo },
+    { name: "Reddit", color: "#FF4500", bg: "#fff1e3", initialAngle: 280, logo: RedditLogo },
+    { name: "X", color: "#000000", bg: "#eceeec", initialAngle: 320, logo: XLogo },
   ];
 
   return (
     <div className="relative mx-auto w-[580px] h-[580px] shrink-0 flex items-center justify-center p-8 overflow-visible select-none">
       
-      {/* Central Core: PostSync BrandMark */}
+      {/* Central Core: Postelligence BrandMark */}
       <motion.div
         animate={{ 
           y: [0, -4, 0]
@@ -151,11 +160,7 @@ export function HomeHeroVisual() {
                 duration: 28,
                 ease: "linear"
               }}
-              whileHover={{ 
-                scale: 1.15,
-                boxShadow: `0 14px 32px rgba(${p.color === "#000000" ? "31,37,40" : p.color === "#1d5b95" ? "29,91,149" : p.color === "#a53b28" ? "165,59,40" : "255,0,0"}, 0.18)`
-              }}
-              className="z-25 flex h-20 w-20 items-center justify-center rounded-[24px] bg-white border border-[#1f2528]/8 shadow-[0_8px_20px_rgba(0,0,0,0.04)] cursor-pointer transition-all"
+              className="z-25 flex h-20 w-20 items-center justify-center rounded-[24px] bg-white border border-[#1f2528]/8 shadow-[0_8px_20px_rgba(0,0,0,0.04)] cursor-default transition-all"
             >
               <Logo />
             </motion.div>

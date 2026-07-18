@@ -95,7 +95,7 @@ lib/integrations/pinterest.ts                       — OAuth helpers
 
 ## Steps Once Trial Access is Approved
 
-1. Go to `developers.pinterest.com → My Apps → postsync`
+1. Go to `developers.pinterest.com → My Apps → postelligence`
 2. The App Secret field will now show the secret (click the eye icon to reveal)
 3. Copy the secret
 4. Add to `.env.local`:

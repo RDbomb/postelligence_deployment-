@@ -471,7 +471,7 @@ async function publishLinkedIn(account: StoredAccount, text: string, attachment:
 
   if (isVideo && attachment) {
     const videoUrn = await uploadLinkedInVideo(token, author, attachment);
-    postBody.content = { media: { title: text.slice(0, 100) || attachment.name || "PostSync video", id: videoUrn } };
+    postBody.content = { media: { title: text.slice(0, 100) || attachment.name || "Postelligence video", id: videoUrn } };
   } else if (imageFiles.length > 1) {
     const imageUrns = (await Promise.all(imageFiles.map((file) => uploadLinkedInImage(token, author, file))))
       .filter((urn): urn is string => Boolean(urn));
@@ -561,7 +561,7 @@ async function postBlueskyVideoUpload(serviceToken: string, did: string, attachm
   const formData = new FormData();
   formData.set("serviceToken", serviceToken);
   formData.set("did", did);
-  formData.set("video", new Blob([bytes], { type: attachment.type || "video/mp4" }), attachment.name || "postsync-video.mp4");
+  formData.set("video", new Blob([bytes], { type: attachment.type || "video/mp4" }), attachment.name || "postelligence-video.mp4");
 
   const res = await fetch(edgeFnUrl, {
     method: "POST",
@@ -583,7 +583,7 @@ async function uploadBlueskyVideo(accessToken: string, did: string, attachment: 
   formData.set("accessToken", accessToken);
   formData.set("did", did);
   formData.set("pdsUrl", pdsUrl);
-  formData.set("video", attachment, attachment.name || "postsync-video.mp4");
+  formData.set("video", attachment, attachment.name || "postelligence-video.mp4");
   // Pass app credentials so edge function can create a fresh session for getServiceAuth
   if (refreshToken) formData.set("refreshToken", refreshToken);
   if (handle) formData.set("handle", handle);
@@ -1099,7 +1099,7 @@ function isTokenExpired(expiresAt?: string | null) {
 }
 
 async function uploadYouTubeVideo(accessToken: string, attachment: File, metadata: Record<string, unknown>) {
-  const boundary = `postsync-${crypto.randomUUID()}`;
+  const boundary = `postelligence-${crypto.randomUUID()}`;
   const videoBytes = Buffer.from(await attachment.arrayBuffer());
   const metadataPart = Buffer.from(`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n`);
   const filePartHeader = Buffer.from(`--${boundary}\r\nContent-Type: ${attachment.type || "application/octet-stream"}\r\n\r\n`);
@@ -1131,7 +1131,7 @@ async function publishYouTube(account: StoredAccount, text: string, title: strin
   }
 
   const metadata = {
-    snippet: { title: title || text.slice(0, 90) || "PostSync video", description: text, categoryId: "22" },
+    snippet: { title: title || text.slice(0, 90) || "Postelligence video", description: text, categoryId: "22" },
     status: { privacyStatus: "public", selfDeclaredMadeForKids: false },
   };
 
@@ -1163,7 +1163,7 @@ async function publishPinterest(account: StoredAccount, text: string, mediaUrl: 
       headers: { Authorization: `Bearer ${account.access_token}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         board_id: boardId,
-        title: text.slice(0, 100) || "PostSync post",
+        title: text.slice(0, 100) || "Postelligence post",
         description: text,
         link: linkUrl || undefined,
         media_source: { source_type: "image_url", url: mediaUrl },
@@ -1232,7 +1232,7 @@ async function publishReddit(account: StoredAccount, text: string, title: string
   const body: Record<string, string> = {
     sr: subreddit,
     kind: mediaUrl ? "link" : "self",
-    title: title || text.slice(0, 300) || "PostSync post",
+    title: title || text.slice(0, 300) || "Postelligence post",
     resubmit: "true",
     nsfw: "false",
     spoiler: "false",
@@ -1249,7 +1249,7 @@ async function publishReddit(account: StoredAccount, text: string, title: string
       headers: {
         Authorization: `Bearer ${account.access_token}`,
         "Content-Type": "application/x-www-form-urlencoded",
-        "User-Agent": "PostSync/1.0",
+        "User-Agent": "Postelligence/1.0",
       },
       body: new URLSearchParams(body),
     }),

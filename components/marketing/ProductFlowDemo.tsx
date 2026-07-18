@@ -61,7 +61,7 @@ const platformPreviews = {
     icon: LinkedinIcon,
     color: "#0077B5",
     bg: "#e8f1fb",
-    text: "I'm excited to share that PostSync is officially launching today! 🚀\n\nWe set out to build a calmer, more intuitive workspace to help creators eliminate manual reformatting and preserve their brand voice. No scraping, no middlemen, just direct native API publishing.\n\nHere is how we do it differently...",
+    text: "I'm excited to share that Postelligence is officially launching today! 🚀\n\nWe set out to build a calmer, more intuitive workspace to help creators eliminate manual reformatting and preserve their brand voice. No scraping, no middlemen, just direct native API publishing.\n\nHere is how we do it differently...",
     tagline: "Professional • Tailored for Reach",
   },
   threads: {
@@ -69,7 +69,7 @@ const platformPreviews = {
     icon: ThreadsIcon,
     color: "#1f2528",
     bg: "#eceeec",
-    text: "PostSync is officially live! 🚀\n\nOne composer, absolute focus:\n• Tailored AI formatting per platform\n• Secure OAuth platform APIs\n• Visual drag-and-drop calendar\n\nNo duplicate work. Try it at postsync.com",
+    text: "Postelligence is officially live! 🚀\n\nOne composer, absolute focus:\n• Tailored AI formatting per platform\n• Secure OAuth platform APIs\n• Visual drag-and-drop calendar\n\nNo duplicate work. Try it at postelligence.com",
     tagline: "Conversational • Short Bullets",
   },
   instagram: {
@@ -77,7 +77,7 @@ const platformPreviews = {
     icon: InstagramIcon,
     color: "#d6249f",
     bg: "#fff0ed",
-    text: "Tailored brand voice, unified workflows, and absolute focus. PostSync is officially live today. 🚀 \n\nStop copying and pasting. Connect once, publish everywhere.\n\n#creators #socialmedia #marketingtips #saas #productivity",
+    text: "Tailored brand voice, unified workflows, and absolute focus. Postelligence is officially live today. 🚀 \n\nStop copying and pasting. Connect once, publish everywhere.\n\n#creators #socialmedia #marketingtips #saas #productivity",
     tagline: "Visual Caption • Hashtags",
   },
 };
@@ -165,7 +165,7 @@ export function ProductFlowDemo() {
               </div>
 
               <div className="flex-1 min-h-[140px] border border-[#1f2528]/8 bg-[#fbfbf9]/60 rounded-xl p-4 text-sm text-[#1f2528] leading-relaxed font-medium text-left">
-                PostSync is launching today! 🚀 We built a calmer, more intuitive workspace to help creators eliminate manual reformatting. Write once, publish everywhere tailored to each platform.
+                Postelligence is launching today! 🚀 We built a calmer, more intuitive workspace to help creators eliminate manual reformatting. Write once, publish everywhere tailored to each platform.
               </div>
 
               <div className="flex items-center justify-between mt-2 pt-2 border-t border-[#1f2528]/5">

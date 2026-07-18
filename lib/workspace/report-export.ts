@@ -187,6 +187,6 @@ export function reportPrintHtml(opts: {
     <p class="body-text">${(recommendations || "No recommendations recorded.").replace(/\n/g, "<br/>")}</p>
     <h2>Team &amp; Platform Analytics — Workspace Roster</h2>
     <table><thead><tr><th>Member</th><th>Role</th></tr></thead><tbody>${memberRows || "<tr><td colspan=2>No members</td></tr>"}</tbody></table>
-    <footer>Report generator: PostSync Team Analytics &middot; Official submitted report &middot; Submitted by ${submittedByName || "—"}</footer>
+    <footer>Report generator: Postelligence Team Analytics &middot; Official submitted report &middot; Submitted by ${submittedByName || "—"}</footer>
   `;
 }

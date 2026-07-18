@@ -65,6 +65,33 @@
     visible: { opacity: 1, y: 0, transition: { duration: 0.35 } },
   };
 
+  function PlatformAvatar({ platform }: { platform: Platform }) {
+    const [imgError, setImgError] = useState(false);
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+      setMounted(true);
+    }, []);
+
+    return (
+      <div
+        className="grid h-11 w-11 place-items-center overflow-hidden rounded-xl border border-slate-200 bg-slate-55 shadow-sm"
+        style={{ color: platform.color }}
+      >
+        {mounted && platform.connected && platform.avatarUrl && !imgError ? (
+          <img 
+            src={platform.avatarUrl} 
+            alt="" 
+            className="h-full w-full object-cover" 
+            onError={() => setImgError(true)} 
+          />
+        ) : (
+          <PlatformLogo id={platform.id} className="h-5 w-5" />
+        )}
+      </div>
+    );
+  }
+
   // ── Component ─────────────────────────────────────────────────────────────────
   export default function IntegrationsClient({ socialAccounts }: Props) {
     const [disconnectingPlatform, setDisconnectingPlatform] = useState<string | null>(null);
@@ -236,119 +263,61 @@
       <motion.div
         initial="hidden"
         animate="visible"
-        variants={{ visible: { transition: { staggerChildren: 0.07 } } }}
-        className="p-6 md:p-8"
+        variants={{ visible: { transition: { staggerChildren: 0.05 } } }}
+        className="p-6 md:p-8 space-y-8"
       >
         {/* Header */}
-        <motion.div variants={fadeUp} className="mb-8 flex flex-wrap items-end justify-between gap-4">
+        <motion.div variants={fadeUp} className="flex flex-wrap items-center justify-between gap-4 pb-6 border-b border-slate-100">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.28em] text-slate-400">Manage</p>
-            <h1 className="mt-1 text-3xl font-black tracking-[-0.03em] text-[#1f2528]">Integrations</h1>
-            <p className="mt-1.5 text-sm text-slate-500">Connect your social media accounts to start publishing.</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400 leading-none">Manage</p>
+            <h1 className="mt-2.5 text-3xl font-black tracking-tight text-slate-800">Integrations</h1>
+            <p className="mt-1 text-sm text-slate-500 font-medium">Connect your social media accounts to start publishing.</p>
           </div>
           <div className="flex items-center gap-3">
-            <div className="rounded-xl border border-[#1f2528]/8 bg-white px-4 py-2.5 shadow-sm">
-              <p className="text-xs text-slate-400">Connected</p>
-              <p className="text-2xl font-black text-[#1f2528]">{connectedCount}<span className="text-sm font-medium text-slate-400">/{platforms.length}</span></p>
+            <div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 px-4.5 py-3 shadow-sm flex items-center gap-3.5">
+              <div>
+                <p className="text-[10px] font-black uppercase text-emerald-800 tracking-wider leading-none">Connected Channels</p>
+                <p className="text-2xl font-black text-emerald-950 mt-1.5 leading-none">
+                  {connectedCount}
+                  <span className="text-xs font-bold text-emerald-700/60 ml-0.5">/ {platforms.length}</span>
+                </p>
+              </div>
+              <div className="h-9 w-9 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600">
+                <Check className="h-5 w-5 stroke-[2.5]" />
+              </div>
             </div>
           </div>
         </motion.div>
 
-        {/* Platform cards */}
-        <motion.div variants={fadeUp} className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+        {/* Platform list row table */}
+        <motion.div variants={fadeUp} className="border border-slate-200 bg-white rounded-3xl overflow-hidden shadow-sm divide-y divide-slate-100">
           {platforms.map((platform) => {
             const platformCfg = PLATFORM_CONFIG.find((c) => c.id === platform.id);
             const isAvailable = !platformCfg || platformCfg.available;
 
             return (
-              <motion.div
-                key={platform.id}
-                variants={fadeUp}
-                whileHover={{ y: -4, scale: 1.01 }}
-                transition={{ type: "spring", stiffness: 280, damping: 22 }}
-                className="group relative overflow-hidden rounded-2xl border border-[#1f2528]/8 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
-              >
-                {/* Color accent top bar */}
-                <div
-                  className="absolute inset-x-0 top-0 h-1 rounded-t-2xl opacity-70"
-                  style={{ backgroundColor: platform.color }}
-                />
-
-                <div className="relative pt-1">
-                  {/* Top row: avatar + status dot + menu */}
-                  <div className="mb-5 flex items-start justify-between">
-                    <div className="relative">
-                      <div
-                        className="grid h-14 w-14 place-items-center overflow-hidden rounded-2xl border border-[#1f2528]/8 bg-slate-50"
-                        style={{ color: platform.color }}
-                      >
-                        {platform.connected && platform.avatarUrl ? (
-                          <img src={platform.avatarUrl} alt="" className="h-full w-full object-cover" />
-                        ) : (
-                          <PlatformLogo id={platform.id} className="h-7 w-7" />
-                        )}
-                      </div>
-                      <span
-                        className={cn(
-                          "absolute -right-1 -top-1 h-3.5 w-3.5 rounded-full border-2 border-white",
-                          platform.connected ? "bg-emerald-400" : "bg-slate-300"
-                        )}
-                      />
-                    </div>
-
-                    {/* Dropdown menu */}
-                    <div className="relative" ref={openMenuId === platform.id ? menuRef : null}>
-                      <button
-                        className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 opacity-0 transition hover:bg-slate-100 hover:text-slate-700 group-hover:opacity-100"
-                        onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === platform.id ? null : platform.id); }}
-                      >
-                        <MoreHorizontal className="h-4 w-4" />
-                      </button>
-
-                      {openMenuId === platform.id && (
-                        <div className="absolute right-0 top-9 z-50 min-w-[160px] rounded-xl border border-[#1f2528]/8 bg-white p-1 shadow-lg">
-                          {platform.connected && (
-                            <a
-                              href={
-                                platform.id === "instagram" ? "https://instagram.com" :
-                                platform.id === "facebook"  ? "https://facebook.com" :
-                                platform.id === "linkedin"  ? "https://linkedin.com/feed" :
-                                platform.id === "youtube"   ? "https://youtube.com" :
-                                platform.id === "threads"   ? "https://threads.net" :
-                                platform.id === "bluesky"   ? "https://bsky.app" :
-                                platform.id === "pinterest" ? "https://pinterest.com" : "#"
-                              }
-                              target="_blank" rel="noopener noreferrer"
-                              onClick={() => setOpenMenuId(null)}
-                              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-[#1f2528] hover:bg-slate-50"
-                            >
-                              <Link2 className="h-3.5 w-3.5 text-slate-400" />
-                              View profile
-                            </a>
-                          )}
-                          {platform.connected && platform.handle && (
-                            <button
-                              onClick={() => { navigator.clipboard.writeText(platform.handle); setOpenMenuId(null); }}
-                              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-[#1f2528] hover:bg-slate-50"
-                            >
-                              <Check className="h-3.5 w-3.5 text-slate-400" />
-                              Copy handle
-                            </button>
-                          )}
-                        </div>
+              <div key={platform.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4.5 hover:bg-slate-50/50 transition-colors duration-150">
+                
+                {/* Left section: Icon avatar + Name + connection details */}
+                <div className="flex items-center gap-4 min-w-0">
+                  <div className="relative shrink-0">
+                    <PlatformAvatar platform={platform} />
+                    <span
+                      className={cn(
+                        "absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-3 border-white shadow-sm transition-colors duration-300",
+                        platform.connected ? "bg-emerald-500" : "bg-slate-300"
                       )}
-                    </div>
+                    />
                   </div>
 
-                  {/* Platform info */}
-                  <div className="mb-5 min-h-[72px]">
+                  <div className="min-w-0 leading-tight">
                     <div className="flex items-center gap-2">
-                      <h3 className="text-base font-black text-[#1f2528]">{platform.name}</h3>
+                      <h3 className="text-sm font-black text-slate-800">{platform.name}</h3>
                       {!isAvailable ? (
-                        <Badge className="border-amber-200 bg-amber-50 text-amber-600">Soon</Badge>
+                        <Badge className="border-amber-200 bg-amber-50 text-amber-600 font-extrabold text-[8px] px-1.5 py-0.5 rounded-full uppercase tracking-wider">Soon</Badge>
                       ) : (
                         <Badge className={cn(
-                          "text-[11px]",
+                          "text-[8px] font-extrabold px-1.5 py-0.5 rounded-full uppercase tracking-wider border transition-colors",
                           platform.connected
                             ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                             : "border-slate-200 bg-slate-50 text-slate-500"
@@ -357,125 +326,177 @@
                         </Badge>
                       )}
                     </div>
-                    <p className="mt-1 text-sm font-medium text-slate-600 truncate">{platform.handle}</p>
-                    <p className="mt-0.5 text-xs text-slate-400">{platform.lastSync}</p>
+                    {/* Show connection handle or Not Connected details */}
+                    <p className="text-xs font-bold text-slate-500 mt-1 truncate">
+                      {platform.connected ? platform.handle : "Not Connected"}
+                    </p>
                     {!isAvailable && platformCfg?.comingSoonReason && (
-                      <p className="mt-1 text-xs text-amber-500">{platformCfg.comingSoonReason}</p>
+                      <p className="text-[10px] text-amber-600 font-semibold mt-0.5 leading-normal">{platformCfg.comingSoonReason}</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Center-Right section: Sync Time */}
+                <div className="hidden md:flex flex-col items-end shrink-0 text-right">
+                  <p className="text-[11px] font-bold text-slate-400">Last Sync Status</p>
+                  <p className="text-xs font-semibold text-slate-600 mt-0.5">{platform.lastSync}</p>
+                </div>
+
+                {/* Right section: Action Buttons + Dropdown */}
+                <div className="flex items-center gap-2 self-end sm:self-center">
+                  
+                  {/* Main Action Button */}
+                  {!isAvailable ? (
+                    <Button variant="secondary" size="sm" className="w-28 cursor-not-allowed opacity-60 rounded-xl py-1.5 h-8 text-[11px] font-extrabold bg-slate-50 border border-slate-200/80 text-slate-400" disabled>
+                      🔒 Coming Soon
+                    </Button>
+                  ) : platform.id === "linkedin" ? (
+                    linkedinAccount ? (
+                      <button
+                        disabled={disconnectingPlatform === "linkedin"}
+                        onClick={() => void disconnectLinkedIn()}
+                        className="w-28 bg-white border border-slate-200 text-slate-600 font-bold hover:bg-rose-50 hover:border-rose-200 hover:text-rose-600 transition rounded-xl text-[11px] py-1.5 h-8 flex items-center justify-center gap-1 disabled:opacity-50"
+                      >
+                        {disconnectingPlatform === "linkedin" ? <Loader2 className="h-3 w-3 animate-spin" /> : <X className="h-3 w-3" />}
+                        {disconnectingPlatform === "linkedin" ? "Disconnecting" : "Disconnect"}
+                      </button>
+                    ) : (
+                      <button onClick={connectLinkedIn} className="w-28 bg-[#2f7867] hover:bg-[#256052] text-white font-extrabold transition rounded-xl text-[11px] py-1.5 h-8 flex items-center justify-center gap-1 shadow-sm">
+                        <Plus className="h-3.5 w-3.5" /> Connect
+                      </button>
+                    )
+                  ) : platform.connected ? (
+                    <button
+                      disabled={disconnectingPlatform === platform.id}
+                      onClick={() => void handleDisconnect(platform)}
+                      className="w-28 bg-white border border-slate-200 text-slate-600 font-bold hover:bg-rose-50 hover:border-rose-200 hover:text-rose-600 transition rounded-xl text-[11px] py-1.5 h-8 flex items-center justify-center gap-1 disabled:opacity-50"
+                    >
+                      {disconnectingPlatform === platform.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <X className="h-3 w-3" />}
+                      {disconnectingPlatform === platform.id ? "Disconnecting" : "Disconnect"}
+                    </button>
+                  ) : (
+                    <button onClick={() => handleConnect(platform)} className="w-28 bg-[#2f7867] hover:bg-[#256052] text-white font-extrabold transition rounded-xl text-[11px] py-1.5 h-8 flex items-center justify-center gap-1 shadow-sm">
+                      <Plus className="h-3.5 w-3.5" /> Connect
+                    </button>
+                  )}
+
+                  {/* Dropdown Menu */}
+                  <div className="relative" ref={openMenuId === platform.id ? menuRef : null}>
+                    <button
+                      className="grid h-8 w-8 place-items-center rounded-xl border border-slate-200 text-slate-400 hover:bg-slate-50 hover:text-slate-700 transition shadow-sm bg-white"
+                      onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === platform.id ? null : platform.id); }}
+                    >
+                      <MoreHorizontal className="h-4 w-4" />
+                    </button>
+
+                    {openMenuId === platform.id && (
+                      <div className="absolute right-0 top-9.5 z-50 min-w-[150px] rounded-xl border border-slate-200 bg-white/95 backdrop-blur-md p-1 shadow-lg animate-in fade-in duration-100">
+                        {platform.connected && (
+                          <a
+                            href={
+                              platform.id === "instagram" ? "https://instagram.com" :
+                              platform.id === "facebook"  ? "https://facebook.com" :
+                              platform.id === "linkedin"  ? "https://linkedin.com/feed" :
+                              platform.id === "youtube"   ? "https://youtube.com" :
+                              platform.id === "threads"   ? "https://threads.net" :
+                              platform.id === "bluesky"   ? "https://bsky.app" :
+                              platform.id === "pinterest" ? "https://pinterest.com" : "#"
+                            }
+                            target="_blank" rel="noopener noreferrer"
+                            onClick={() => setOpenMenuId(null)}
+                            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
+                          >
+                            <Link2 className="h-3.5 w-3.5 text-slate-400" />
+                            View profile
+                          </a>
+                        )}
+                        {platform.connected && platform.handle && (
+                          <button
+                            onClick={() => { navigator.clipboard.writeText(platform.handle); setOpenMenuId(null); }}
+                            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
+                          >
+                            <Check className="h-3.5 w-3.5 text-slate-400" />
+                            Copy handle
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
 
-                  {/* Action buttons */}
-                  <div className="flex gap-2">
-                    {!isAvailable ? (
-                      <Button variant="secondary" size="sm" className="flex-1 cursor-not-allowed opacity-60" disabled>
-                        🔒 Coming Soon
-                      </Button>
-                    ) : platform.id === "linkedin" ? (
-                      linkedinAccount ? (
-                        <Button
-                          variant="danger" size="sm" className="flex-1"
-                          disabled={disconnectingPlatform === "linkedin"}
-                          onClick={() => void disconnectLinkedIn()}
-                        >
-                          {disconnectingPlatform === "linkedin" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
-                          {disconnectingPlatform === "linkedin" ? "Disconnecting..." : "Disconnect"}
-                        </Button>
-                      ) : (
-                        <Button variant="secondary" size="sm" className="flex-1" onClick={connectLinkedIn}>
-                          <Plus className="h-3.5 w-3.5" /> Connect
-                        </Button>
-                      )
-                    ) : platform.connected ? (
-                      <Button
-                        variant="danger" size="sm" className="flex-1"
-                        disabled={disconnectingPlatform === platform.id}
-                        onClick={() => void handleDisconnect(platform)}
-                      >
-                        {disconnectingPlatform === platform.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
-                        {disconnectingPlatform === platform.id ? "Disconnecting..." : "Disconnect"}
-                      </Button>
-                    ) : (
-                      <Button variant="secondary" size="sm" className="flex-1" onClick={() => handleConnect(platform)}>
-                        <Plus className="h-3.5 w-3.5" /> Connect
-                      </Button>
-                    )}
-                    <button className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-[#1f2528]/8 text-slate-400 hover:bg-slate-50">
-                      <Gauge className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
                 </div>
-              </motion.div>
+
+              </div>
             );
           })}
         </motion.div>
 
-        {/* Bluesky connect modal — handle + app password, no OAuth */}
+        {/* Bluesky App Password Modal */}
         {blueskyModalOpen && (
           <div
-            className="fixed inset-0 z-[100] grid place-items-center bg-black/40 p-4"
+            className="fixed inset-0 z-[100] grid place-items-center bg-slate-900/30 backdrop-blur-md p-4"
             onClick={() => !blueskyConnecting && setBlueskyModalOpen(false)}
           >
             <div
-              className="w-full max-w-sm rounded-2xl border border-[#1f2528]/8 bg-white p-6 shadow-xl"
+              className="w-full max-w-sm rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl animate-in zoom-in-95 duration-150"
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className="text-lg font-black text-[#1f2528]">Connect Bluesky</h3>
-              <p className="mt-1 text-sm text-slate-500">
+              <h3 className="text-lg font-black text-slate-800">Connect Bluesky</h3>
+              <p className="mt-1 text-sm text-slate-500 font-medium">
                 Use an app password, not your main account password.{" "}
                 <a
                   href="https://bsky.app/settings/app-passwords"
                   target="_blank" rel="noopener noreferrer"
-                  className="font-medium text-sky-600 hover:underline"
+                  className="font-bold text-sky-600 hover:underline"
                 >
                   Create one here
                 </a>.
               </p>
 
-              <div className="mt-4 space-y-3">
+              <div className="mt-5 space-y-4">
                 <div>
-                  <label className="text-xs font-bold uppercase tracking-wide text-slate-400">Handle</label>
+                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Handle</label>
                   <input
                     type="text"
                     value={blueskyHandle}
                     onChange={(e) => setBlueskyHandle(e.target.value)}
                     placeholder="yourname.bsky.social"
                     disabled={blueskyConnecting}
-                    className="mt-1 w-full rounded-lg border border-[#1f2528]/12 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-300/70"
+                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-sky-500 focus:ring-2 focus:ring-sky-100 transition"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold uppercase tracking-wide text-slate-400">App Password</label>
+                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">App Password</label>
                   <input
                     type="password"
                     value={blueskyAppPassword}
                     onChange={(e) => setBlueskyAppPassword(e.target.value)}
                     placeholder="xxxx-xxxx-xxxx-xxxx"
                     disabled={blueskyConnecting}
-                    className="mt-1 w-full rounded-lg border border-[#1f2528]/12 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-300/70"
+                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-xs font-bold text-slate-800 outline-none focus:bg-white focus:border-sky-500 focus:ring-2 focus:ring-sky-100 transition"
                   />
                 </div>
               </div>
 
               {blueskyError && (
-                <p className="mt-3 text-sm text-rose-600">{blueskyError}</p>
+                <p className="mt-3.5 text-xs font-bold text-rose-600 bg-rose-50 border border-rose-100 rounded-xl px-3 py-2">{blueskyError}</p>
               )}
 
-              <div className="mt-5 flex gap-2">
+              <div className="mt-6 flex gap-2">
                 <Button
-                  variant="secondary" size="sm" className="flex-1"
+                  variant="secondary" size="sm" className="flex-1 rounded-xl py-2 h-9 text-xs font-bold"
                   disabled={blueskyConnecting}
                   onClick={() => setBlueskyModalOpen(false)}
                 >
                   Cancel
                 </Button>
-                <Button
-                  variant="primary" size="sm" className="flex-1"
+                <button
                   disabled={blueskyConnecting}
                   onClick={() => void connectBluesky()}
+                  className="flex-1 bg-[#2f7867] hover:bg-[#256052] text-white font-bold transition rounded-xl text-xs py-2 h-9 flex items-center justify-center gap-1.5 shadow-sm disabled:opacity-50"
                 >
-                  {blueskyConnecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                  {blueskyConnecting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                   {blueskyConnecting ? "Connecting..." : "Connect"}
-                </Button>
+                </button>
               </div>
             </div>
           </div>

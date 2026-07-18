@@ -753,7 +753,7 @@ Return ONLY the plain, final social media caption itself. No wrapper quotes, no 
                       <table border="0" cellpadding="0" cellspacing="0" width="100%">
                         <tr>
                           <td>
-                            <p style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: #2f7867; margin: 0 0 6px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;">PostSync Engine</p>
+                            <p style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: #2f7867; margin: 0 0 6px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;">Postelligence Engine</p>
                             <h2 style="font-size: 22px; font-weight: 900; color: #1f2528; margin: 0 0 20px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; letter-spacing: -0.5px;">New Trend Draft Generated</h2>
                           </td>
                         </tr>
@@ -801,7 +801,7 @@ Return ONLY the plain, final social media caption itself. No wrapper quotes, no 
                       <table border="0" cellpadding="0" cellspacing="0" width="100%">
                         <tr>
                           <td style="border-top: 1px solid #eef0eb; padding-top: 24px; text-align: center;">
-                            <p style="font-size: 11px; color: #a1a59b; margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; font-weight: 600; letter-spacing: 0.5px;">PostSync &middot; Autonomous Campaigns</p>
+                            <p style="font-size: 11px; color: #a1a59b; margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; font-weight: 600; letter-spacing: 0.5px;">Postelligence &middot; Autonomous Campaigns</p>
                           </td>
                         </tr>
                       </table>
@@ -820,7 +820,7 @@ Return ONLY the plain, final social media caption itself. No wrapper quotes, no 
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            from: "PostSync <onboarding@resend.dev>",
+            from: "Postelligence <onboarding@resend.dev>",
             to: [approval_email || userEmail],
             subject: `Approval Required: ${trendTitle.slice(0, 45)}`,
             html: emailHtml,
@@ -954,7 +954,7 @@ async function publishToBluesky(post: any, account: any): Promise<string | undef
     }));
     const images = blobs
       .filter((b) => Boolean(b))
-      .map((blob) => ({ image: blob, alt: post.title || "PostSync image" }));
+      .map((blob) => ({ image: blob, alt: post.title || "Postelligence image" }));
     if (images.length > 0) {
       record.embed = { $type: "app.bsky.embed.images", images };
     }
@@ -1000,7 +1000,7 @@ async function publishToLinkedIn(post: any, account: any): Promise<string | unde
   if (post.linkedin_media_urn) {
     const isVideo = post.linkedin_media_urn.includes(":video:");
     postBody.content = isVideo
-      ? { media: { id: post.linkedin_media_urn, title: post.title || "PostSync video" } }
+      ? { media: { id: post.linkedin_media_urn, title: post.title || "Postelligence video" } }
       : { media: { id: post.linkedin_media_urn } };
   } else if (post.media_urls && post.media_urls[0]) {
     const allUrls: string[] = post.media_urls.filter(Boolean);

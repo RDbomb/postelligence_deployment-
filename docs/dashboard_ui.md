@@ -118,7 +118,7 @@ This controls how the post is framed (affects YouTube/Threads/Instagram media ty
 A row of pill buttons — one per platform — using `togglePlatform(id)` to add/remove a platform from `selectedPlatforms`. Disconnected platforms are shown faded (`opacity-50`) but still clickable (so the user sees what they *could* connect).
 
 ### Action buttons
-- **Save draft** → writes the whole form state to `localStorage` under `"postsync-draft"`.
+- **Save draft** → writes the whole form state to `localStorage` under `"postelligence-draft"`.
 - **Schedule** → currently also calls `saveDraft` (scheduling logic is a planned improvement).
 - **Publish** → opens the **Publish modal**, which calls `POST /api/posts/publish`.
 

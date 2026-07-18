@@ -8,12 +8,12 @@ import { Reveal } from "@/components/marketing/Reveal";
 
 const values = [
   { icon: Target, title: "Clarity over complexity", copy: "Social tools should not feel like a second job. We design every screen to reduce noise and amplify focus, so you spend time creating — not navigating.", color: "#2f7867", bg: "#eaf7ef" },
-  { icon: Lightbulb, title: "AI as a collaborator", copy: "Artificial intelligence should enhance your voice — not replace it. PostSync AI adapts to you, learning your style and tone the more you use it.", color: "#6d5ad0", bg: "#f0eeff" },
-  { icon: Heart, title: "Built for creators", copy: "From solo writers to growing teams, PostSync exists because publishing great content deserves great tools. We ship for the people doing the work.", color: "#d05945", bg: "#fff0ed" },
+  { icon: Lightbulb, title: "AI as a collaborator", copy: "Artificial intelligence should enhance your voice — not replace it. Postelligence AI adapts to you, learning your style and tone the more you use it.", color: "#6d5ad0", bg: "#f0eeff" },
+  { icon: Heart, title: "Built for creators", copy: "From solo writers to growing teams, Postelligence exists because publishing great content deserves great tools. We ship for the people doing the work.", color: "#d05945", bg: "#fff0ed" },
 ];
 
 const milestones = [
-  { icon: Rocket, label: "Founded", value: "Jan 2026", detail: "PostSync publicly launched" },
+  { icon: Rocket, label: "Founded", value: "Jan 2026", detail: "Postelligence publicly launched" },
   { icon: Globe2, label: "Platforms", value: "7+", detail: "Native API integrations" },
   { icon: Users, label: "Creators", value: "Growing", detail: "Teams and solo builders" },
 ];
@@ -29,7 +29,7 @@ export default function AboutPage() {
         <div className="mx-auto max-w-4xl text-center">
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="inline-flex items-center gap-2 rounded-full border border-[#2f7867]/20 bg-[#2f7867]/8 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-[#2f7867]">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#2f7867]" />
-            About PostSync
+            About Postelligence
           </motion.div>
           <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.65, delay: 0.08, ease: [0.22, 1, 0.36, 1] }} className="marketing-display mx-auto mt-7 max-w-3xl">
             Great content deserves a
@@ -37,7 +37,7 @@ export default function AboutPage() {
             <span className="bg-gradient-to-r from-[#2f7867] via-[#56a98f] to-[#d05945] bg-clip-text text-transparent">calmer way to the world.</span>
           </motion.h1>
           <motion.p initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.18 }} className="mx-auto mt-7 max-w-2xl text-lg leading-relaxed text-[#4f5b62]">
-            PostSync was born from a simple frustration: creators spend more time copying, pasting, and reformatting than actually creating. We set out to fix that.
+            Postelligence was born from a simple frustration: creators spend more time copying, pasting, and reformatting than actually creating. We set out to fix that.
           </motion.p>
         </div>
       </section>
@@ -110,8 +110,8 @@ export default function AboutPage() {
           <Reveal>
             <div className="flex flex-col items-center gap-6 rounded-3xl border border-[#2f7867]/20 bg-gradient-to-b from-[#f0f8f5] to-[#f6f7f1] p-10 text-center md:p-16">
               <p className="text-xs font-bold uppercase tracking-widest text-[#2f7867]">Ready to create?</p>
-              <h2 className="text-3xl font-bold tracking-[-0.03em] text-[#1f2528] md:text-4xl">Join the PostSync community.</h2>
-              <p className="max-w-lg text-base leading-relaxed text-[#5a656c]">Whether you&apos;re a solo creator or building a content team, PostSync gives you the tools to show up consistently, everywhere that matters.</p>
+              <h2 className="text-3xl font-bold tracking-[-0.03em] text-[#1f2528] md:text-4xl">Join the Postelligence community.</h2>
+              <p className="max-w-lg text-base leading-relaxed text-[#5a656c]">Whether you&apos;re a solo creator or building a content team, Postelligence gives you the tools to show up consistently, everywhere that matters.</p>
               <Link href="/login" className="marketing-cta-primary">Get started free<ArrowRight className="h-4 w-4" /></Link>
             </div>
           </Reveal>

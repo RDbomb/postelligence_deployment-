@@ -61,7 +61,7 @@ export function FeaturesVisual() {
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                   >
-                    Simplifying work for creators is what we live for. PostSync dashboard is ready. ✨
+                    Simplifying work for creators is what we live for. Postelligence dashboard is ready. ✨
                   </motion.p>
                 )}
               </AnimatePresence>

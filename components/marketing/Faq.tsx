@@ -15,15 +15,15 @@ const faqs = [
   },
   {
     q: "Can I schedule posts in advance for every time zone?",
-    a: "Yes. The visual calendar lets you plan a full week or month ahead, and PostSync handles time zone conversion automatically so posts land exactly when your audience is active."
+    a: "Yes. The visual calendar lets you plan a full week or month ahead, and Postelligence handles time zone conversion automatically so posts land exactly when your audience is active."
   },
   {
     q: "Is there a limit on connected accounts?",
     a: "Starter includes two connected accounts. Pro and Team plans include unlimited connections across every supported platform."
   },
   {
-    q: "How does PostSync keep my accounts secure?",
-    a: "Every connection uses native OAuth — PostSync never stores your passwords. Sessions are encrypted end to end and you can revoke access at any time from Settings."
+    q: "How does Postelligence keep my accounts secure?",
+    a: "Every connection uses native OAuth — Postelligence never stores your passwords. Sessions are encrypted end to end and you can revoke access at any time from Settings."
   }
 ];
 

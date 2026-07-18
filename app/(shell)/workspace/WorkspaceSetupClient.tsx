@@ -43,7 +43,7 @@ export default function WorkspaceSetupClient() {
           </div>
           <div>
             <h1 className="text-lg font-bold text-gray-900">Team Workspace</h1>
-            <p className="text-sm text-gray-500">Collaborate with your team on PostSync</p>
+            <p className="text-sm text-gray-500">Collaborate with your team on Postelligence</p>
           </div>
         </div>
 

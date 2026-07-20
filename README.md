@@ -121,6 +121,37 @@ npx supabase functions deploy bluesky-video-upload --project-ref YOUR_PROJECT_RE
 
 ---
 
+## Auth & Route Protection
+
+Authentication is enforced at **two** layers, on purpose.
+
+### 1. `proxy.ts` (Next.js 16 middleware)
+
+Runs before rendering on every matched request and does two jobs:
+
+- **Refreshes the Supabase session.** `getUser()` revalidates the access token and rotates the auth cookies when it has expired. Without this, a signed-in user's session dies silently when the token lapses.
+- **Redirects optimistically** — signed-out visitors leaving the app shell go to `/login`; signed-in visitors hitting `/login` go to `/dashboard`.
+
+Protected prefixes mirror the `app/(shell)/` segments. Deliberate exclusions:
+
+| Excluded | Why |
+|---|---|
+| `/automation/action-completed` | Public landing page for token-authenticated external approval links sent over Discord/Telegram. Sits under the protected `/automation` prefix but must stay open. |
+| `/api/*` | Route handlers authenticate themselves and must return 401 JSON, not an HTML redirect. Keeps `/api/scheduler/run` (cron) and `/api/automation/external-approve` (token) reachable. |
+| `/auth/*` | OAuth callbacks — redirecting these breaks the code exchange. |
+| `/admin` | Authenticates client-side against `sessionStorage`, not Supabase. |
+
+### 2. `getUser()` in pages, layouts and route handlers
+
+These are **kept**, not replaced by the proxy. Two reasons:
+
+- A proxy is a single spoofable choke point. [CVE-2025-29927](https://nvd.nist.gov/vuln/detail/CVE-2025-29927) let a crafted `x-middleware-subrequest` header skip Next.js middleware entirely. If the proxy were the only gate, that bug would have exposed every page and API route.
+- In the App Router a **layout's guard does not stop its child page from executing** — they render in parallel. A page cannot rely on its layout for protection.
+
+The rule: the proxy avoids rendering work and keeps tokens fresh; **authorisation lives next to the data it protects.**
+
+---
+
 ## Code Quality & Git Hooks
 
 Hooks are managed by [husky](https://typicode.github.io/husky/) and installed automatically by `yarn install`.

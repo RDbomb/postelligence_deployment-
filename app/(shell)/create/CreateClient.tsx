@@ -21,6 +21,15 @@ import {
   Sparkles,
   Video,
   X,
+  Heart,
+  MessageCircle,
+  Repeat2,
+  Share2,
+  Bookmark,
+  ThumbsUp,
+  MoreHorizontal,
+  Eye,
+  ArrowBigUp,
 } from "lucide-react";
 import {
   getConnectedFacebookAccount,
@@ -90,7 +99,8 @@ interface Props {
 
 type PlatformKey =
   | "instagram" | "facebook" | "linkedin" | "youtube"
-  | "twitter" | "threads" | "bluesky" | "pinterest" | "reddit";
+  | "twitter" | "threads" | "bluesky" | "pinterest" | "reddit"
+  | "discord" | "telegram";
 
 type Platform = {
   id: PlatformKey;
@@ -265,6 +275,8 @@ export default function CreateClient({
   const [blueskyPassword, setBlueskyPassword] = useState("");
   const [blueskyLoading, setBlueskyLoading] = useState(false);
   const [blueskyError, setBlueskyError] = useState<string | null>(null);
+  // Which platform tab is active in the preview panel
+  const [previewTab, setPreviewTab] = useState<string>("");
 
   const attachmentInputRef = useRef<HTMLInputElement>(null);
 
@@ -354,7 +366,7 @@ export default function CreateClient({
   const selectedPlatformNames = selectedPlatformDetails.map((p) => p.name).join(", ") || "No platforms";
   const selectedPlatformHas = (id: PlatformKey) => selectedPlatforms.includes(id);
   const selectedMediaFirstPlatforms = selectedPlatformDetails.filter((p) => ["youtube", "instagram", "pinterest"].includes(p.id));
-  const needsTitle = selectedPlatformHas("youtube") || selectedPlatformHas("linkedin");
+  const needsTitle = selectedPlatformHas("youtube");
   const needsHostedMedia = selectedPlatforms.some((id) => ["instagram", "facebook", "threads", "pinterest"].includes(id));
   const needsLink = selectedPlatformHas("facebook") || selectedPlatformHas("pinterest") || selectedPlatformHas("linkedin");
   const needsVideo = selectedPlatformHas("youtube");
@@ -828,6 +840,34 @@ export default function CreateClient({
                   <span className="mb-1.5 block text-xs font-bold uppercase tracking-[0.16em] text-slate-400">{selectedPlatformHas("youtube") ? "Video title" : "Post title"}</span>
                   <input className="w-full rounded-lg border border-[#1f2528]/12 bg-[#f9faf7] px-4 py-3 text-sm font-bold text-[#1f2528] outline-none transition placeholder:font-medium placeholder:text-slate-400 focus:border-[#2f7867]/50 focus:bg-white"
                     placeholder={selectedPlatformHas("youtube") ? "Title shown on YouTube" : "Title for LinkedIn media or article"} value={postTitle} onChange={(e) => setPostTitle(e.target.value)} />
+                  {/* Per-platform title counters */}
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                    {([
+                      selectedPlatformHas("youtube")   && { id: "youtube",   label: "YT",  color: "#FF0033", limit: 100 },
+                      selectedPlatformHas("pinterest") && { id: "pinterest", label: "PI",  color: "#E60023", limit: 100 },
+                      selectedPlatformHas("reddit")    && { id: "reddit",    label: "RD",  color: "#FF4500", limit: 300 },
+                    ] as const).filter(Boolean).map((p: any) => {
+                      const remaining = p.limit - postTitle.length;
+                      const pct = postTitle.length / p.limit;
+                      const urgent = remaining < 0;
+                      const warn   = !urgent && pct >= 0.85;
+                      return (
+                        <span key={p.id}
+                          className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-black tracking-wide"
+                          style={{
+                            borderColor: urgent ? "#ef4444" : warn ? "#f59e0b" : `${p.color}55`,
+                            color:       urgent ? "#ef4444" : warn ? "#f59e0b" : p.color,
+                            backgroundColor: urgent ? "#fef2f2" : warn ? "#fffbeb" : `${p.color}10`,
+                          }}>
+                          <PlatformLogo id={p.id} className="h-2.5 w-2.5" />
+                          {urgent ? `−${Math.abs(remaining)}` : `${postTitle.length}/${p.limit}`}
+                        </span>
+                      );
+                    })}
+                    {postTitle.length > 0 && (
+                      <span className="ml-auto text-[10px] font-bold text-slate-400">{postTitle.length} chars</span>
+                    )}
+                  </div>
                 </label>
               )}
 
@@ -835,10 +875,48 @@ export default function CreateClient({
                 <span className="mb-1.5 block text-xs font-bold uppercase tracking-[0.16em] text-slate-400">Post text</span>
                 <textarea className="min-h-44 w-full resize-none rounded-lg border border-[#1f2528]/12 bg-[#f9faf7] p-4 text-sm leading-6 text-[#1f2528] outline-none transition placeholder:text-slate-400 focus:border-[#2f7867]/50 focus:bg-white"
                   placeholder={`What's on your mind, ${displayName.split(" ")[0]}?`} value={caption} onChange={(e) => setCaption(e.target.value)} />
-                <div className="mt-1.5 flex justify-end text-xs font-bold text-slate-400 tracking-wide">
-                  <span className={caption.length > 500 ? "text-rose-500 font-black" : "text-slate-400"}>
-                    {caption.length}/500
-                  </span>
+
+                {/* Per-platform caption counters */}
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                  {([
+                    selectedPlatformHas("twitter")   && { id: "twitter",   label: "X",   color: "#000000", limit: 280 },
+                    selectedPlatformHas("bluesky")   && { id: "bluesky",   label: "BS",  color: "#1185FE", limit: 300 },
+                    selectedPlatformHas("threads")   && { id: "threads",   label: "TH",  color: "#111827", limit: 500 },
+                    selectedPlatformHas("instagram") && { id: "instagram", label: "IG",  color: "#E1306C", limit: 2200 },
+                    selectedPlatformHas("pinterest") && { id: "pinterest", label: "PI",  color: "#E60023", limit: 500 },
+                    selectedPlatformHas("linkedin")  && { id: "linkedin",  label: "IN",  color: "#0A66C2", limit: 3000 },
+                    selectedPlatformHas("youtube")   && { id: "youtube",   label: "YT",  color: "#FF0033", limit: 5000 },
+                    selectedPlatformHas("facebook")  && { id: "facebook",  label: "FB",  color: "#1877F2", limit: 63206 },
+                    selectedPlatformHas("reddit")    && { id: "reddit",    label: "RD",  color: "#FF4500", limit: 40000 },
+                    selectedPlatformHas("discord")   && { id: "discord",   label: "DC",  color: "#5865F2", limit: 2000 },
+                    selectedPlatformHas("telegram")  && { id: "telegram",  label: "TG",  color: "#26A5E4", limit: 4096 },
+                  ] as const).filter(Boolean).map((p: any) => {
+                    const remaining = p.limit - caption.length;
+                    const pct = caption.length / p.limit;
+                    const urgent = remaining < 0;
+                    const warn   = !urgent && pct >= 0.85;
+                    return (
+                      <span key={p.id}
+                        className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-black tracking-wide transition-colors"
+                        style={{
+                          borderColor:     urgent ? "#ef4444" : warn ? "#f59e0b" : `${p.color}55`,
+                          color:           urgent ? "#ef4444" : warn ? "#f59e0b" : p.color,
+                          backgroundColor: urgent ? "#fef2f2" : warn ? "#fffbeb" : `${p.color}10`,
+                        }}>
+                        <PlatformLogo id={p.id} className="h-2.5 w-2.5" />
+                        {urgent
+                          ? `−${Math.abs(remaining)}`
+                          : remaining <= 50
+                          ? `${remaining} left`
+                          : `${caption.length}/${p.limit}`}
+                      </span>
+                    );
+                  })}
+                  {selectedPlatforms.length === 0 && (
+                    <span className={caption.length > 500 ? "text-rose-500 font-black text-xs" : "text-slate-400 text-xs font-bold"}>
+                      {caption.length}/500
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -1005,34 +1083,342 @@ export default function CreateClient({
             <aside className="space-y-4">
               <div className="rounded-lg border border-[#1f2528]/10 bg-white p-4 shadow-[0_8px_32px_rgba(31,37,40,0.08)]">
                 <div className="mb-3 flex items-center justify-between">
-                  <p className="text-sm font-black text-[#1f2528]">Preview</p>
+                  <div>
+                    <p className="text-sm font-black text-[#1f2528]">Preview</p>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">One master post, adapted per platform</p>
+                  </div>
                   <Button variant="ghost" size="sm"><Sparkles className="h-3.5 w-3.5" />AI</Button>
                 </div>
-                <div className="rounded-lg border border-[#1f2528]/10 bg-[#f9faf7] p-4">
-                  <div className="mb-4 flex items-center gap-2.5">
-                    <UserAvatar name={displayName} src={user.user_metadata?.avatar_url} className="h-8 w-8 text-xs" />
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-bold text-[#1f2528]">{displayName}</p>
-                      <p className="text-xs text-slate-400">{selectedPlatformNames}</p>
-                    </div>
+
+                {/* Platform tabs */}
+                {selectedPlatformDetails.length > 0 && (
+                  <div className="mb-3 flex gap-1.5 overflow-x-auto pb-1">
+                    {selectedPlatformDetails.map((p) => {
+                      const active = (previewTab || selectedPlatformDetails[0]?.id) === p.id;
+                      return (
+                        <button key={p.id}
+                          onClick={() => setPreviewTab(p.id)}
+                          className={cn("flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-bold transition-colors",
+                            active ? "border-[#2f7867]/40 bg-[#eaf7ef] text-[#2f7867]" : "border-[#1f2528]/10 bg-white text-slate-500 hover:bg-[#f2f4ef]")}>
+                          <PlatformLogo id={p.id} className="h-3.5 w-3.5" />
+                          {p.name}
+                        </button>
+                      );
+                    })}
                   </div>
-                  {(imageAttachmentPreviews[0] || attachmentPreview || mediaUrlLooksLikeMedia) && (
-                    <div className="mb-4 overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm aspect-video flex items-center justify-center relative">
-                      {imageAttachmentPreviews[0] ? (
-                        <>
-                          <img src={imageAttachmentPreviews[0]} alt="" className="w-full h-full object-cover" />
-                          {imageAttachments.length > 1 && (
-                            <span className="absolute bottom-1.5 right-1.5 rounded-full bg-[#1f2528]/70 px-2 py-0.5 text-[11px] font-bold text-white">1/{imageAttachments.length}</span>
+                )}
+
+                {/* Platform-specific preview card */}
+                <div className={cn("rounded-lg border border-[#1f2528]/10 p-4",
+                  (previewTab || selectedPlatformDetails[0]?.id) === "discord" ? "bg-[#2b2d31]" : "bg-[#f9faf7]")}>
+                  {(() => {
+                    const activePlatformId = (previewTab || selectedPlatformDetails[0]?.id) as PlatformKey | undefined;
+                    const activePlatform = selectedPlatformDetails.find((p) => p.id === activePlatformId) || selectedPlatformDetails[0];
+                    const hasMedia = Boolean(imageAttachmentPreviews[0] || attachmentPreview || mediaUrlLooksLikeMedia);
+                    const handle = activePlatform?.connected ? activePlatform.handle : displayName;
+
+                    const mediaNode = (aspectClass: string) => {
+                      if (!hasMedia) return null;
+                      return (
+                        <div className={cn("relative flex items-center justify-center overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm", aspectClass)}>
+                          {imageAttachmentPreviews[0] ? (
+                            <>
+                              <img src={imageAttachmentPreviews[0]} alt="" className="h-full w-full object-cover" />
+                              {imageAttachments.length > 1 && (
+                                <span className="absolute bottom-1.5 right-1.5 rounded-full bg-[#1f2528]/70 px-2 py-0.5 text-[11px] font-bold text-white">1/{imageAttachments.length}</span>
+                              )}
+                            </>
+                          ) : attachment?.type.startsWith("video/") ? <video src={attachmentPreview || undefined} controls className="h-full w-full object-cover bg-black" />
+                            : mediaUrlIsVideo ? <video src={mediaUrlValue} preload="metadata" controls className="h-full w-full object-cover bg-black" />
+                            : mediaUrlValue ? <img src={mediaUrlValue} alt="" className="h-full w-full object-cover" />
+                            : <div className="flex w-full items-center gap-2 p-3 text-xs text-slate-500"><FileText className="h-4 w-4 shrink-0 text-slate-400" /><span className="truncate font-medium">{attachment?.name}</span></div>}
+                        </div>
+                      );
+                    };
+
+                    const header = (sub: string) => (
+                      <div className="mb-3 flex items-center gap-2.5">
+                        {/* Avatar: real profile photo with platform logo badge, or logo fallback */}
+                        <span className="relative inline-flex h-8 w-8 shrink-0">
+                          {activePlatform?.avatarUrl ? (
+                            <>
+                              <img
+                                src={activePlatform.avatarUrl}
+                                alt={handle}
+                                className="h-8 w-8 rounded-full object-cover ring-2 ring-white shadow-sm"
+                                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; (e.currentTarget.nextSibling as HTMLElement).style.display = "flex"; }}
+                              />
+                              {/* Fallback circle (hidden unless img fails) */}
+                              <span
+                                className="absolute inset-0 hidden items-center justify-center rounded-full shadow-sm"
+                                style={{ backgroundColor: activePlatform?.color ?? "#1f2528" }}
+                              >
+                                <PlatformLogo id={id ?? ""} className="h-4 w-4 text-white" />
+                              </span>
+                              {/* Platform badge */}
+                              <span
+                                className="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full ring-1 ring-white"
+                                style={{ backgroundColor: activePlatform?.color ?? "#1f2528" }}
+                              >
+                                <PlatformLogo id={id ?? ""} className="h-2 w-2 text-white" />
+                              </span>
+                            </>
+                          ) : (
+                            <span
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-full shadow-sm"
+                              style={{ backgroundColor: activePlatform?.color ?? "#1f2528" }}
+                            >
+                              <PlatformLogo id={id ?? ""} className="h-4 w-4 text-white" />
+                            </span>
                           )}
-                        </>
-                      ) : attachment?.type.startsWith("video/") ? <video src={attachmentPreview || undefined} controls className="w-full h-full object-cover bg-black" />
-                        : mediaUrlIsVideo ? <video src={mediaUrlValue} preload="metadata" controls className="w-full h-full object-cover bg-black" />
-                        : mediaUrlValue ? <img src={mediaUrlValue} alt="" className="w-full h-full object-cover" />
-                        : <div className="flex items-center gap-2 p-3 text-xs text-slate-500 w-full"><FileText className="h-4 w-4 shrink-0 text-slate-400" /><span className="truncate font-medium">{attachment?.name}</span></div>}
-                    </div>
-                  )}
-                  {postTitle && <p className="mb-2 text-sm font-black text-[#1f2528]">{postTitle}</p>}
-                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#2f3940]">{caption || "Your post text will appear here."}</p>
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate text-xs font-bold text-[#1f2528]">{handle}</p>
+                          <p className="truncate text-[10px] text-slate-400">{sub}</p>
+                        </div>
+                        <MoreHorizontal className="ml-auto h-4 w-4 shrink-0 text-slate-300" />
+                      </div>
+                    );
+
+                    const id = activePlatform?.id;
+
+                    // ── Threads ──────────────────────────────────────────
+                    if (id === "threads") return (
+                      <div>
+                        {header("Now")}
+                        <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#2f3940]">{caption || <span className="text-slate-400">Your post text will appear here.</span>}</p>
+                        {hasMedia && <div className="mt-3">{mediaNode("aspect-video w-full")}</div>}
+                        <div className="mt-3 flex items-center gap-4">
+                          <button className="flex items-center gap-1.5 text-slate-500 hover:text-rose-500 transition-colors"><Heart className="h-[18px] w-[18px]" /><span className="text-[11px] font-bold">0</span></button>
+                          <button className="flex items-center gap-1.5 text-slate-500 hover:text-slate-700 transition-colors"><MessageCircle className="h-[18px] w-[18px]" /><span className="text-[11px] font-bold">0</span></button>
+                          <button className="flex items-center gap-1.5 text-slate-500 hover:text-slate-700 transition-colors"><Repeat2 className="h-[18px] w-[18px]" /><span className="text-[11px] font-bold">0</span></button>
+                          <button className="flex items-center gap-1.5 text-slate-500 hover:text-slate-700 transition-colors"><Share2 className="h-[18px] w-[18px]" /></button>
+                        </div>
+                      </div>
+                    );
+
+                    // ── Twitter / X ───────────────────────────────────────
+                    if (id === "twitter") return (
+                      <div>
+                        {header("Just now")}
+                        <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#2f3940]">{caption || <span className="text-slate-400">Your post text will appear here.</span>}</p>
+                        {hasMedia && <div className="mt-3">{mediaNode("aspect-video w-full")}</div>}
+                        <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2.5 text-slate-500">
+                          <button className="flex items-center gap-1.5 hover:text-[#1d9bf0] transition-colors"><MessageCircle className="h-4 w-4" /><span className="text-[11px] font-bold">0</span></button>
+                          <button className="flex items-center gap-1.5 hover:text-[#00ba7c] transition-colors"><Repeat2 className="h-4 w-4" /><span className="text-[11px] font-bold">0</span></button>
+                          <button className="flex items-center gap-1.5 hover:text-rose-500 transition-colors"><Heart className="h-4 w-4" /><span className="text-[11px] font-bold">0</span></button>
+                          <button className="flex items-center gap-1.5 hover:text-[#1d9bf0] transition-colors"><Eye className="h-4 w-4" /><span className="text-[11px] font-bold">0</span></button>
+                          <button className="flex items-center gap-1.5 hover:text-[#1d9bf0] transition-colors"><Bookmark className="h-4 w-4" /></button>
+                          <button className="flex items-center gap-1.5 hover:text-[#1d9bf0] transition-colors"><Share2 className="h-4 w-4" /></button>
+                        </div>
+                      </div>
+                    );
+
+                    // ── Instagram ─────────────────────────────────────────
+                    if (id === "instagram") return (
+                      <div>
+                        {header("Just now")}
+                        {mediaNode("aspect-square mb-3 w-full")}
+                        <div className="flex items-center gap-4 mb-2">
+                          <button className="text-[#1f2528] hover:text-rose-500 transition-colors"><Heart className="h-5 w-5" /></button>
+                          <button className="text-[#1f2528] hover:text-slate-500 transition-colors"><MessageCircle className="h-5 w-5" /></button>
+                          <button className="text-[#1f2528] hover:text-slate-500 transition-colors"><Share2 className="h-5 w-5" /></button>
+                          <button className="ml-auto text-[#1f2528] hover:text-slate-500 transition-colors"><Bookmark className="h-5 w-5" /></button>
+                        </div>
+                        <p className="text-[11px] font-bold text-[#1f2528] mb-1">Be the first to like this</p>
+                        <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#2f3940]">
+                          <span className="font-bold text-[#1f2528]">{handle}</span>{" "}
+                          {caption || <span className="text-slate-400">Your caption will appear here.</span>}
+                        </p>
+                        <p className="mt-1 text-[11px] text-slate-400">View all comments</p>
+                      </div>
+                    );
+
+                    // ── Facebook ──────────────────────────────────────────
+                    if (id === "facebook") return (
+                      <div>
+                        {header("Just now · 🌐")}
+                        <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#2f3940]">{caption || <span className="text-slate-400">Your post text will appear here.</span>}</p>
+                        {hasMedia && <div className="mt-3">{mediaNode("aspect-video w-full")}</div>}
+                        <div className="mt-3 border-t border-slate-100 pt-2.5">
+                          <div className="flex gap-1 mb-2">
+                            <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#1877f2] text-[9px]">👍</span>
+                            <span className="text-[11px] text-slate-500">Be the first to react</span>
+                          </div>
+                          <div className="flex items-center justify-around border-t border-slate-100 pt-2">
+                            <button className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 hover:text-[#1877f2] transition-colors"><ThumbsUp className="h-4 w-4" /> Like</button>
+                            <button className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 hover:text-[#1877f2] transition-colors"><MessageCircle className="h-4 w-4" /> Comment</button>
+                            <button className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 hover:text-[#1877f2] transition-colors"><Share2 className="h-4 w-4" /> Share</button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+
+                    // ── LinkedIn ──────────────────────────────────────────
+                    if (id === "linkedin") return (
+                      <div>
+                        {header("You · 1st")}
+                        <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#2f3940]">{caption || <span className="text-slate-400">Your post text will appear here.</span>}</p>
+                        {hasMedia && <div className="mt-3">{mediaNode("aspect-video w-full")}</div>}
+                        <div className="mt-3 border-t border-slate-100 pt-2.5">
+                          <div className="flex items-center justify-around">
+                            <button className="flex flex-col items-center gap-0.5 text-[10px] font-bold text-slate-500 hover:text-[#0a66c2] transition-colors"><ThumbsUp className="h-4 w-4" /> Like</button>
+                            <button className="flex flex-col items-center gap-0.5 text-[10px] font-bold text-slate-500 hover:text-[#0a66c2] transition-colors"><MessageCircle className="h-4 w-4" /> Comment</button>
+                            <button className="flex flex-col items-center gap-0.5 text-[10px] font-bold text-slate-500 hover:text-[#0a66c2] transition-colors"><Repeat2 className="h-4 w-4" /> Repost</button>
+                            <button className="flex flex-col items-center gap-0.5 text-[10px] font-bold text-slate-500 hover:text-[#0a66c2] transition-colors"><Send className="h-4 w-4" /> Send</button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+
+                    // ── YouTube ───────────────────────────────────────────
+                    if (id === "youtube") return (
+                      <div>
+                        {mediaNode("aspect-video mb-3 w-full") ?? (
+                          <div className="mb-3 flex aspect-video w-full items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white text-xs text-slate-400">
+                            <Video className="mr-1.5 h-4 w-4" /> Video thumbnail
+                          </div>
+                        )}
+                        <p className="text-sm font-black leading-snug text-[#1f2528]">{postTitle.trim() || "Your video title will appear here."}</p>
+                        <div className="mt-2 flex items-center gap-2">
+                          <UserAvatar name={displayName} src={user.user_metadata?.avatar_url} className="h-6 w-6 shrink-0 text-[10px]" />
+                          <p className="truncate text-[11px] font-bold text-slate-500">{handle}</p>
+                        </div>
+                        <p className="mt-1 text-[11px] text-slate-400">0 views · Just now</p>
+                        <p className="mt-2 whitespace-pre-wrap text-xs leading-5 text-slate-500">{caption || "Your description will appear here."}</p>
+                        <div className="mt-3 flex items-center gap-2 border-t border-slate-100 pt-3">
+                          <button className="flex items-center gap-1.5 rounded-full bg-[#f2f2f2] px-3 py-1 text-[11px] font-bold text-[#0f0f0f] hover:bg-[#e0e0e0] transition-colors"><ThumbsUp className="h-3.5 w-3.5" /> 0</button>
+                          <button className="flex items-center gap-1.5 rounded-full bg-[#f2f2f2] px-3 py-1 text-[11px] font-bold text-[#0f0f0f] hover:bg-[#e0e0e0] transition-colors"><Share2 className="h-3.5 w-3.5" /> Share</button>
+                          <button className="ml-auto flex items-center gap-1.5 rounded-full bg-[#f2f2f2] px-3 py-1 text-[11px] font-bold text-[#0f0f0f] hover:bg-[#e0e0e0] transition-colors"><MoreHorizontal className="h-3.5 w-3.5" /></button>
+                        </div>
+                      </div>
+                    );
+
+                    // ── Bluesky ───────────────────────────────────────────
+                    if (id === "bluesky") return (
+                      <div>
+                        {header("· Now")}
+                        <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#2f3940]">{caption || <span className="text-slate-400">Your post text will appear here.</span>}</p>
+                        {hasMedia && <div className="mt-3">{mediaNode("aspect-video w-full")}</div>}
+                        <div className="mt-3 flex items-center gap-5 border-t border-slate-100 pt-2.5 text-slate-500">
+                          <button className="flex items-center gap-1.5 hover:text-[#0085ff] transition-colors"><MessageCircle className="h-4 w-4" /><span className="text-[11px] font-bold">0</span></button>
+                          <button className="flex items-center gap-1.5 hover:text-[#00ba7c] transition-colors"><Repeat2 className="h-4 w-4" /><span className="text-[11px] font-bold">0</span></button>
+                          <button className="flex items-center gap-1.5 hover:text-rose-500 transition-colors"><Heart className="h-4 w-4" /><span className="text-[11px] font-bold">0</span></button>
+                          <button className="ml-auto flex items-center gap-1.5 hover:text-[#0085ff] transition-colors"><Share2 className="h-4 w-4" /></button>
+                        </div>
+                      </div>
+                    );
+
+                    // ── Pinterest ─────────────────────────────────────────
+                    if (id === "pinterest") return (
+                      <div>
+                        {mediaNode("aspect-[3/4] mb-3 w-full") ?? (
+                          <div className="mb-3 flex aspect-[3/4] w-full items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white text-xs text-slate-400">
+                            <ImageIcon className="mr-1.5 h-4 w-4" /> Image
+                          </div>
+                        )}
+                        <p className="text-sm font-black leading-snug text-[#1f2528]">{postTitle.trim() || "Pin title"}</p>
+                        <p className="mt-1 whitespace-pre-wrap text-[11px] leading-5 text-slate-500">{caption || "Your pin description will appear here."}</p>
+                        <div className="mt-3 flex items-center justify-between">
+                          <button className="flex items-center gap-1.5 rounded-full bg-[#e60023] px-4 py-1.5 text-[11px] font-bold text-white hover:bg-[#ad081b] transition-colors">Save</button>
+                          <button className="flex items-center gap-1.5 text-slate-500 hover:text-slate-700 transition-colors"><Share2 className="h-4 w-4" /></button>
+                        </div>
+                      </div>
+                    );
+
+                    // ── Reddit ────────────────────────────────────────────
+                    if (id === "reddit") return (
+                      <div>
+                        {header("Just now · r/yoursubreddit")}
+                        <p className="mb-2 text-sm font-black leading-snug text-[#1f2528]">{postTitle.trim() || "Post title"}</p>
+                        <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#2f3940]">{caption || <span className="text-slate-400">Your post text will appear here.</span>}</p>
+                        {hasMedia && <div className="mt-3">{mediaNode("aspect-video w-full")}</div>}
+                        <div className="mt-3 flex items-center gap-2 border-t border-slate-100 pt-2.5">
+                          <div className="flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2 py-1">
+                            <button className="text-slate-400 hover:text-[#ff4500] transition-colors"><ArrowBigUp className="h-4 w-4" /></button>
+                            <span className="text-[11px] font-bold text-slate-600">Vote</span>
+                            <button className="text-slate-400 hover:text-[#7193ff] transition-colors"><ArrowBigUp className="h-4 w-4 rotate-180" /></button>
+                          </div>
+                          <button className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-500 hover:bg-slate-50 transition-colors"><MessageCircle className="h-3.5 w-3.5" /> Comment</button>
+                          <button className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-500 hover:bg-slate-50 transition-colors"><Share2 className="h-3.5 w-3.5" /> Share</button>
+                        </div>
+                      </div>
+                    );
+
+                    // ── Discord ───────────────────────────────────────────
+                    if (id === "discord") return (
+                      <div className="bg-[#313338] rounded-xl p-3 -m-4">
+                        <div className="mb-2 flex items-start gap-2.5">
+                          <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#5865f2] shadow-sm mt-0.5">
+                            <PlatformLogo id="discord" className="h-4 w-4 text-white" />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-baseline gap-2">
+                              <span className="text-sm font-bold text-white">{displayName}</span>
+                              <span className="text-[10px] font-bold text-[#5865f2]">APP</span>
+                              <span className="text-[10px] text-[#949ba4]">Today {new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                            </div>
+                            <p className="mt-0.5 whitespace-pre-wrap text-sm leading-relaxed text-[#dbdee1]">{caption || <span className="text-[#949ba4]">Your message will appear here.</span>}</p>
+                            {hasMedia && <div className="mt-2.5 rounded-lg overflow-hidden">{mediaNode("aspect-video w-full")}</div>}
+                          </div>
+                        </div>
+                        <div className="ml-10 flex items-center gap-1 mt-1">
+                          <button className="flex items-center gap-1 rounded-full border border-[#5865f2]/30 bg-[#5865f2]/10 px-2 py-0.5 text-[11px] text-[#dbdee1] hover:bg-[#5865f2]/20 transition-colors">😀 <span className="font-bold text-[#5865f2] ml-0.5">1</span></button>
+                          <button className="flex items-center gap-1 rounded-full border border-[#4e5058]/60 bg-[#2b2d31] px-2 py-0.5 text-[11px] text-[#949ba4] hover:bg-[#35373c] transition-colors"><Smile className="h-3 w-3" /> +</button>
+                        </div>
+                      </div>
+                    );
+
+                    // ── Telegram ──────────────────────────────────────────
+                    if (id === "telegram") return (
+                      <div>
+                        <div className="rounded-2xl bg-[#effdde] p-3 max-w-[90%] mt-2 relative shadow-sm border border-[#b5e8a3]/50">
+                          {hasMedia && <div className="mb-2 rounded-lg overflow-hidden">{mediaNode("aspect-video w-full")}</div>}
+                          <p className="text-[11px] font-bold text-[#1a9c4d] mb-1">{displayName}</p>
+                          <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#2f3940]">{caption || <span className="text-slate-400">Your message will appear here.</span>}</p>
+                          <div className="mt-1 flex items-center justify-end gap-1">
+                            <span className="text-[10px] text-[#6dad77]">Now</span>
+                            <span className="text-[10px] text-[#6dad77]">✓✓</span>
+                          </div>
+                        </div>
+                        <div className="mt-2 flex items-center gap-1">
+                          <button className="flex items-center gap-1 rounded-full bg-[#e8f5e9] px-2.5 py-1 text-[11px] text-[#1a9c4d] hover:bg-[#d4edda] transition-colors">❤️ <span className="font-bold ml-0.5">0</span></button>
+                          <button className="flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] text-slate-500 hover:bg-slate-200 transition-colors">+ Add</button>
+                        </div>
+                      </div>
+                    );
+
+                    // ── Default / no platform selected ────────────────────
+                    return (
+                      <div>
+                        <div className="mb-4 flex items-center gap-2.5">
+                          <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#1f2528]">
+                            <svg className="h-4 w-4 text-white" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+                          </span>
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-bold text-[#1f2528]">{displayName}</p>
+                            <p className="text-xs text-slate-400">{selectedPlatformNames}</p>
+                          </div>
+                        </div>
+                        {hasMedia && (
+                          <div className="mb-4 overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm aspect-video flex items-center justify-center relative">
+                            {imageAttachmentPreviews[0] ? (
+                              <>
+                                <img src={imageAttachmentPreviews[0]} alt="" className="w-full h-full object-cover" />
+                                {imageAttachments.length > 1 && <span className="absolute bottom-1.5 right-1.5 rounded-full bg-[#1f2528]/70 px-2 py-0.5 text-[11px] font-bold text-white">1/{imageAttachments.length}</span>}
+                              </>
+                            ) : attachment?.type.startsWith("video/") ? <video src={attachmentPreview || undefined} controls className="w-full h-full object-cover bg-black" />
+                              : mediaUrlIsVideo ? <video src={mediaUrlValue} preload="metadata" controls className="w-full h-full object-cover bg-black" />
+                              : mediaUrlValue ? <img src={mediaUrlValue} alt="" className="w-full h-full object-cover" />
+                              : <div className="flex items-center gap-2 p-3 text-xs text-slate-500 w-full"><FileText className="h-4 w-4 shrink-0 text-slate-400" /><span className="truncate font-medium">{attachment?.name}</span></div>}
+                          </div>
+                        )}
+                        {postTitle && <p className="mb-2 text-sm font-black text-[#1f2528]">{postTitle}</p>}
+                        <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#2f3940]">{caption || "Your post text will appear here."}</p>
+                        <p className="mt-2 text-xs text-slate-400">Select a platform above to see its preview</p>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
 

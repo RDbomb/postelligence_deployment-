@@ -23,6 +23,8 @@ const CONNECTABLE = [
   { platform: "linkedin",  label: "LinkedIn",  connectUrl: "/api/integrations/linkedin/connect" },
   { platform: "youtube",   label: "YouTube",   connectUrl: "/api/integrations/youtube/connect" },
   { platform: "bluesky",   label: "Bluesky",   connectUrl: null }, // handled via modal below (app password, no redirect)
+  { platform: "discord",   label: "Discord",   connectUrl: "/api/integrations/discord/connect" },
+  { platform: "telegram",  label: "Telegram",  connectUrl: null },
 ];
 
 export default function WorkspaceSocialAccounts({
@@ -40,6 +42,15 @@ export default function WorkspaceSocialAccounts({
   const [handle, setHandle] = useState("");
   const [appPassword, setAppPassword] = useState("");
   const [connectingBluesky, setConnectingBluesky] = useState(false);
+
+  const [discordModal, setDiscordModal] = useState(false);
+  const [discordWebhookUrl, setDiscordWebhookUrl] = useState("");
+  const [connectingDiscord, setConnectingDiscord] = useState(false);
+
+  const [telegramModal, setTelegramModal] = useState(false);
+  const [telegramBotToken, setTelegramBotToken] = useState("");
+  const [telegramChatId, setTelegramChatId] = useState("");
+  const [connectingTelegram, setConnectingTelegram] = useState(false);
 
   const canManage = canManageSocialAccounts(currentRole);
 
@@ -92,6 +103,49 @@ export default function WorkspaceSocialAccounts({
       setError(e instanceof Error ? e.message : "Failed to connect Bluesky.");
     } finally {
       setConnectingBluesky(false);
+    }
+  };
+
+  const connectDiscord = async () => {
+    setConnectingDiscord(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/integrations/discord/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ webhookUrl: discordWebhookUrl, workspaceId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setDiscordModal(false);
+      setDiscordWebhookUrl("");
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to connect Discord.");
+    } finally {
+      setConnectingDiscord(false);
+    }
+  };
+
+  const connectTelegram = async () => {
+    setConnectingTelegram(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/integrations/telegram/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ botToken: telegramBotToken, chatId: telegramChatId, workspaceId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setTelegramModal(false);
+      setTelegramBotToken("");
+      setTelegramChatId("");
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to connect Telegram.");
+    } finally {
+      setConnectingTelegram(false);
     }
   };
 
@@ -155,7 +209,11 @@ export default function WorkspaceSocialAccounts({
               <a
                 key={c.platform}
                 href={c.connectUrl ? `${c.connectUrl}${c.connectUrl.includes("?") ? "&" : "?"}workspaceId=${workspaceId}` : undefined}
-                onClick={c.connectUrl ? undefined : (e) => { e.preventDefault(); setBlueskyModal(true); }}
+                onClick={c.connectUrl ? undefined : (e) => {
+                  e.preventDefault();
+                  if (c.platform === "telegram") setTelegramModal(true);
+                  else setBlueskyModal(true);
+                }}
                 className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors"
               >
                 <Link2 className="h-3.5 w-3.5" /> {c.label}
@@ -189,6 +247,63 @@ export default function WorkspaceSocialAccounts({
                 className="flex-1 px-4 py-2 bg-black text-white rounded-xl text-sm font-medium disabled:opacity-40"
               >
                 {connectingBluesky ? "Connecting..." : "Connect"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {discordModal && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/30 p-4" onClick={() => setDiscordModal(false)}>
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-gray-900 mb-4">Connect Discord for the workspace</h3>
+            <p className="text-xs text-gray-500 mb-3">Go to your Discord channel → Settings → Integrations → Webhooks → Copy URL.</p>
+            <div className="space-y-3">
+              <input
+                type="text" placeholder="https://discord.com/api/webhooks/..."
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                value={discordWebhookUrl} onChange={(e) => setDiscordWebhookUrl(e.target.value)}
+              />
+            </div>
+            <div className="mt-5 flex gap-2">
+              <button onClick={() => setDiscordModal(false)} className="flex-1 px-4 py-2 border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50">Cancel</button>
+              <button
+                onClick={connectDiscord}
+                disabled={connectingDiscord || !discordWebhookUrl}
+                className="flex-1 px-4 py-2 bg-[#5865F2] text-white rounded-xl text-sm font-medium disabled:opacity-40"
+              >
+                {connectingDiscord ? "Connecting..." : "Connect"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {telegramModal && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/30 p-4" onClick={() => setTelegramModal(false)}>
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-gray-900 mb-4">Connect Telegram for the workspace</h3>
+            <p className="text-xs text-gray-500 mb-3">Create a bot via @BotFather, then add it as an admin to your channel/group.</p>
+            <div className="space-y-3">
+              <input
+                type="password" placeholder="Bot Token (123456789:ABCdef...)"
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                value={telegramBotToken} onChange={(e) => setTelegramBotToken(e.target.value)}
+              />
+              <input
+                type="text" placeholder="Chat/Channel ID (-100xxx or @channel)"
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                value={telegramChatId} onChange={(e) => setTelegramChatId(e.target.value)}
+              />
+            </div>
+            <div className="mt-5 flex gap-2">
+              <button onClick={() => setTelegramModal(false)} className="flex-1 px-4 py-2 border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50">Cancel</button>
+              <button
+                onClick={connectTelegram}
+                disabled={connectingTelegram || !telegramBotToken || !telegramChatId}
+                className="flex-1 px-4 py-2 bg-[#26A5E4] text-white rounded-xl text-sm font-medium disabled:opacity-40"
+              >
+                {connectingTelegram ? "Connecting..." : "Connect"}
               </button>
             </div>
           </div>

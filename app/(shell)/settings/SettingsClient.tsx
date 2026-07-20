@@ -16,6 +16,8 @@ const ALL_PLATFORMS = [
   { id: "threads",    label: "Threads",    color: "#111827" },
   { id: "bluesky",    label: "Bluesky",    color: "#1185FE" },
   { id: "pinterest",  label: "Pinterest",  color: "#E60023" },
+  { id: "discord",    label: "Discord",    color: "#5865F2" },
+  { id: "telegram",   label: "Telegram",   color: "#26A5E4" },
 ];
 
 const DEFAULT_AVATARS = [

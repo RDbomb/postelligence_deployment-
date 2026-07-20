@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createBaseClient } from "@supabase/supabase-js";
 import { createHash } from "crypto";
+import { PLATFORM_COMPOSE_RULES, type ComposePlatformId, type PlatformComposeRule } from "@/lib/compose/platform-rules";
 
 export const maxDuration = 60; // Allow execution to take up to 60 seconds
 
@@ -235,14 +236,41 @@ function cleanCaption(text: string): string {
   return cleaned;
 }
 
-function ensureCharacterLimit(text: string): string {
+// Same idea as Compose's per-platform character limits (lib/compose/platform-rules.ts)
+// but applied here to a single shared caption: works out the tightest limit
+// among this automation run's target platforms, and a safe target band
+// under it, so a Bluesky-included run doesn't get padded past 300 chars
+// while a LinkedIn/Facebook-only run isn't needlessly capped short.
+function getTargetCaptionBand(platforms: string[]): { min: number; max: number; hardCap: number; tightest: { name: string; limit: number } } {
+  const limits = platforms
+    .map((p) => PLATFORM_COMPOSE_RULES[p as ComposePlatformId])
+    .filter((rule): rule is PlatformComposeRule => Boolean(rule));
+
+  // Fall back to Instagram's limit if none of the selected platforms have a
+  // known rule (shouldn't normally happen — automation's platform picker
+  // only offers platforms that exist in PLATFORM_COMPOSE_RULES).
+  const tightestRule = limits.length
+    ? limits.reduce((a, b) => (b.captionLimit < a.captionLimit ? b : a))
+    : PLATFORM_COMPOSE_RULES.instagram;
+
+  const hardCap = tightestRule.captionLimit;
+  // Aim for a normal-length social caption that comfortably fits — never
+  // stretch all the way to the limit just because a generous platform
+  // (Facebook, YouTube) is also selected.
+  const max = Math.max(120, Math.min(hardCap - 10, 600));
+  const min = Math.max(80, Math.floor(max * 0.7));
+  return { min, max, hardCap, tightest: { name: tightestRule.name, limit: hardCap } };
+}
+
+function ensureCharacterLimit(text: string, band: { min: number; max: number; hardCap: number }): string {
   let cleaned = text.trim();
-  
-  if (cleaned.length >= 450 && cleaned.length <= 499) {
+  const { min, max, hardCap } = band;
+
+  if (cleaned.length >= min && cleaned.length <= max) {
     return cleaned;
   }
 
-  if (cleaned.length < 450) {
+  if (cleaned.length < min) {
     const extraCTAs = [
       " Let us know your thoughts in the comments below! We would love to hear your perspective on this exciting development.",
       " What is your take on this change? Drop a comment below and share your views with the community!",
@@ -250,26 +278,32 @@ function ensureCharacterLimit(text: string): string {
       " Let's get the conversation started. What are your initial impressions about this? Share in the comments!"
     ];
     let paddingIndex = 0;
-    while (cleaned.length < 450 && paddingIndex < extraCTAs.length) {
+    while (cleaned.length < min && paddingIndex < extraCTAs.length) {
+      // Never pad past the hard cap even while reaching for the minimum —
+      // a short Bluesky-safe caption should stay short, not get pushed
+      // over 300 chars trying to hit a generic minimum.
+      if (cleaned.length + extraCTAs[paddingIndex].length > hardCap) break;
       cleaned += extraCTAs[paddingIndex];
       paddingIndex++;
     }
 
     const hashtags = ["#trends", "#news", "#innovation", "#future", "#growth", "#viral"];
     let hashIndex = 0;
-    while (cleaned.length < 450 && hashIndex < hashtags.length) {
+    while (cleaned.length < min && hashIndex < hashtags.length) {
+      if (cleaned.length + hashtags[hashIndex].length + 1 > hardCap) break;
       cleaned += ` ${hashtags[hashIndex]}`;
       hashIndex++;
     }
 
-    while (cleaned.length < 450) {
+    while (cleaned.length < min && cleaned.length < hardCap) {
       cleaned += ".";
     }
   }
 
-  if (cleaned.length > 499) {
-    let cutIndex = 495;
-    for (let i = 495; i >= 300; i--) {
+  if (cleaned.length > max) {
+    let cutIndex = max;
+    const searchFloor = Math.max(0, Math.floor(max * 0.6));
+    for (let i = max; i >= searchFloor; i--) {
       const char = cleaned[i];
       if (char === "." || char === "!" || char === "?") {
         cutIndex = i + 1;
@@ -277,17 +311,12 @@ function ensureCharacterLimit(text: string): string {
       }
     }
     cleaned = cleaned.slice(0, cutIndex).trim();
+  }
 
-    if (cleaned.length < 450) {
-      const hashtags = ["#trends", "#news", "#innovation", "#future", "#growth", "#viral"];
-      let hashIndex = 0;
-      while (cleaned.length < 450 && hashIndex < hashtags.length) {
-        if (cleaned.length + hashtags[hashIndex].length + 2 <= 499) {
-          cleaned += ` ${hashtags[hashIndex]}`;
-        }
-        hashIndex++;
-      }
-    }
+  // Absolute safety net regardless of the above — never exceed the
+  // tightest selected platform's real hard limit.
+  if (cleaned.length > hardCap) {
+    cleaned = cleaned.slice(0, hardCap).trim();
   }
 
   return cleaned;
@@ -454,13 +483,23 @@ async function runAutomationForUser(supabase: any, userId: string, settings: any
   }
 
   const variationSeed = `${userId}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+  // Platform-aware target: same rules Compose uses (lib/compose/platform-rules.ts),
+  // applied to whichever platforms this automation run actually targets —
+  // so a run that includes Bluesky writes short, and a LinkedIn/Facebook-only
+  // run isn't needlessly capped down to Bluesky-length.
+  const captionBand = getTargetCaptionBand(platforms);
+  const targetPlatformNames = platforms
+    .map((p: string) => PLATFORM_COMPOSE_RULES[p as ComposePlatformId]?.name)
+    .filter(Boolean)
+    .join(", ") || platforms.join(", ");
+
   const systemPrompt = `You are a viral social media strategist and content copywriter. Generate a comprehensive, detailed, and high-performing social media post caption about the following trend.
 
 Trend: "${trendTitle}"
 Description: "${trendExplanation}"
 
 Requirements:
-- Target Length: Write a detailed, comprehensive, and high-quality caption of about 4-5 sentences.
+- Target Length: Write a caption of roughly ${captionBand.min}-${captionBand.max} characters. This post will be published as-is to: ${targetPlatformNames}. The tightest of these is ${captionBand.tightest.name} at ${captionBand.tightest.limit} characters, so the caption must NEVER exceed ${captionBand.hardCap} characters no matter what.
 - Uniqueness: Ensure this text is completely unique in style, vocabulary, phrasing, and tone from other generations on the same topic (Variation Seed: ${variationSeed}).
 - Do NOT include any reasoning, planning, or character counting calculations in your response. 
 - Do NOT say "Let's count using approximate" or output any breakdown of characters or words.
@@ -486,7 +525,7 @@ Return ONLY a valid JSON object with a single key "caption" containing your gene
   }
 
   const rawCaptionText = await captionRes.text();
-  const caption = ensureCharacterLimit(cleanCaption(extractCleanText(rawCaptionText)));
+  const caption = ensureCharacterLimit(cleanCaption(extractCleanText(rawCaptionText)), captionBand);
 
   // 3. Scrape Web Image or Generate Image
   let imageBuffer: ArrayBuffer | null = null;

@@ -68,3 +68,15 @@ export function getConnectedRedditAccount(accounts: SocialAccount[]) {
     (account) => account.platform === "reddit" && account.status === "connected"
   );
 }
+
+export function getConnectedDiscordAccount(accounts: SocialAccount[]) {
+  return accounts.find(
+    (account) => account.platform === "discord" && account.status === "connected"
+  );
+}
+
+export function getConnectedTelegramAccount(accounts: SocialAccount[]) {
+  return accounts.find(
+    (account) => account.platform === "telegram" && account.status === "connected"
+  );
+}

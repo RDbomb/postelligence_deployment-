@@ -71,6 +71,8 @@ const AVAILABLE_PLATFORMS = [
   { id: "facebook", name: "Facebook" },
   { id: "linkedin", name: "LinkedIn" },
   { id: "bluesky", name: "Bluesky" },
+  { id: "discord", name: "Discord" },
+  { id: "telegram", name: "Telegram" },
 ];
 
 const AVAILABLE_CATEGORIES = [
@@ -935,6 +937,10 @@ export default function AutomationClient({ user, initialSettings, initialLogs }:
                           activeStyle = "bg-[#0a66c2] border-[#0a66c2] text-white shadow-sm";
                         } else if (p.id === "bluesky") {
                           activeStyle = "bg-[#0560ff] border-[#0560ff] text-white shadow-sm";
+                        } else if (p.id === "discord") {
+                          activeStyle = "bg-[#5865f2] border-[#5865f2] text-white shadow-sm";
+                        } else if (p.id === "telegram") {
+                          activeStyle = "bg-[#26a5e4] border-[#26a5e4] text-white shadow-sm";
                         } else {
                           activeStyle = "bg-indigo-600 border-indigo-700 text-white shadow-sm";
                         }

@@ -105,6 +105,8 @@ async function processPost(post: any): Promise<{ id: string; status: string }> {
       else if (platform === "instagram") id = await publishToInstagram(post, account, mediaUrl, mediaType);
       else if (platform === "facebook")  id = await publishToFacebook(post, account, mediaUrl, mediaType);
       else if (platform === "threads")   id = await publishToThreads(post, account, mediaUrl, mediaType);
+      else if (platform === "discord")   id = await publishToDiscord(post, account, mediaUrl);
+      else if (platform === "telegram")  id = await publishToTelegram(post, account, mediaUrl);
       else {
         results.push({ platform, status: "failed", message: `No publisher implemented for platform "${platform}".` });
         continue;
@@ -1404,4 +1406,47 @@ async function publishToThreads(post: any, account: any, mediaUrl: string, media
     method: "POST", body: publishParams,
   });
   return await requirePublishedId(publishRes, "Threads publish failed");
+}
+
+// ── Discord / Telegram ────────────────────────────────────────
+async function publishToDiscord(post: any, account: any, mediaUrl: string): Promise<string | undefined> {
+  const webhookUrl = account.access_token;
+  if (!webhookUrl) throw new Error("Discord webhook URL is missing.");
+
+  const payload: Record<string, unknown> = {
+    content: (post.description || post.title || "").trim() || undefined,
+  };
+  if (mediaUrl) payload.embeds = [{ image: { url: mediaUrl } }];
+
+  const response = await fetch(`${webhookUrl}?wait=true`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const result = await requireOk(response, "Discord publish failed");
+  return result?.id as string | undefined;
+}
+
+async function publishToTelegram(post: any, account: any, mediaUrl: string): Promise<string | undefined> {
+  const botToken = account.access_token;
+  const chatId = account.metadata?.chatId || account.account_id;
+  if (!botToken || !chatId) throw new Error("Telegram bot token or Chat ID is missing.");
+
+  const text = (post.description || post.title || "").trim();
+  const isVideo = /\.(mp4|mov|webm|avi)(\?|$)/i.test(mediaUrl);
+  const method = mediaUrl ? (isVideo ? "sendVideo" : "sendPhoto") : "sendMessage";
+  const body = mediaUrl
+    ? { chat_id: chatId, [isVideo ? "video" : "photo"]: mediaUrl, caption: text || undefined }
+    : { chat_id: chatId, text: text || "(no text)" };
+
+  const response = await fetch(`https://api.telegram.org/bot${botToken}/${method}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || !result.ok) {
+    throw new Error(result.description || `Telegram publish failed (${response.status})`);
+  }
+  return String(result.result?.message_id || "");
 }

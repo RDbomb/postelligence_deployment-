@@ -96,6 +96,16 @@ export const PLATFORM_CONFIG: PlatformAvailability[] = [
     available: false,
     comingSoonReason: "Reddit integration is awaiting developer approval.",
   },
+  {
+    id: "discord",
+    name: "Discord",
+    available: true,
+  },
+  {
+    id: "telegram",
+    name: "Telegram",
+    available: true,
+  },
 ];
 // ============================================================
 // TEAM WORKSPACE TYPES

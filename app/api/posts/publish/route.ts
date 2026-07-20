@@ -4,12 +4,15 @@ import { createClient as createBaseClient } from "@supabase/supabase-js";
 import { getTokenExpiry, refreshYouTubeAccessToken } from "@/lib/integrations/youtube";
 import { canPublish } from "@/lib/workspace/permissions";
 import type { WorkspaceRole } from "@/lib/types";
+import { publishToDiscordWebhook } from "@/lib/integrations/discord";
+import { publishToTelegram } from "@/lib/integrations/telegram";
 
 export const dynamic = "force-dynamic";
 
 type PublishPlatform =
   | "instagram" | "facebook" | "linkedin" | "youtube"
-  | "twitter" | "threads" | "bluesky" | "pinterest" | "reddit";
+  | "twitter" | "threads" | "bluesky" | "pinterest" | "reddit"
+  | "discord" | "telegram";
 
 type StoredAccount = {
   platform: PublishPlatform;
@@ -445,22 +448,9 @@ async function uploadLinkedInVideo(accessToken: string, personUrn: string, attac
   }
 }
 
-async function publishLinkedIn(account: StoredAccount, text: string, attachment: File | null, mediaUrl: string, images: File[]) {
+async function publishLinkedIn(account: StoredAccount, text: string, attachment: File | null, mediaUrl: string, images: File[], linkUrl: string) {
   const author = `urn:li:person:${account.account_id}`;
   const token = account.access_token!;
-
-  // Build the post body
-  const postBody: Record<string, unknown> = {
-    author,
-    lifecycleState: "PUBLISHED",
-    visibility: "PUBLIC",
-    commentary: text,
-    distribution: {
-      feedDistribution: "MAIN_FEED",
-      targetEntities: [],
-      thirdPartyDistributionChannels: [],
-    },
-  };
 
   const isVideo = attachment?.type.startsWith("video/");
   // LinkedIn's Posts API accepts several images per post via
@@ -468,6 +458,25 @@ async function publishLinkedIn(account: StoredAccount, text: string, attachment:
   // and fall back to the original single-image shape for exactly one (the
   // known-working path) so single-image posts are unaffected.
   const imageFiles = images.length > 0 ? images : (attachment && !isVideo ? [attachment] : []);
+  const hasMedia = Boolean(isVideo && attachment) || imageFiles.length > 0;
+
+  // LinkedIn's API can attach EITHER a media object OR an article/link — never
+  // both in the same post. If media is attached, a link can't become a rich
+  // card, so fold it into the visible text instead of silently dropping it.
+  const commentaryText = linkUrl && hasMedia ? [text.trim(), linkUrl.trim()].filter(Boolean).join("\n\n") : text;
+
+  // Build the post body
+  const postBody: Record<string, unknown> = {
+    author,
+    lifecycleState: "PUBLISHED",
+    visibility: "PUBLIC",
+    commentary: commentaryText,
+    distribution: {
+      feedDistribution: "MAIN_FEED",
+      targetEntities: [],
+      thirdPartyDistributionChannels: [],
+    },
+  };
 
   if (isVideo && attachment) {
     const videoUrn = await uploadLinkedInVideo(token, author, attachment);
@@ -481,8 +490,11 @@ async function publishLinkedIn(account: StoredAccount, text: string, attachment:
   } else if (imageFiles.length === 1) {
     const imageUrn = await uploadLinkedInImage(token, author, imageFiles[0]);
     postBody.content = { media: { id: imageUrn } };
+  } else if (linkUrl) {
+    // The dedicated Link URL field — a genuine "share this link" article card.
+    postBody.content = { article: { source: linkUrl, title: text.slice(0, 100) || linkUrl } };
   } else if (mediaUrl) {
-    // Hosted URL fallback — treated as article/link share
+    // Hosted media URL fallback (no file upload, no explicit link) — treated as article/link share.
     postBody.content = { article: { source: mediaUrl, title: text.slice(0, 100) } };
   }
 
@@ -757,11 +769,16 @@ async function publishBluesky(account: StoredAccount, text: string, attachment: 
 async function publishFacebook(account: StoredAccount, text: string, mediaUrl: string, linkUrl: string, mediaType: string, mediaUrls: string[]) {
   const token = account.access_token || "";
   const base = `https://graph.facebook.com/${graphVersion}/${account.account_id}`;
+  // Facebook's /videos and /photos endpoints don't accept a rich "link"
+  // param the way /feed does — without this, a link URL would silently
+  // vanish whenever media was attached. Fold it into the visible text
+  // instead so it's never lost (Facebook auto-links plain URLs in text).
+  const textWithLink = linkUrl ? [text.trim(), linkUrl.trim()].filter(Boolean).join("\n\n") : text;
 
   // Video: /videos endpoint + file_url param
   if (mediaUrl && mediaType === "video") {
     const params = new URLSearchParams({ access_token: token, file_url: mediaUrl });
-    if (text) params.set("description", text);
+    if (textWithLink) params.set("description", textWithLink);
     const payload = await requireOk(
       await fetch(`${base}/videos`, { method: "POST", body: params }),
       "Facebook publish failed"
@@ -783,7 +800,7 @@ async function publishFacebook(account: StoredAccount, text: string, mediaUrl: s
     }))).filter((id): id is string => Boolean(id));
 
     if (photoIds.length > 0) {
-      const feedParams = new URLSearchParams({ access_token: token, message: text });
+      const feedParams = new URLSearchParams({ access_token: token, message: textWithLink });
       photoIds.forEach((id, i) => feedParams.set(`attached_media[${i}]`, JSON.stringify({ media_fbid: id })));
       const payload = await requireOk(
         await fetch(`${base}/feed`, { method: "POST", body: feedParams }),
@@ -796,7 +813,7 @@ async function publishFacebook(account: StoredAccount, text: string, mediaUrl: s
   // Image: /photos endpoint + url param
   if (mediaUrl && mediaType === "image") {
     const params = new URLSearchParams({ access_token: token, url: mediaUrl });
-    if (text) params.set("caption", text);
+    if (textWithLink) params.set("caption", textWithLink);
     const payload = await requireOk(
       await fetch(`${base}/photos`, { method: "POST", body: params }),
       "Facebook publish failed"
@@ -804,7 +821,8 @@ async function publishFacebook(account: StoredAccount, text: string, mediaUrl: s
     return payload?.id as string | undefined;
   }
 
-  // Text / link only: /feed
+  // Text / link only: /feed — uses Facebook's native "link" param for a
+  // proper rich preview card since there's no media competing for the slot.
   const params = new URLSearchParams({ access_token: token, message: text });
   if (linkUrl) params.set("link", linkUrl);
   const payload = await requireOk(
@@ -1257,6 +1275,19 @@ async function publishReddit(account: StoredAccount, text: string, title: string
   );
   return payload?.jquery?.[10]?.[3]?.[0] as string | undefined;
 }
+async function publishDiscord(account: StoredAccount, text: string, attachment: File | null, mediaUrl: string | null, images: File[]) {
+  const webhookUrl = account.access_token;
+  if (!webhookUrl) throw new Error("Discord webhook URL is missing.");
+  return await publishToDiscordWebhook(webhookUrl, text, mediaUrl, attachment, images);
+}
+
+async function publishTelegram(account: StoredAccount, text: string, mediaUrl: string | null) {
+  const botToken = account.access_token;
+  const chatId = (account.metadata as any)?.chatId || account.account_id;
+  if (!botToken || !chatId) throw new Error("Telegram bot token or Chat ID is missing.");
+  return await publishToTelegram(botToken, chatId, text, mediaUrl);
+}
+
 // ─── Dispatcher ───────────────────────────────────────────────────────────────
 
 async function publishOne(
@@ -1278,13 +1309,15 @@ async function publishOne(
   try {
     const id =
       account.platform === "twitter"   ? await publishTwitter(account, text, attachment, images) :
-      account.platform === "linkedin"  ? await publishLinkedIn(account, text, attachment, mediaUrl, images) :
+      account.platform === "linkedin"  ? await publishLinkedIn(account, text, attachment, mediaUrl, images, linkUrl) :
       account.platform === "bluesky"   ? await publishBluesky(account, text, attachment, images) :
       account.platform === "facebook"  ? await publishFacebook(account, text, mediaUrl, linkUrl, mediaType, mediaUrls) :
       account.platform === "threads"   ? await publishThreads(account, text, mediaUrl, mediaType, mediaUrls) :
       account.platform === "instagram" ? await publishInstagram(account, text, mediaUrl, mediaType, mediaUrls) :
       account.platform === "youtube"   ? await publishYouTube(account, text, title, attachment, userId) :
       account.platform === "reddit"    ? await publishReddit(account, text, title, mediaUrl) :
+      account.platform === "discord"   ? await publishDiscord(account, text, attachment, mediaUrl, images) :
+      account.platform === "telegram"  ? await publishTelegram(account, text, mediaUrl) :
                                          await publishPinterest(account, text, mediaUrl, linkUrl);
 
     // Handle graceful skip (e.g. YouTube without video)
@@ -1418,7 +1451,7 @@ export async function POST(request: Request) {
   const connectedAccounts = (accounts || []) as StoredAccount[];
 
   // Platforms that need a public URL (can't accept a file directly)
-  const needsPublicUrl = platforms.some(p => ["facebook", "threads", "instagram", "pinterest", "reddit"].includes(p));
+  const needsPublicUrl = platforms.some(p => ["facebook", "threads", "instagram", "pinterest", "reddit", "telegram"].includes(p));
 
   // Start storage upload in parallel with anything that doesn't need it
   // This saves the full upload time for direct-upload platforms (LinkedIn, Bluesky, YouTube, Twitter)

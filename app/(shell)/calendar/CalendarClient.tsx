@@ -17,6 +17,7 @@ const PLATFORM_COLORS: Record<string, string> = {
   linkedin: "#0077B5", youtube: "#FF0000", bluesky: "#0085FF",
   instagram: "#E1306C", facebook: "#1877F2", twitter: "#1DA1F2",
   threads: "#000000", pinterest: "#E60023", reddit: "#FF4500",
+  discord: "#5865F2", telegram: "#26A5E4",
 };
 
 type StatusConfig = { label: string; icon: React.ElementType; bg: string; text: string; border: string; dot: string };

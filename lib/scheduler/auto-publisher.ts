@@ -1,8 +1,10 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getTokenExpiry, refreshYouTubeAccessToken } from "@/lib/integrations/youtube";
+import { publishToDiscordWebhook } from "@/lib/integrations/discord";
+import { publishToTelegram } from "@/lib/integrations/telegram";
 import type { ScheduledPost } from "@/lib/types";
 
-type PublishPlatform = "linkedin" | "youtube" | "bluesky" | "instagram" | "facebook" | "threads" | "twitter" | "pinterest" | "reddit";
+type PublishPlatform = "linkedin" | "youtube" | "bluesky" | "instagram" | "facebook" | "threads" | "twitter" | "pinterest" | "reddit" | "discord" | "telegram";
 
 type StoredAccount = {
   platform: PublishPlatform;
@@ -524,6 +526,8 @@ async function publishOne(account: StoredAccount, post: ScheduledPost, attachmen
       account.platform === "facebook"  ? await publishFacebook(account, captionOnly, mediaUrl, mediaType, post.media_urls) :
       account.platform === "threads"   ? await publishThreads(account, captionOnly, mediaUrl, mediaType, post.media_urls) :
       account.platform === "instagram" ? await publishInstagram(account, captionOnly, mediaUrl, mediaType, post.media_urls) :
+      account.platform === "discord"   ? await publishDiscord(account, captionOnly, mediaUrl, attachment, attachments) :
+      account.platform === "telegram"  ? await publishTelegramMessage(account, captionOnly, mediaUrl) :
       undefined;
 
     return { platform: account.platform, status: "published", message: "Published successfully.", id };
@@ -561,11 +565,12 @@ async function processPost(post: ScheduledPost) {
   let attachmentError: string | null = null;
   const results: PublishResult[] = [];
 
-  // Only LinkedIn and Bluesky need the raw file bytes (they upload directly to the platform).
+  // LinkedIn, Bluesky, and Discord upload the raw file bytes. Discord uses an
+  // attachment so its CDN never has to fetch a possibly private storage URL.
   // Facebook, Instagram, Threads, and YouTube either take a public URL or use the pre-uploaded
   // youtube_video_id, so we should never fetch the file just for those — large video files made
   // this fetch slow/likely to fail, and a failure here was wrongly blocking every platform below.
-  const needsRawAttachment = post.platforms.some((p) => p === "linkedin" || p === "bluesky");
+  const needsRawAttachment = post.platforms.some((p) => p === "linkedin" || p === "bluesky" || p === "discord");
 
   if (needsRawAttachment && post.media_urls[0]) {
     try {
@@ -586,7 +591,8 @@ async function processPost(post: ScheduledPost) {
   try {
     const platforms = post.platforms.filter((platform): platform is PublishPlatform =>
       platform === "linkedin" || platform === "youtube" || platform === "bluesky" ||
-      platform === "facebook" || platform === "instagram" || platform === "threads"
+      platform === "facebook" || platform === "instagram" || platform === "threads" ||
+      platform === "discord" || platform === "telegram"
     );
 
     // Workspace-scheduled posts must always publish through the workspace's
@@ -615,7 +621,8 @@ async function processPost(post: ScheduledPost) {
 
       if (
         platform !== "linkedin" && platform !== "youtube" && platform !== "bluesky" &&
-        platform !== "facebook" && platform !== "instagram" && platform !== "threads"
+        platform !== "facebook" && platform !== "instagram" && platform !== "threads" &&
+        platform !== "discord" && platform !== "telegram"
       ) {
         results.push({ platform, status: "skipped", message: `${platform} scheduled publishing is not enabled.` });
         continue;
@@ -982,4 +989,15 @@ async function publishInstagram(account: StoredAccount, text: string, mediaUrl: 
 
   const publishRes = await fetch(`${base}/${userId}/media_publish`, { method: "POST", body: publishParams });
   return await requirePublishedId(publishRes, "Instagram publish failed");
+}
+
+async function publishDiscord(account: StoredAccount, text: string, mediaUrl: string, attachment: File | null, attachments: File[]) {
+  if (!account.access_token) throw new Error("Discord webhook URL is missing.");
+  return await publishToDiscordWebhook(account.access_token, text, mediaUrl || null, attachment, attachments);
+}
+
+async function publishTelegramMessage(account: StoredAccount, text: string, mediaUrl: string) {
+  const chatId = typeof account.metadata?.chatId === "string" ? account.metadata.chatId : account.account_id;
+  if (!account.access_token || !chatId) throw new Error("Telegram bot token or Chat ID is missing.");
+  return await publishToTelegram(account.access_token, chatId, text, mediaUrl || null);
 }

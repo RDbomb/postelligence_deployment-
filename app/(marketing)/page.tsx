@@ -1,0 +1,543 @@
+"use client";
+
+import Link from "next/link";
+import { motion } from "framer-motion";
+import {
+  ArrowRight,
+  BarChart3,
+  CalendarDays,
+  Globe2,
+  Layers3,
+  PenLine,
+  Sparkles,
+  TrendingUp,
+  Zap
+} from "lucide-react";
+import { PageTransition } from "@/components/marketing/PageTransition";
+import { OrbitVisual } from "@/components/marketing/OrbitVisual";
+import { PlatformMarquee } from "@/components/marketing/PlatformMarquee";
+import { Reveal } from "@/components/marketing/Reveal";
+import { StatCounter } from "@/components/marketing/StatCounter";
+import { Faq } from "@/components/marketing/Faq";
+import { RotatingWord } from "@/components/marketing/RotatingWord";
+import { ProductFlowDemo } from "@/components/marketing/ProductFlowDemo";
+import { HomeHeroVisual } from "@/components/marketing/HomeHeroVisual";
+
+const highlights = [
+  {
+    icon: Sparkles,
+    title: "AI Studio",
+    copy: "Draft captions, refine tone, and adapt content for every platform in seconds.",
+    href: "/features"
+  },
+  {
+    icon: Layers3,
+    title: "One post, every channel",
+    copy: "Publish to LinkedIn, Instagram, YouTube, and more from a single unified workflow.",
+    href: "/features"
+  },
+  {
+    icon: CalendarDays,
+    title: "Smart scheduling",
+    copy: "Plan your week visually and let Postelligence handle the timing across time zones.",
+    href: "/features"
+  },
+  {
+    icon: BarChart3,
+    title: "Analytics that clarify",
+    copy: "Track reach, engagement, and growth with dashboards built for decisions.",
+    href: "/features"
+  },
+  {
+    icon: Globe2,
+    title: "Native integrations",
+    copy: "Direct OAuth connections — no middlemen, no broken embeds, just reliable publishing.",
+    href: "/platforms"
+  },
+  {
+    icon: PenLine,
+    title: "Drafts that travel",
+    copy: "Start an idea on mobile, refine it on desktop, publish it anywhere — always in sync.",
+    href: "/features"
+  }
+];
+
+const steps = [
+  {
+    step: "01",
+    title: "Write once",
+    copy: "Draft your post in Postelligence's composer with images, video, or just your words."
+  },
+  {
+    step: "02",
+    title: "Let AI adapt it",
+    copy: "AI Studio reshapes tone, length, and formatting for each platform automatically."
+  },
+  {
+    step: "03",
+    title: "Publish everywhere",
+    copy: "Schedule once and Postelligence syncs it across every connected account, on time."
+  }
+];
+
+const testimonials = [
+  {
+    name: "Maya R.",
+    role: "Independent newsletter writer",
+    quote:
+      "I used to spend Sunday nights reformatting the same post six different ways. Now I write it once and Postelligence handles the rest.",
+    initials: "MR",
+    color: "#2f7867"
+  },
+  {
+    name: "Daniel K.",
+    role: "Agency social lead",
+    quote:
+      "The visual calendar alone replaced three spreadsheets. Our whole team finally plans content in one place.",
+    initials: "DK",
+    color: "#1d5b95"
+  },
+  {
+    name: "Priya N.",
+    role: "B2B content marketer",
+    quote:
+      "AI Studio actually sounds like us — it's grounded in the brand voice instead of generic filler.",
+    initials: "PN",
+    color: "#a53b28"
+  }
+];
+
+const stats = [
+  { value: 7, suffix: "+", label: "Platforms supported" },
+  { value: 3, suffix: "×", label: "Faster publishing" },
+  { value: 1, suffix: "", label: "Unified dashboard" }
+];
+
+export default function HomePage() {
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    e.currentTarget.style.setProperty("--mouse-x", `${x}px`);
+    e.currentTarget.style.setProperty("--mouse-y", `${y}px`);
+  };
+
+
+  return (
+    <PageTransition>
+      <section className="marketing-hero relative overflow-hidden px-5 pb-16 pt-12 md:px-8 md:pb-20 md:pt-16">
+        <div className="marketing-orb marketing-orb-teal" aria-hidden="true" />
+        <div className="marketing-orb marketing-orb-coral" aria-hidden="true" />
+
+        <div className="relative mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-[minmax(0,1fr)_580px]">
+          <div className="max-w-2xl w-full">
+            <motion.p
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="marketing-eyebrow"
+            >
+              Social publishing, reimagined
+            </motion.p>
+            <motion.h1
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
+              className="marketing-display mt-5"
+            >
+              Create once.
+              <br />
+              Publish <RotatingWord />
+            </motion.h1>
+            <motion.p
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.16 }}
+              className="mt-7 max-w-xl text-lg leading-relaxed text-[#4f5b62] md:text-[1.15rem]"
+            >
+              Postelligence is the calm, intelligent workspace for creators who refuse to repeat
+              themselves. Write once — AI adapts, schedules, and syncs across every channel.
+            </motion.p>
+
+            <motion.div
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.24 }}
+              className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center"
+            >
+              <a href="/login" className="marketing-cta-primary marketing-cta-glow">
+                Start for free
+                <ArrowRight className="h-4 w-4" />
+              </a>
+              <a href="/features" className="marketing-cta-secondary">
+                Explore features
+              </a>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.32 }}
+              className="mt-12 grid max-w-2xl grid-cols-3 gap-6 w-full"
+            >
+              {stats.map((stat) => (
+                <div key={stat.label} className="marketing-stat-card marketing-stat-card-hover p-6 md:p-8 flex flex-col justify-center min-h-[140px]">
+                  <p className="text-4xl font-bold tracking-[-0.04em] text-[#1f2528] md:text-5xl lg:text-6xl">
+                    <StatCounter value={stat.value} suffix={stat.suffix} />
+                  </p>
+                  <p className="mt-2 text-xs md:text-sm text-[#627078] font-medium leading-normal">{stat.label}</p>
+                </div>
+              ))}
+            </motion.div>
+          </div>
+
+          <Reveal y={28} className="hidden lg:block lg:-mt-36">
+            <div className="w-[580px] h-[580px] flex items-center justify-center translate-x-8">
+              <HomeHeroVisual />
+            </div>
+          </Reveal>
+        </div>
+
+        <div className="relative mx-auto mt-16 max-w-6xl">
+          <p className="mb-4 text-center text-[0.78rem] font-bold uppercase tracking-[0.1em] text-[#8a949a]">
+            Publish natively, everywhere your audience already is
+          </p>
+          <PlatformMarquee />
+        </div>
+      </section>
+
+      <section className="px-5 py-12 md:px-8 md:py-20 marketing-grid-bg relative border-y border-[#1f2528]/5 bg-white/20">
+        <div className="mx-auto max-w-6xl">
+          <Reveal>
+            <div className="text-center mb-12">
+              <p className="marketing-eyebrow">Unified Flow</p>
+              <h2 className="marketing-section-title mt-4">
+                How Postelligence works
+              </h2>
+              <p className="mt-4 text-[1.05rem] leading-relaxed text-[#4f5b62] max-w-xl mx-auto">
+                Draft once, and watch AI prepare and synchronize updates natively across all your key social channels in seconds.
+              </p>
+            </div>
+            <ProductFlowDemo />
+          </Reveal>
+        </div>
+      </section>
+
+      <section className="px-5 py-16 md:px-8 md:py-24">
+        <div className="mx-auto max-w-6xl">
+          <Reveal className="max-w-2xl">
+            <p className="marketing-eyebrow">Core Features</p>
+            <h2 className="marketing-section-title mt-4">
+              Everything you need to stay consistent — without the chaos.
+            </h2>
+            <p className="mt-4 text-[1.05rem] leading-relaxed text-[#4f5b62]">
+              A unified toolkit designed to respect your time, preserve your brand voice, and maximize your social footprint.
+            </p>
+          </Reveal>
+
+          {/* Premium Bento Grid */}
+          <div className="mt-12 grid gap-6 md:grid-cols-6">
+            
+            {/* AI Studio - Large 2-column card */}
+            <div className="md:col-span-3 rounded-3xl border border-[#1f2528]/8 bg-white p-6 shadow-sm flex flex-col justify-between overflow-hidden relative group min-h-[360px]">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-[#2f7867]/5 to-transparent rounded-bl-full pointer-events-none" />
+              <div>
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#2f7867]/10 text-[#2f7867] mb-6">
+                  <Sparkles className="h-5 w-5" />
+                </div>
+                <h3 className="text-xl font-bold tracking-tight text-[#1f2528]">AI Studio</h3>
+                <p className="mt-2 text-sm leading-relaxed text-[#627078] max-w-sm">
+                  Draft captions, refine tone, and generate engaging hooks in seconds. The AI learns from your edits to match your exact brand voice over time.
+                </p>
+              </div>
+              <div className="mt-6 border border-[#1f2528]/5 bg-[#fbfbf9]/80 rounded-2xl p-4 shadow-[0_4px_12px_rgba(0,0,0,0.02)] backdrop-blur-sm relative z-10 transition-transform duration-300 group-hover:scale-[1.02]">
+                <div className="flex items-center justify-between border-b border-[#1f2528]/5 pb-2 mb-3">
+                  <span className="text-[0.68rem] font-bold uppercase tracking-wider text-[#2f7867]">AI Prompt Adapter</span>
+                  <span className="text-[0.65rem] px-2 py-0.5 rounded bg-[#eaf7ef] text-[#20613a] font-bold">Active</span>
+                </div>
+                <p className="text-xs text-[#627078] italic">"Rewrite this post with a professional tone, keeping it under 280 characters for Twitter and formatting as bullet points..."</p>
+                <div className="mt-3 flex items-center justify-end gap-2">
+                  <span className="text-[0.68rem] text-[#8a949a]">Adapted:</span>
+                  <div className="h-2 w-12 bg-[#2f7867]/20 rounded-full overflow-hidden">
+                    <div className="h-full w-4/5 bg-[#2f7867] rounded-full animate-pulse" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* One post, every channel - Large 2-column card */}
+            <div className="md:col-span-3 rounded-3xl border border-[#1f2528]/8 bg-[#1f2528] text-white p-6 shadow-sm flex flex-col justify-between overflow-hidden relative group min-h-[360px]">
+              <div className="absolute top-0 right-0 w-80 h-80 bg-gradient-to-bl from-white/5 to-transparent rounded-bl-full pointer-events-none" />
+              <div>
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10 text-white mb-6">
+                  <Globe2 className="h-5 w-5" />
+                </div>
+                <h3 className="text-xl font-bold tracking-tight text-white">One post, every channel</h3>
+                <p className="mt-2 text-sm leading-relaxed text-white/60 max-w-sm">
+                  Connect all your major platforms via secure native API endpoints. Author your master draft once, and publish to LinkedIn, YouTube, Threads, and Bluesky at once.
+                </p>
+              </div>
+              <div className="mt-6 flex flex-wrap gap-2 items-center justify-center py-4 bg-white/5 rounded-2xl border border-white/10 transition-all duration-300 group-hover:bg-white/10">
+                <span className="text-[0.7rem] px-3 py-1.5 rounded-xl bg-white/10 border border-white/10 font-medium">LinkedIn API</span>
+                <span className="text-[0.7rem] px-3 py-1.5 rounded-xl bg-white/10 border border-white/10 font-medium">Instagram Graph</span>
+                <span className="text-[0.7rem] px-3 py-1.5 rounded-xl bg-white/10 border border-white/10 font-medium">YouTube OAuth</span>
+                <span className="text-[0.7rem] px-3 py-1.5 rounded-xl bg-white/10 border border-white/10 font-medium">Threads API</span>
+              </div>
+            </div>
+
+            {/* Smart scheduling - 3-column card */}
+            <div className="md:col-span-2 rounded-3xl border border-[#1f2528]/8 bg-white p-6 shadow-sm flex flex-col justify-between overflow-hidden relative group min-h-[300px]">
+              <div>
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#0077B5]/10 text-[#0077B5] mb-6">
+                  <CalendarDays className="h-5 w-5" />
+                </div>
+                <h3 className="text-lg font-bold tracking-tight text-[#1f2528]">Smart scheduling</h3>
+                <p className="mt-2 text-sm leading-relaxed text-[#627078]">
+                  Plan and organize your entire social calendar visually. Reschedule posts instantly with drag-and-drop handles.
+                </p>
+              </div>
+              <div className="mt-6 border border-[#1f2528]/5 bg-[#fbfbf9]/80 rounded-2xl p-3 flex gap-2 justify-between items-center transition-transform duration-300 group-hover:translate-y-[-2px]">
+                <div className="flex gap-1.5">
+                  <span className="h-3 w-3 rounded bg-[#2f7867]" />
+                  <span className="h-3 w-16 bg-[#1f2528]/10 rounded-full" />
+                </div>
+                <span className="text-[0.62rem] font-bold text-slate-400">12:30 PM</span>
+              </div>
+            </div>
+
+            {/* Analytics that clarify - 2-column card */}
+            <div className="md:col-span-2 rounded-3xl border border-[#1f2528]/8 bg-white p-6 shadow-sm flex flex-col justify-between overflow-hidden relative group min-h-[300px]">
+              <div>
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#a53b28]/10 text-[#a53b28] mb-6">
+                  <BarChart3 className="h-5 w-5" />
+                </div>
+                <h3 className="text-lg font-bold tracking-tight text-[#1f2528]">Analytics that clarify</h3>
+                <p className="mt-2 text-sm leading-relaxed text-[#627078]">
+                  Say goodbye to bloated stats dashboards. Monitor what drives actual engagement with clean metric summaries.
+                </p>
+              </div>
+              <div className="mt-6 flex items-end gap-1.5 h-10 w-full px-2 border-b border-[#1f2528]/10 justify-between">
+                <div className="bg-[#2f7867]/30 w-full h-[40%] rounded-t" />
+                <div className="bg-[#2f7867]/50 w-full h-[65%] rounded-t" />
+                <div className="bg-[#2f7867] w-full h-[95%] rounded-t transition-all group-hover:h-[100%]" />
+                <div className="bg-[#2f7867]/40 w-full h-[55%] rounded-t" />
+              </div>
+            </div>
+
+            {/* Secure connection - 2-column card */}
+            <div className="md:col-span-2 rounded-3xl border border-[#1f2528]/8 bg-white p-6 shadow-sm flex flex-col justify-between overflow-hidden relative group min-h-[300px]">
+              <div>
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#6d5ad0]/10 text-[#6d5ad0] mb-6">
+                  <Zap className="h-5 w-5" />
+                </div>
+                <h3 className="text-lg font-bold tracking-tight text-[#1f2528]">Direct integration</h3>
+                <p className="mt-2 text-sm leading-relaxed text-[#627078]">
+                  Postelligence connects natively without third-party scrapers or plugins. Experience secure, instant, and reliable publishing.
+                </p>
+              </div>
+              <div className="mt-6 flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-[#2f7867] animate-pulse" />
+                <span className="text-[0.68rem] font-bold uppercase tracking-wider text-[#627078]">Active API handshake</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      {/* Modern Workflow Comparison Section: The Chaos vs. The Calm */}
+      <section className="px-5 py-16 md:px-8 md:py-24 bg-[#fbfbf9]/60 border-y border-[#1f2528]/5 relative overflow-hidden">
+        <div className="pointer-events-none absolute inset-0 -z-10">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[450px] w-[700px] rounded-full bg-gradient-to-tr from-[#2f7867]/5 to-[#d05945]/3 blur-3xl" />
+        </div>
+        <div className="mx-auto max-w-6xl">
+          <Reveal className="max-w-2xl mx-auto text-center mb-16">
+            <p className="marketing-eyebrow">Workflow Comparison</p>
+            <h2 className="marketing-section-title mt-4">
+              Step into a calmer publishing workflow.
+            </h2>
+            <p className="mt-4 text-[1.05rem] leading-relaxed text-[#4f5b62]">
+              See how Postelligence cleans up the friction, manual reformatting, and tab-switching of traditional social publishing.
+            </p>
+          </Reveal>
+
+          <div className="grid gap-8 md:grid-cols-2">
+            
+            {/* The Chaos Panel */}
+            <Reveal>
+              <div className="rounded-3xl border border-[#d05945]/15 bg-white/70 p-6 md:p-8 backdrop-blur-sm relative overflow-hidden flex flex-col justify-between h-full">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-[#d05945]/5 to-transparent rounded-bl-full pointer-events-none" />
+                <div>
+                  <div className="flex items-center justify-between border-b border-[#1f2528]/5 pb-4 mb-6">
+                    <h3 className="text-lg font-bold tracking-tight text-[#d05945] flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full bg-[#d05945]" />
+                      Without Postelligence
+                    </h3>
+                    <span className="text-[0.65rem] px-2 py-0.5 rounded bg-[#fff0ed] text-[#a53b28] font-bold">Chaos</span>
+                  </div>
+                  <ul className="space-y-4">
+                    <li className="flex items-start gap-3">
+                      <span className="h-5 w-5 rounded-full bg-[#fff0ed] text-[#a53b28] flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">✕</span>
+                      <div>
+                        <p className="text-sm font-semibold text-[#1f2528]">Manual Reformatting</p>
+                        <p className="text-xs text-[#627078] mt-0.5">Copying, pasting, and rewording drafts across 6 different browser tabs.</p>
+                      </div>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <span className="h-5 w-5 rounded-full bg-[#fff0ed] text-[#a53b28] flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">✕</span>
+                      <div>
+                        <p className="text-sm font-semibold text-[#1f2528]">Spreadsheet Scheduling</p>
+                        <p className="text-xs text-[#627078] mt-0.5">Managing dates, copy fragments, and publishing times in a messy grid.</p>
+                      </div>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <span className="h-5 w-5 rounded-full bg-[#fff0ed] text-[#a53b28] flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">✕</span>
+                      <div>
+                        <p className="text-sm font-semibold text-[#1f2528]">Security & Token Anxiety</p>
+                        <p className="text-xs text-[#627078] mt-0.5">Constantly reconnecting social platforms because of expired cookies or session drop-offs.</p>
+                      </div>
+                    </li>
+                  </ul>
+                </div>
+                <div className="mt-8 pt-6 border-t border-[#1f2528]/5 text-center">
+                  <span className="text-xs text-[#8a949a] font-medium">Result: Expended effort, fragmented focus</span>
+                </div>
+              </div>
+            </Reveal>
+
+            {/* The Calm Panel */}
+            <Reveal delay={0.1}>
+              <div className="rounded-3xl border border-[#2f7867]/25 bg-white p-6 md:p-8 relative overflow-hidden flex flex-col justify-between h-full shadow-[0_16px_40px_rgba(47,120,103,0.05)]">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-[#2f7867]/5 to-transparent rounded-bl-full pointer-events-none" />
+                <div>
+                  <div className="flex items-center justify-between border-b border-[#1f2528]/5 pb-4 mb-6">
+                    <h3 className="text-lg font-bold tracking-tight text-[#2f7867] flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full bg-[#2f7867] animate-pulse" />
+                      With Postelligence
+                    </h3>
+                    <span className="text-[0.65rem] px-2 py-0.5 rounded bg-[#eaf7ef] text-[#20613a] font-bold">Calm</span>
+                  </div>
+                  <ul className="space-y-4">
+                    <li className="flex items-start gap-3">
+                      <span className="h-5 w-5 rounded-full bg-[#eaf7ef] text-[#20613a] flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">✓</span>
+                      <div>
+                        <p className="text-sm font-semibold text-[#1f2528]">Write Once, Adapt with AI</p>
+                        <p className="text-xs text-[#627078] mt-0.5">Write a master post once. AI adjusts character limits, hashtags, and style for each site.</p>
+                      </div>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <span className="h-5 w-5 rounded-full bg-[#eaf7ef] text-[#20613a] flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">✓</span>
+                      <div>
+                        <p className="text-sm font-semibold text-[#1f2528]">Visual Calendar Reschedule</p>
+                        <p className="text-xs text-[#627078] mt-0.5">Clear calendar visualization. Rescheduling is a simple drag-and-drop away.</p>
+                      </div>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <span className="h-5 w-5 rounded-full bg-[#eaf7ef] text-[#20613a] flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">✓</span>
+                      <div>
+                        <p className="text-sm font-semibold text-[#1f2528]">Auto-Refreshing Tokens</p>
+                        <p className="text-xs text-[#627078] mt-0.5">Handshake tokens refresh in the background automatically. Secure and always ready.</p>
+                      </div>
+                    </li>
+                  </ul>
+                </div>
+                <div className="mt-8 pt-6 border-t border-[#1f2528]/5 text-center">
+                  <span className="text-xs text-[#2f7867] font-semibold">Result: High consistency, maximum focus</span>
+                </div>
+              </div>
+            </Reveal>
+
+          </div>
+        </div>
+      </section>
+
+      {/* Premium Testimonials Grid */}
+      <section className="px-5 py-16 md:px-8 md:py-24">
+        <div className="mx-auto max-w-6xl">
+          <Reveal className="max-w-2xl mx-auto text-center mb-16">
+            <p className="marketing-eyebrow">Loved by creators</p>
+            <h2 className="marketing-section-title mt-4">
+              Calmer workflows, louder results.
+            </h2>
+            <p className="mt-4 text-[1.05rem] leading-relaxed text-[#4f5b62]">
+              Here is why writers, marketers, and independent teams rely on Postelligence every day.
+            </p>
+          </Reveal>
+
+          <div className="mt-12 grid gap-6 md:grid-cols-3">
+            {testimonials.map((t, index) => (
+              <Reveal key={t.name} delay={index * 0.07}>
+                <motion.div 
+                  whileHover={{ y: -6, scale: 1.02 }} 
+                  transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+                  className="rounded-3xl border border-[#1f2528]/8 bg-white p-6 shadow-sm flex flex-col justify-between h-full relative overflow-hidden"
+                >
+                  <blockquote className="text-sm leading-relaxed text-[#4f5b62] italic relative z-10">
+                    “{t.quote}”
+                  </blockquote>
+                  <div className="mt-6 pt-5 border-t border-[#1f2528]/5 flex items-center gap-3 relative z-10">
+                    <span className="marketing-avatar text-xs font-bold" style={{ background: t.color }}>
+                      {t.initials}
+                    </span>
+                    <div>
+                      <span className="block text-sm font-semibold text-[#1f2528]">{t.name}</span>
+                      <span className="block text-[0.72rem] text-[#7b858d]">{t.role}</span>
+                    </div>
+                  </div>
+                </motion.div>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Clean Accordion FAQ */}
+      <section className="px-5 py-16 md:px-8 md:py-24 bg-[#fbfbf9]/40 border-t border-[#1f2528]/5">
+        <div className="mx-auto max-w-4xl">
+          <Reveal className="mx-auto mb-16 max-w-2xl text-center">
+            <p className="marketing-eyebrow">Questions, answered</p>
+            <h2 className="marketing-section-title mt-4">Everything you&apos;re wondering.</h2>
+          </Reveal>
+          <Reveal>
+            <Faq />
+          </Reveal>
+        </div>
+      </section>
+
+      {/* Glassmorphic bottom CTA panel */}
+      <section className="px-5 pb-24 pt-16 md:px-8 md:pb-32">
+        <div className="mx-auto max-w-6xl">
+          <Reveal>
+            <div className="relative overflow-hidden rounded-3xl border border-[#2f7867]/25 bg-gradient-to-br from-[#1f2528] to-[#2d3a40] px-8 py-14 md:px-16 md:py-20 text-center">
+              {/* Background ambient lights */}
+              <div className="pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full bg-[#2f7867]/20 blur-3xl" />
+              <div className="pointer-events-none absolute -bottom-16 -left-16 h-64 w-64 rounded-full bg-[#d05945]/15 blur-3xl" />
+              
+              <div className="relative z-10 max-w-2xl mx-auto flex flex-col items-center gap-6">
+                <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-[#56a98f]">
+                  <Zap className="h-3.5 w-3.5" />
+                  Ready when you are
+                </span>
+                <h2 className="text-3xl font-bold tracking-tight text-white md:text-5xl">
+                  Your audience is waiting.
+                </h2>
+                <p className="max-w-lg text-sm leading-relaxed text-white/60">
+                  Join creators publishing smarter — with AI-assisted drafts, cross-platform scheduling, and analytics that actually clarify progress.
+                </p>
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-4">
+                  <a href="/login" className="marketing-cta-primary">
+                    Get started free
+                    <TrendingUp className="h-4 w-4" />
+                  </a>
+                  <a href="/pricing" className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-6 py-3 text-sm font-semibold text-white backdrop-blur-sm hover:bg-white/10 transition-colors">
+                    View pricing
+                  </a>
+                </div>
+              </div>
+            </div>
+          </Reveal>
+        </div>
+      </section>
+    </PageTransition>
+  );
+}

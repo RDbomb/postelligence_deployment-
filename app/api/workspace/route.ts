@@ -1,0 +1,103 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { logActivity, WorkspaceActions } from "@/lib/workspace/activity-logger";
+
+export const dynamic = "force-dynamic";
+
+// ── GET /api/workspace ───────────────────────────────────────
+// Returns the current user's workspace + their role
+// Returns null if user is not in any workspace
+export async function GET() {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  // Find workspace the user belongs to
+  const { data: member, error: memberError } = await supabase
+    .from("workspace_members")
+    .select("*, workspace:workspaces(*)")
+    .eq("user_id", user.id)
+    .single();
+
+  if (memberError || !member) {
+    // Not in any workspace — return null (not an error)
+    return NextResponse.json({ workspace: null, member: null, role: null });
+  }
+
+  return NextResponse.json({
+    workspace: member.workspace,
+    member: {
+      id:           member.id,
+      workspace_id: member.workspace_id,
+      user_id:      member.user_id,
+      role:         member.role,
+      joined_at:    member.joined_at,
+    },
+    role: member.role,
+  });
+}
+
+// ── POST /api/workspace ──────────────────────────────────────
+// Creates a new workspace and adds the creator as owner
+export async function POST(req: NextRequest) {
+  const supabase = createClient();
+  const admin    = createAdminClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  // Check user is not already in a workspace
+  const { data: existing } = await supabase
+    .from("workspace_members")
+    .select("id")
+    .eq("user_id", user.id)
+    .single();
+
+  if (existing) {
+    return NextResponse.json(
+      { error: "You are already a member of a workspace. Leave it before creating a new one." },
+      { status: 400 }
+    );
+  }
+
+  const { name } = await req.json();
+  if (!name?.trim()) {
+    return NextResponse.json({ error: "Workspace name is required." }, { status: 400 });
+  }
+
+  // Create workspace
+  const { data: workspace, error: wsError } = await supabase
+    .from("workspaces")
+    .insert({ name: name.trim(), owner_id: user.id })
+    .select()
+    .single();
+
+  if (wsError || !workspace) {
+    return NextResponse.json({ error: wsError?.message || "Failed to create workspace" }, { status: 500 });
+  }
+
+  // Add creator as owner member
+  const { error: memberError } = await supabase
+    .from("workspace_members")
+    .insert({ workspace_id: workspace.id, user_id: user.id, role: "owner" });
+
+  if (memberError) {
+    // Rollback workspace creation
+    await supabase.from("workspaces").delete().eq("id", workspace.id);
+    return NextResponse.json({ error: memberError.message }, { status: 500 });
+  }
+
+  // Get user display name for activity log
+  const { data: userData } = await admin.auth.admin.getUserById(user.id);
+  const userName = userData?.user?.user_metadata?.full_name
+    || userData?.user?.email
+    || "Unknown";
+
+  // Log activity
+  await logActivity(supabase, workspace.id, user.id, WorkspaceActions.WORKSPACE_CREATED, {
+    metadata: { user_name: userName },
+  });
+
+  return NextResponse.json({ workspace }, { status: 201 });
+}

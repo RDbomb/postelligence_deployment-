@@ -39,12 +39,14 @@ import {
   getConnectedBlueskyAccount,
   getConnectedPinterestAccount,
   getConnectedLinkedInAccount,
+  getConnectedDiscordAccount,
+  getConnectedTelegramAccount,
   type SocialAccount,
 } from "@/lib/integrations/social-accounts";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { PLATFORM_CONFIG } from "@/lib/types";
+import { PLATFORM_CONFIG } from "@/types";
 
 interface User {
   email?: string | null;
@@ -134,52 +136,70 @@ type MediaLibraryItem = {
 const fadeUp = { hidden: { opacity: 0, y: 24 }, visible: { opacity: 1, y: 0 } };
 
 function PlatformLogo({ id, className }: { id: string; className?: string }) {
+  const isWhite = className?.includes("text-white");
+  const style = isWhite ? { color: "#ffffff", fill: "#ffffff" } : undefined;
+
   if (id === "facebook") return (
-    <svg className={className} viewBox="0 0 24 24" role="img" aria-label="Facebook">
+    <svg className={className} style={style} viewBox="0 0 24 24" role="img" aria-label="Facebook">
       <path fill="currentColor" d="M14.2 8.4V6.7c0-.8.5-1 1.1-1h1.5V2.2A20 20 0 0 0 14 2c-2.9 0-4.8 1.7-4.8 4.9v1.5H6v3.9h3.2V22h4v-9.7h3.1l.6-3.9h-3.7Z" />
     </svg>
   );
   if (id === "instagram") return (
-    <svg className={className} viewBox="0 0 24 24" role="img" aria-label="Instagram">
+    <svg className={className} style={style} viewBox="0 0 24 24" role="img" aria-label="Instagram">
       <rect x="3" y="3" width="18" height="18" rx="5" fill="none" stroke="currentColor" strokeWidth="2" />
       <circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" strokeWidth="2" />
       <circle cx="17.4" cy="6.6" r="1.3" fill="currentColor" />
     </svg>
   );
   if (id === "linkedin") return (
-    <svg className={className} viewBox="0 0 24 24" role="img" aria-label="LinkedIn">
+    <svg className={className} style={style} viewBox="0 0 24 24" role="img" aria-label="LinkedIn">
       <path fill="currentColor" d="M5.1 8.9h3.6V20H5.1V8.9Zm1.8-5.5a2.1 2.1 0 1 1 0 4.2 2.1 2.1 0 0 1 0-4.2ZM10.8 8.9h3.5v1.5h.1c.5-.9 1.7-1.9 3.4-1.9 3.7 0 4.4 2.4 4.4 5.6V20h-3.6v-5.2c0-1.2 0-2.8-1.7-2.8s-2 1.3-2 2.7V20h-3.6V8.9Z" />
     </svg>
   );
   if (id === "twitter") return (
-    <svg className={className} viewBox="0 0 24 24" role="img" aria-label="X">
+    <svg className={className} style={style} viewBox="0 0 24 24" role="img" aria-label="X">
       <path fill="currentColor" d="M14.1 10.4 21.7 2h-1.8l-6.6 7.3L8 2H2l8 11.2L2 22h1.8l7-7.7L16.4 22H22l-7.9-11.6Zm-2.5 2.8-.8-1.1L4.4 3.3h2.7l5.2 7.2.8 1.1 6.7 9.2h-2.7l-5.5-7.6Z" />
     </svg>
   );
   if (id === "youtube") return (
-    <svg className={className} viewBox="0 0 24 24" role="img" aria-label="YouTube">
+    <svg className={className} style={style} viewBox="0 0 24 24" role="img" aria-label="YouTube">
       <path fill="currentColor" d="M22 7.3a3 3 0 0 0-2.1-2.1C18 4.7 12 4.7 12 4.7s-6 0-7.9.5A3 3 0 0 0 2 7.3 31 31 0 0 0 1.5 12 31 31 0 0 0 2 16.7a3 3 0 0 0 2.1 2.1c1.9.5 7.9.5 7.9.5s6 0 7.9-.5a3 3 0 0 0 2.1-2.1c.5-1.9.5-4.7.5-4.7s0-2.8-.5-4.7ZM10 15.4V8.6l5.8 3.4-5.8 3.4Z" />
     </svg>
   );
   if (id === "threads") return (
-    <svg className={className} viewBox="0 0 24 24" role="img" aria-label="Threads">
+    <svg className={className} style={style} viewBox="0 0 24 24" role="img" aria-label="Threads">
       <path fill="currentColor" d="M12.1 22c-5.7 0-9.3-3.7-9.3-9.8C2.8 6.1 6.5 2 12 2c4.2 0 7.4 2.1 8.7 5.7l-3.4 1c-.8-2.3-2.7-3.6-5.2-3.6-3.3 0-5.4 2.7-5.4 7s2.1 6.8 5.5 6.8c2.6 0 4.3-1.3 4.3-3.2 0-1.1-.6-1.9-1.8-2.3-.6 2.2-2.3 3.5-4.6 3.5-2.6 0-4.4-1.6-4.4-3.9 0-2.4 2-4 5.1-4 .6 0 1.2 0 1.8.1-.3-1.2-1.2-1.8-2.6-1.8-1.1 0-2.1.4-3 1.2L5.6 6.2c1.2-1.1 2.8-1.7 4.6-1.7 3.3 0 5.2 1.8 5.6 5.4 2.8.8 4.4 2.8 4.4 5.5 0 4-3.1 6.6-8.1 6.6Zm-1.8-7.8c1.2 0 2-.8 2.3-2.3-.6-.1-1.1-.1-1.7-.1-1.4 0-2.2.5-2.2 1.3 0 .7.6 1.1 1.6 1.1Z" />
     </svg>
   );
   if (id === "pinterest") return (
-    <svg className={className} viewBox="0 0 24 24" role="img" aria-label="Pinterest">
+    <svg className={className} style={style} viewBox="0 0 24 24" role="img" aria-label="Pinterest">
       <path fill="currentColor" d="M12.1 2C6.6 2 3 5.6 3 10.3c0 3 1.7 5.3 4.2 6.2.4.1.6-.2.7-.5l.3-1.3c.1-.4.1-.5-.2-.9-.8-.9-1.2-2-1.2-3.2 0-3.5 2.6-6.5 6.8-6.5 3.7 0 5.7 2.3 5.7 5.3 0 4-1.8 7.3-4.4 7.3-1.4 0-2.5-1.2-2.1-2.7.4-1.8 1.2-3.7 1.2-5 0-1.2-.6-2.1-1.9-2.1-1.5 0-2.7 1.5-2.7 3.6 0 1.3.4 2.2.4 2.2l-1.8 7.4c-.4 1.8-.1 3.9 0 4.1.1.1.2.1.3 0 .1-.2 1.8-2.2 2.4-4.2l.7-2.7c.7 1.3 2 2.1 3.7 2.1 4.9 0 8.2-4.5 8.2-10.4C23 5 19.2 2 12.1 2Z" />
     </svg>
   );
   if (id === "reddit") return (
-    <svg className={className} viewBox="0 0 24 24" role="img" aria-label="Reddit">
+    <svg className={className} style={style} viewBox="0 0 24 24" role="img" aria-label="Reddit">
       <circle cx="12" cy="12" r="10" fill="currentColor" opacity="0.15" />
       <path fill="currentColor" d="M20 12a2 2 0 0 0-2-2 2 2 0 0 0-1.3.5A9.6 9.6 0 0 0 12.6 9l.8-3.6 2.5.5a1.5 1.5 0 1 0 .2-.9l-2.8-.6a.4.4 0 0 0-.5.3l-.9 4a9.6 9.6 0 0 0-4.2 1.4A2 2 0 0 0 4 12a2 2 0 0 0 1 1.7 3.6 3.6 0 0 0 0 .5c0 2.5 2.7 4.5 6 4.5s6-2 6-4.5a3.6 3.6 0 0 0 0-.5A2 2 0 0 0 20 12Zm-11.5 1a1 1 0 1 1 2 0 1 1 0 0 1-2 0Zm5.6 2.7a3.6 3.6 0 0 1-4.2 0 .4.4 0 0 1 .5-.6 2.8 2.8 0 0 0 3.2 0 .4.4 0 0 1 .5.6Zm-.1-1.7a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z" />
     </svg>
   );
-  return (
-    <svg className={className} viewBox="0 0 24 24" role="img" aria-label="Bluesky">
+  if (id === "discord") return (
+    <svg className={className} style={style} viewBox="0 0 24 24" role="img" aria-label="Discord">
+      <path fill="currentColor" d="M19.27 4.73a.12.12 0 0 0-.07-.05A19.53 19.53 0 0 0 14.44 3a.09.09 0 0 0-.08.04c-.21.37-.45.87-.61 1.25a18.8 18.8 0 0 0-5.5 0c-.16-.38-.41-.88-.63-1.25a.09.09 0 0 0-.08-.04A19.53 19.53 0 0 0 2.8 4.68a.12.12 0 0 0-.07.05A19.73 19.73 0 0 0 .5 17.58a.12.12 0 0 0 .05.08A19.64 19.64 0 0 0 6 21a.1.1 0 0 0 .11-.04c.43-.59.82-1.22 1.15-1.88a.1.1 0 0 0-.05-.13 13.06 13.06 0 0 1-1.84-.87.1.1 0 0 1-.01-.17c.12-.09.24-.18.36-.28a.1.1 0 0 1 .1-.01c3.57 1.63 7.45 1.63 11 0a.1.1 0 0 1 .1.01c.12.1.24.19.36.28a.1.1 0 0 1-.01.17 12.23 12.23 0 0 1-1.84.87.1.1 0 0 0-.05.13c.33.66.72 1.29 1.15 1.88a.1.1 0 0 0 .11.04 19.64 19.64 0 0 0 5.48-3.34.12.12 0 0 0 .05-.08 19.73 19.73 0 0 0-2.28-12.85M8.02 15.33c-1.18 0-2.16-1.08-2.16-2.42S6.84 10.5 8.02 10.5s2.17 1.08 2.16 2.41S9.2 15.33 8.02 15.33m7.96 0c-1.18 0-2.16-1.08-2.16-2.42s.97-2.41 2.16-2.41 2.17 1.08 2.16 2.41-.98 2.42-2.16 2.42" />
+    </svg>
+  );
+  if (id === "telegram") return (
+    <svg className={className} style={style} viewBox="0 0 24 24" role="img" aria-label="Telegram">
+      <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.02-1.96 1.25-5.54 3.67-.52.36-.97.53-1.33.52-.4-.01-1.18-.23-1.76-.41-.71-.23-1.28-.35-1.23-.74.03-.2.3-.41.82-.62 3.2-1.39 5.34-2.31 6.42-2.76 3.06-1.27 3.69-1.49 4.11-1.5.09 0 .3.02.43.13.11.09.14.22.15.31 0 .06.01.12 0 .19z" />
+    </svg>
+  );
+  if (id === "bluesky") return (
+    <svg className={className} style={style} viewBox="0 0 24 24" role="img" aria-label="Bluesky">
       <path fill="currentColor" d="M7.2 4.2c2 1.5 4.1 4.5 4.8 6.1.7-1.6 2.8-4.6 4.8-6.1 1.5-1.1 3.9-2 3.9.7 0 .5-.3 4.5-.9 5.2-1.1 1.3-4.9 1.2-6.2 1.1 4.5.7 5.7 3 3.2 5.3-4.7 4.3-6.8-1.1-7.3-2.5-.1-.3-.2-.5-.2-.5s-.1.2-.2.5c-.6 1.4-2.7 6.8-7.3 2.5-2.5-2.3-1.3-4.6 3.2-5.3-1.3.1-5.1.2-6.2-1.1C2.3 9.4 2 5.4 2 4.9c0-2.7 2.4-1.8 3.9-.7Z" />
+    </svg>
+  );
+  return (
+    <svg className={className} style={style} viewBox="0 0 24 24" role="img" aria-label="Fallback">
+      <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="2" />
     </svg>
   );
 }
@@ -343,6 +363,8 @@ export default function CreateClient({
   const blueskyAccount = getConnectedBlueskyAccount(socialAccounts);
   const pinterestAccount = getConnectedPinterestAccount(socialAccounts);
   const linkedinAccount = getConnectedLinkedInAccount(socialAccounts);
+  const discordAccount = getConnectedDiscordAccount(socialAccounts);
+  const telegramAccount = getConnectedTelegramAccount(socialAccounts);
 
   const platforms = useMemo<Platform[]>(() => [
     { id: "instagram", name: "Instagram", shortName: "IG", color: "#E1306C", accent: "from-pink-500 via-rose-400 to-orange-300", connected: Boolean(instagramAccount), handle: instagramAccount?.account_name ? `@${instagramAccount.account_name.replace(/^@/, "")}` : "Ready to connect", avatarUrl: instagramAccount?.account_avatar_url, lastSync: instagramAccount ? "Synced 2 min ago" : "Not connected", health: instagramAccount ? "excellent" : "offline" },
@@ -352,7 +374,9 @@ export default function CreateClient({
     { id: "threads", name: "Threads", shortName: "TH", color: "#111827", accent: "from-zinc-900 via-zinc-700 to-zinc-500", connected: Boolean(threadsAccount), handle: threadsAccount?.account_name ? `@${threadsAccount.account_name.replace(/^@/, "")}` : "Ready to connect", avatarUrl: threadsAccount?.account_avatar_url, lastSync: threadsAccount ? "Synced just now" : "Not connected", health: threadsAccount ? "good" : "offline" },
     { id: "bluesky", name: "Bluesky", shortName: "BS", color: "#1185FE", accent: "from-sky-400 via-blue-500 to-cyan-300", connected: Boolean(blueskyAccount), handle: blueskyAccount?.metadata?.handle ? `@${(blueskyAccount.metadata.handle as string).replace(/^@/, "")}` : "Ready to connect", avatarUrl: blueskyAccount?.account_avatar_url, lastSync: blueskyAccount ? "Synced just now" : "Not connected", health: blueskyAccount ? "good" : "offline" },
     { id: "pinterest", name: "Pinterest", shortName: "PI", color: "#E60023", accent: "from-red-600 via-rose-500 to-pink-400", connected: Boolean(pinterestAccount), handle: pinterestAccount?.account_name || "Ready to connect", avatarUrl: pinterestAccount?.account_avatar_url, lastSync: pinterestAccount ? "Synced just now" : "Not connected", health: pinterestAccount ? "good" : "offline" },
-  ], [facebookAccount, instagramAccount, youtubeAccount, threadsAccount, blueskyAccount, pinterestAccount, linkedinAccount]);
+    { id: "discord", name: "Discord", shortName: "DC", color: "#5865F2", accent: "from-indigo-500 via-purple-500 to-pink-500", connected: Boolean(discordAccount), handle: discordAccount?.account_name || "Ready to connect", avatarUrl: discordAccount?.account_avatar_url, lastSync: discordAccount ? "Synced just now" : "Not connected", health: discordAccount ? "excellent" : "offline" },
+    { id: "telegram", name: "Telegram", shortName: "TG", color: "#26A5E4", accent: "from-blue-400 via-sky-500 to-indigo-400", connected: Boolean(telegramAccount), handle: telegramAccount?.account_name || "Ready to connect", avatarUrl: telegramAccount?.account_avatar_url, lastSync: telegramAccount ? "Synced just now" : "Not connected", health: telegramAccount ? "excellent" : "offline" },
+  ], [facebookAccount, instagramAccount, youtubeAccount, threadsAccount, blueskyAccount, pinterestAccount, linkedinAccount, discordAccount, telegramAccount]);
 
   const togglePlatform = (id: string) => {
     const platformCfg = PLATFORM_CONFIG.find((c) => c.id === id);
@@ -1110,7 +1134,7 @@ export default function CreateClient({
 
                 {/* Platform-specific preview card */}
                 <div className={cn("rounded-lg border border-[#1f2528]/10 p-4",
-                  (previewTab || selectedPlatformDetails[0]?.id) === "discord" ? "bg-[#2b2d31]" : "bg-[#f9faf7]")}>
+                  (previewTab || selectedPlatformDetails[0]?.id) === "discord" ? "bg-[#f2f3f5]" : "bg-[#f9faf7]")}>
                   {(() => {
                     const activePlatformId = (previewTab || selectedPlatformDetails[0]?.id) as PlatformKey | undefined;
                     const activePlatform = selectedPlatformDetails.find((p) => p.id === activePlatformId) || selectedPlatformDetails[0];
@@ -1347,24 +1371,24 @@ export default function CreateClient({
 
                     // ── Discord ───────────────────────────────────────────
                     if (id === "discord") return (
-                      <div className="bg-[#313338] rounded-xl p-3 -m-4">
+                      <div className="bg-white rounded-xl p-3 -m-4 border border-[#e3e5e8]">
                         <div className="mb-2 flex items-start gap-2.5">
                           <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#5865f2] shadow-sm mt-0.5">
                             <PlatformLogo id="discord" className="h-4 w-4 text-white" />
                           </span>
                           <div className="min-w-0 flex-1">
                             <div className="flex items-baseline gap-2">
-                              <span className="text-sm font-bold text-white">{displayName}</span>
-                              <span className="text-[10px] font-bold text-[#5865f2]">APP</span>
-                              <span className="text-[10px] text-[#949ba4]">Today {new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                              <span className="text-sm font-bold text-[#060607]">{displayName}</span>
+                              <span className="text-[10px] font-bold text-[#5865f2] bg-[#5865f2]/10 px-1 rounded">APP</span>
+                              <span className="text-[10px] text-[#747f8d]">Today {new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
                             </div>
-                            <p className="mt-0.5 whitespace-pre-wrap text-sm leading-relaxed text-[#dbdee1]">{caption || <span className="text-[#949ba4]">Your message will appear here.</span>}</p>
-                            {hasMedia && <div className="mt-2.5 rounded-lg overflow-hidden">{mediaNode("aspect-video w-full")}</div>}
+                            <p className="mt-0.5 whitespace-pre-wrap text-sm leading-relaxed text-[#2e3035]">{caption || <span className="text-[#747f8d]">Your message will appear here.</span>}</p>
+                            {hasMedia && <div className="mt-2.5 rounded-lg overflow-hidden border border-[#e3e5e8]">{mediaNode("aspect-video w-full")}</div>}
                           </div>
                         </div>
                         <div className="ml-10 flex items-center gap-1 mt-1">
-                          <button className="flex items-center gap-1 rounded-full border border-[#5865f2]/30 bg-[#5865f2]/10 px-2 py-0.5 text-[11px] text-[#dbdee1] hover:bg-[#5865f2]/20 transition-colors">😀 <span className="font-bold text-[#5865f2] ml-0.5">1</span></button>
-                          <button className="flex items-center gap-1 rounded-full border border-[#4e5058]/60 bg-[#2b2d31] px-2 py-0.5 text-[11px] text-[#949ba4] hover:bg-[#35373c] transition-colors"><Smile className="h-3 w-3" /> +</button>
+                          <button className="flex items-center gap-1 rounded-full border border-[#e3e5e8] bg-[#f2f3f5] px-2 py-0.5 text-[11px] text-[#2e3035] hover:bg-[#ebedef] transition-colors">😀 <span className="font-bold text-[#5865f2] ml-0.5">1</span></button>
+                          <button className="flex items-center gap-1 rounded-full border border-[#e3e5e8] bg-white px-2 py-0.5 text-[11px] text-[#4e5058] hover:bg-[#f2f3f5] transition-colors"><Smile className="h-3 w-3" /> +</button>
                         </div>
                       </div>
                     );

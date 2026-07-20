@@ -9,7 +9,7 @@ import {
   CheckCircle2, XCircle, AlertCircle, ImageIcon, Video
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { ScheduledPost, ScheduledPostStatus } from "@/lib/types";
+import type { ScheduledPost, ScheduledPostStatus } from "@/types";
 
 interface Props { posts: ScheduledPost[] }
 

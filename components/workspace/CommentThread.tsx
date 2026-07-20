@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { WorkspaceDraftComment } from "@/lib/types";
+import type { WorkspaceDraftComment } from "@/types";
 
 interface Props {
   draftId: string;

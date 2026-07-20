@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getAnalyticsDashboard, type AnalyticsAccount } from "@/lib/analytics/social-analytics";
 import { readWorkspaceAnalyticsCache, writeWorkspaceAnalyticsCache } from "@/lib/analytics/analytics-cache";
 import { getActionLabel } from "@/lib/workspace/activity-logger";
-import type { WorkspaceRole, ScheduledPost } from "@/lib/types";
+import type { WorkspaceRole, ScheduledPost } from "@/types";
 import { canViewTeamAnalytics } from "@/lib/workspace/permissions";
 
 export const dynamic = "force-dynamic";

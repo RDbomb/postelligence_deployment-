@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CalendarClock, Loader2, Rocket, XCircle, CalendarDays, List } from "lucide-react";
-import type { WorkspaceDraft, WorkspaceRole } from "@/lib/types";
+import type { WorkspaceDraft, WorkspaceRole } from "@/types";
 import TeamMiniCalendar from "@/components/workspace/TeamMiniCalendar";
 
 function formatDateTime(iso: string | null | undefined) {

@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { logActivity, WorkspaceActions } from "@/lib/workspace/activity-logger";
 import { canRequestReportChanges } from "@/lib/workspace/permissions";
 import { notifyWorkspaceUsers } from "@/lib/workspace/notifications";
-import type { WorkspaceRole } from "@/lib/types";
+import type { WorkspaceRole } from "@/types";
 
 export const dynamic = "force-dynamic";
 

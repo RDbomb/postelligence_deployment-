@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logActivity, WorkspaceActions } from "@/lib/workspace/activity-logger";
 import { canCreateDraft } from "@/lib/workspace/permissions";
-import type { WorkspaceRole, WorkspaceDraftStatus } from "@/lib/types";
+import type { WorkspaceRole, WorkspaceDraftStatus } from "@/types";
 
 export const dynamic = "force-dynamic";
 

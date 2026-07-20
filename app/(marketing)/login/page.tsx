@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { EmailAuthForm } from "@/components/email-auth-form";
-import { LoginButton } from "@/components/login-button";
+import { EmailAuthForm } from "@/components/auth/email-auth-form";
+import { LoginButton } from "@/components/auth/login-button";
 import { PageTransition } from "@/components/marketing/PageTransition";
 import { LoginShowcase } from "@/components/marketing/LoginShowcase";
 import { GlowAuthCard } from "@/components/marketing/GlowAuthCard";

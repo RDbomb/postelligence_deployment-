@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import DraftsClient from "./DraftsClient";
-import type { WorkspaceRole } from "@/lib/types";
+import type { WorkspaceRole } from "@/types";
 
 export const dynamic = "force-dynamic";
 

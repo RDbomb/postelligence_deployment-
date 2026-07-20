@@ -1,5 +1,5 @@
 import RoleBadge from "@/components/workspace/RoleBadge";
-import type { WorkspaceMember } from "@/lib/types";
+import type { WorkspaceMember } from "@/types";
 
 interface Props {
   member: WorkspaceMember;

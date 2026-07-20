@@ -2,7 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getTokenExpiry, refreshYouTubeAccessToken } from "@/lib/integrations/youtube";
 import { publishToDiscordWebhook } from "@/lib/integrations/discord";
 import { publishToTelegram } from "@/lib/integrations/telegram";
-import type { ScheduledPost } from "@/lib/types";
+import type { ScheduledPost } from "@/types";
 
 type PublishPlatform = "linkedin" | "youtube" | "bluesky" | "instagram" | "facebook" | "threads" | "twitter" | "pinterest" | "reddit" | "discord" | "telegram";
 
@@ -726,7 +726,7 @@ export async function runScheduler(): Promise<{ processed: number }> {
     throw new Error(error.message);
   }
 
-  await Promise.allSettled((duePosts || []).map((post) => processPost(post as ScheduledPost)));
+  await Promise.allSettled((duePosts || []).map((post: any) => processPost(post as ScheduledPost)));
   return { processed: duePosts?.length || 0 };
 }
 async function publishFacebook(account: StoredAccount, text: string, mediaUrl: string, mediaType: string, mediaUrls: string[]) {

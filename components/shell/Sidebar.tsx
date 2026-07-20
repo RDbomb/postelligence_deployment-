@@ -30,6 +30,7 @@ interface SidebarProps {
   };
   open: boolean;
   onToggle: () => void;
+  workspaceName?: string | null;
 }
 
 const menuItems = [
@@ -47,7 +48,7 @@ const menuItems = [
   { href: "/support", label: "Support", icon: LifeBuoy }
 ];
 
-export default function Sidebar({ user, open, onToggle }: SidebarProps) {
+export default function Sidebar({ user, open, onToggle, workspaceName }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [showUserMenu, setShowUserMenu] = useState(false);

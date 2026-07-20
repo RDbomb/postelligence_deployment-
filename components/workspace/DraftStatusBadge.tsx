@@ -1,4 +1,4 @@
-import type { WorkspaceDraftStatus } from "@/lib/types";
+import type { WorkspaceDraftStatus } from "@/types";
 
 interface Props {
   status: WorkspaceDraftStatus;

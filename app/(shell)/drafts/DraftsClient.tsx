@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import DraftStatusBadge from "@/components/workspace/DraftStatusBadge";
-import type { Draft, WorkspaceDraft, WorkspaceRole } from "@/lib/types";
+import type { Draft, WorkspaceDraft, WorkspaceRole } from "@/types";
 import { canApprove, canSubmit } from "@/lib/workspace/permissions";
 
 interface Props {

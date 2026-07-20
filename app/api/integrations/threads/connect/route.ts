@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { buildThreadsOAuthUrl } from "@/lib/integrations/threads";
 import { canManageSocialAccounts } from "@/lib/workspace/permissions";
-import type { WorkspaceRole } from "@/lib/types";
+import type { WorkspaceRole } from "@/types";
 
 export const dynamic = "force-dynamic";
 

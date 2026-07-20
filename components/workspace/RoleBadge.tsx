@@ -1,5 +1,5 @@
 import { getRoleLabel, getRoleBadgeClass } from "@/lib/workspace/permissions";
-import type { WorkspaceRole } from "@/lib/types";
+import type { WorkspaceRole } from "@/types";
 
 interface Props {
   role: WorkspaceRole;

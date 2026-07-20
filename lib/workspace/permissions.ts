@@ -1,4 +1,4 @@
-import type { WorkspaceRole } from "@/lib/types";
+import type { WorkspaceRole } from "@/types";
 
 // ── Can the role publish or schedule posts? ──────────────────
 export function canPublish(role: WorkspaceRole): boolean {

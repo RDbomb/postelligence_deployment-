@@ -19,3 +19,4 @@ yarn-error.log
 # Enforce yarn — other package managers' lockfiles should not be committed
 package-lock.json
 pnpm-lock.yaml
+pnpm-workspace.yaml

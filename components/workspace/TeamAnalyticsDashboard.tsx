@@ -13,7 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import RoleBadge from "@/components/workspace/RoleBadge";
 import { cn } from "@/lib/utils";
-import type { WorkspaceMember, WorkspaceRole, ScheduledPost } from "@/lib/types";
+import type { WorkspaceMember, WorkspaceRole, ScheduledPost } from "@/types";
 import type { AnalyticsDashboardData, AnalyticsPost } from "@/lib/analytics/social-analytics";
 import { canExportReports, canManageReportInsights, canSubmitReport, getRoleLabel } from "@/lib/workspace/permissions";
 

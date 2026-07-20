@@ -7,7 +7,7 @@ import {
   markWorkspaceCacheRefreshing,
   invalidateWorkspaceAnalyticsCache,
 } from "@/lib/analytics/analytics-cache";
-import type { WorkspaceRole, ScheduledPost } from "@/lib/types";
+import type { WorkspaceRole, ScheduledPost } from "@/types";
 import { canViewTeamAnalytics } from "@/lib/workspace/permissions";
 
 export const dynamic = "force-dynamic";

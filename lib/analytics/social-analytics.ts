@@ -1,4 +1,4 @@
-import type { ScheduledPost } from "@/lib/types";
+import type { ScheduledPost } from "@/types";
 import { refreshYouTubeAccessToken } from "@/lib/integrations/youtube";
 
 export type AnalyticsAccount = {

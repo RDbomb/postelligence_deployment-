@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createClient as createBaseClient } from "@supabase/supabase-js";
 import { getTokenExpiry, refreshYouTubeAccessToken } from "@/lib/integrations/youtube";
 import { canPublish } from "@/lib/workspace/permissions";
-import type { WorkspaceRole } from "@/lib/types";
+import type { WorkspaceRole } from "@/types";
 import { publishToDiscordWebhook } from "@/lib/integrations/discord";
 import { publishToTelegram } from "@/lib/integrations/telegram";
 

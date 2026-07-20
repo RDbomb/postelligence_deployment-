@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { SocialAccount } from "@/lib/integrations/social-accounts";
 import { getLocalSocialAccounts } from "@/lib/integrations/local-social-accounts";
-import type { ScheduledPost, WorkspaceRole } from "@/lib/types";
+import type { ScheduledPost, WorkspaceRole } from "@/types";
 import { getAnalyticsDashboard, type AnalyticsAccount } from "@/lib/analytics/social-analytics";
 import { readAnalyticsCache, writeAnalyticsCache } from "@/lib/analytics/analytics-cache";
 import AnalyticsClient from "./AnalyticsClient";

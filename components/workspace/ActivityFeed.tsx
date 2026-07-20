@@ -1,6 +1,6 @@
 "use client";
 
-import type { WorkspaceActivityLog } from "@/lib/types";
+import type { WorkspaceActivityLog } from "@/types";
 
 interface Props {
   logs: (WorkspaceActivityLog & { label: string })[];

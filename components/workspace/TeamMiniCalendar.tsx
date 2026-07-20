@@ -7,7 +7,7 @@ import {
   ChevronLeft, ChevronRight, X, Loader2, Rocket,
   Check, Clock, CalendarClock, CheckCircle2, XCircle, ExternalLink,
 } from "lucide-react";
-import type { WorkspaceDraft, WorkspaceDraftStatus, WorkspaceRole } from "@/lib/types";
+import type { WorkspaceDraft, WorkspaceDraftStatus, WorkspaceRole } from "@/types";
 import { canPublish } from "@/lib/workspace/permissions";
 
 interface Props {

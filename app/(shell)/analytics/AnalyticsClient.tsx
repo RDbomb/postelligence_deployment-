@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { SocialAccount } from "@/lib/integrations/social-accounts";
 import type { AnalyticsDashboardData } from "@/lib/analytics/social-analytics";
-import type { ScheduledPost, WorkspaceRole } from "@/lib/types";
+import type { ScheduledPost, WorkspaceRole } from "@/types";
 import { canViewTeamAnalytics, canViewReportsSection } from "@/lib/workspace/permissions";
 import TeamAnalyticsDashboard from "@/components/workspace/TeamAnalyticsDashboard";
 import ReportsPanel from "@/components/workspace/ReportsPanel";

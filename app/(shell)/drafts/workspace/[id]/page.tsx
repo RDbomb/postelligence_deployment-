@@ -2,7 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import WorkspaceDraftDetailClient from "./WorkspaceDraftDetailClient";
-import type { WorkspaceRole } from "@/lib/types";
+import type { WorkspaceRole } from "@/types";
 
 export default async function WorkspaceDraftDetailPage({
   params,

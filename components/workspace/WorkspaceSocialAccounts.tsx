@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Link2, Unlink, Loader2, ShieldCheck } from "lucide-react";
 import { canManageSocialAccounts } from "@/lib/workspace/permissions";
-import type { WorkspaceRole } from "@/lib/types";
+import type { WorkspaceRole } from "@/types";
 
 interface WorkspaceAccount {
   id: string;

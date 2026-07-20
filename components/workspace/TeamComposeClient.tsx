@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Loader2, ShieldCheck } from "lucide-react";
 import type { SocialAccount } from "@/lib/integrations/social-accounts";
-import type { WorkspaceRole } from "@/lib/types";
+import type { WorkspaceRole } from "@/types";
 import { canCreateDraft, canEditDraft } from "@/lib/workspace/permissions";
 import CreateClient from "@/app/(shell)/create/CreateClient";
 

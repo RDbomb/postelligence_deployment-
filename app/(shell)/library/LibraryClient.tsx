@@ -9,7 +9,7 @@ import {
   ChevronLeft, ChevronRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { MediaLibraryItem } from "@/lib/types";
+import type { MediaLibraryItem } from "@/types";
 
 interface Props {
   items: MediaLibraryItem[];

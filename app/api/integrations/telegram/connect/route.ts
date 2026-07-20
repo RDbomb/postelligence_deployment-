@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { fetchTelegramBotInfo, fetchTelegramChatInfo, TELEGRAM_PLATFORM } from "@/lib/integrations/telegram";
 import { upsertSocialAccount } from "@/lib/integrations/upsert-social-account";
 import { canManageSocialAccounts } from "@/lib/workspace/permissions";
-import type { WorkspaceRole } from "@/lib/types";
+import type { WorkspaceRole } from "@/types";
 
 export const dynamic = "force-dynamic";
 

@@ -7,7 +7,7 @@ import {
   Loader2, Lock, MessageSquareWarning, Pencil, Sparkles, Trash2, X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { WorkspaceRole } from "@/lib/types";
+import type { WorkspaceRole } from "@/types";
 import { canManageSubmittedReports, canRequestReportChanges, canSubmitReport } from "@/lib/workspace/permissions";
 import {
   downloadCsv, openPrintReport, reportCsvRows, reportPrintHtml,

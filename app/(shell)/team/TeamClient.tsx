@@ -15,7 +15,7 @@ import TeamScheduleClient from "@/components/workspace/TeamScheduleClient";
 import type {
   Workspace, WorkspaceMember, WorkspaceRole,
   WorkspaceActivityLog, WorkspaceInvite
-} from "@/lib/types";
+} from "@/types";
 import { ASSIGNABLE_ROLES, getRoleLabel } from "@/lib/workspace/permissions";
 
 interface Props {

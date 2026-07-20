@@ -10,10 +10,8 @@ Built with Next.js 14, Supabase, Tailwind CSS, and Recharts.
 
 Before you begin, make sure you have the following installed:
 
-- **Node.js v22.13+** — [Download here](https://nodejs.org/)
-- **pnpm v9+** — Install with `npm install -g pnpm@9`
-
-> **Note:** pnpm v10+ requires Node.js v22.13. If you're on an older Node version, install pnpm v9 specifically with `npm install -g pnpm@9`.
+- **Node.js v20+** — [Download here](https://nodejs.org/)
+- **Yarn v1.22+** — Install with `npm install -g yarn`
 
 ---
 
@@ -22,17 +20,10 @@ Before you begin, make sure you have the following installed:
 ### 1. Install dependencies
 
 ```bash
-pnpm install
+yarn install
 ```
 
-If you run into a `packages field missing` error, fix your `pnpm-workspace.yaml` first:
-
-```powershell
-# PowerShell (Windows)
-Set-Content -Path pnpm-workspace.yaml -Value "packages:`n  - '.'" -Encoding UTF8
-```
-
-Then run `pnpm install` again.
+This project uses Yarn as its package manager. Do not use `npm install` or `pnpm install` — they generate competing lockfiles that will drift from `yarn.lock`.
 
 ---
 
@@ -53,7 +44,7 @@ Open `.env.local` and replace each placeholder value with your actual credential
 **Standard HTTP (recommended for local dev):**
 
 ```bash
-pnpm dev
+yarn dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
@@ -61,7 +52,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 **HTTPS (required for some OAuth callbacks like Instagram):**
 
 ```bash
-pnpm dev:https
+yarn dev:https
 ```
 
 Open [https://localhost:3000](https://localhost:3000) in your browser. SSL certificates are pre-generated in the `certificates/` folder.
@@ -143,7 +134,7 @@ npx supabase functions deploy bluesky-video-upload --project-ref YOUR_PROJECT_RE
 | Auth & Database | Supabase (PostgreSQL + Auth) |
 | File Storage | Supabase Storage |
 | Edge Functions | Supabase Edge Functions (Deno) |
-| Package Manager | pnpm |
+| Package Manager | Yarn (v1 Classic) |
 
 ---
 

@@ -23,7 +23,7 @@ In simple words: instead of opening 8 different apps and posting the same conten
 | Icons | **lucide-react** | A consistent icon set used across the whole dashboard. |
 | Auth & Database | **Supabase** | Handles user login (Google OAuth) and stores connected social accounts in a Postgres database. |
 | File storage | **Supabase Storage** | Stores images/videos the user uploads so platforms like Facebook/Instagram can fetch them via a public URL. |
-| Package manager | **pnpm** | Faster, disk-efficient alternative to npm/yarn. |
+| Package manager | **Yarn** (v1 Classic) | Deterministic installs via a committed `yarn.lock`. |
 
 ---
 

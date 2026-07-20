@@ -1,0 +1,7 @@
+echo "→ linting (whole project)..."
+npx eslint .
+
+echo "→ building (also type-checks)..."
+npx next build
+
+echo "✓ pre-push checks passed"

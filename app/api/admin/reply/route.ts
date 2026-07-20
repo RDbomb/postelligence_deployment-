@@ -29,7 +29,8 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ ticket: data });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Failed to update support ticket" }, { status: 500 });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "";
+    return NextResponse.json({ error: message || "Failed to update support ticket" }, { status: 500 });
   }
 }

@@ -3,6 +3,27 @@ import { createClient } from "@supabase/supabase-js";
 import fs from "fs";
 import path from "path";
 
+interface SupportTicketMessage {
+  sender: "user" | "admin";
+  text: string;
+  time: string;
+}
+
+interface AdminSupportTicket {
+  id: string;
+  user_id: string;
+  subject: string;
+  description: string | null;
+  status: string;
+  images: string[] | null;
+  messages: SupportTicketMessage[] | null;
+  typing_status: { user?: boolean; admin?: boolean } | null;
+  created_at: string;
+  updated_at?: string | null;
+  user_email: string;
+  user_name: string;
+}
+
 export async function POST(req: Request) {
   try {
     const { email, password } = await req.json();
@@ -30,7 +51,7 @@ export async function POST(req: Request) {
       .select("*", { count: "exact", head: true });
 
     // 2. Fetch live support tickets from DB (with fallback if table does not exist yet)
-    let liveTickets: any[] = [];
+    let liveTickets: AdminSupportTicket[] = [];
     try {
       const { data, error } = await supabase
         .from("support_tickets")
@@ -115,7 +136,8 @@ export async function POST(req: Request) {
       posts: scheduledPosts || [],
       chatSupportEnabled
     });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Failed to retrieve admin data" }, { status: 500 });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "";
+    return NextResponse.json({ error: message || "Failed to retrieve admin data" }, { status: 500 });
   }
 }

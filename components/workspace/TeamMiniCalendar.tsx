@@ -97,7 +97,7 @@ export default function TeamMiniCalendar({ workspaceId, currentRole }: Props) {
   };
 
   useEffect(() => {
-    void refresh();
+    void (async () => { await refresh(); })();
     // No cron runs locally — this poll just keeps the grid in sync with
     // whatever the scheduler (or a teammate) does in the background,
     // mirroring solo Calendar's 30s refresh.

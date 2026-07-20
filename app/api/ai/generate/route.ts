@@ -350,7 +350,7 @@ export async function POST(req: NextRequest) {
         const countrySuffix = (!isGlobal && geoNames[geo]) ? ` ${geoNames[geo]}` : "";
         const finalQuery = keyword ? `${keyword}${countrySuffix}` : "";
 
-        let items: { title: string; approxTraffic: string; newsTitle: string; explanation: string }[] = [];
+        const items: { title: string; approxTraffic: string; newsTitle: string; explanation: string }[] = [];
         try {
           let url = "";
           if (keyword) {

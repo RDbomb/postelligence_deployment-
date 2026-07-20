@@ -40,34 +40,42 @@ export default function Topbar({ onMobileMenuToggle }: TopbarProps) {
 
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
-  const [loading, setLoading] = useState(false);
+  // The trimmed query that `results` actually belongs to. Tracking it lets
+  // both the spinner and the visible result list be derived during render
+  // instead of being pushed into state from the search effect.
+  const [resultsQuery, setResultsQuery] = useState("");
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  const trimmedQuery = query.trim();
+  const isSearchable = trimmedQuery.length >= 2;
+  const loading = isSearchable && resultsQuery !== trimmedQuery;
+  const visibleResults = isSearchable && resultsQuery === trimmedQuery ? results : [];
+
   // Debounced live search against /api/search
   useEffect(() => {
-    const trimmed = query.trim();
-    if (trimmed.length < 2) {
-      setResults([]);
-      setLoading(false);
-      return;
-    }
+    if (!isSearchable) return;
 
-    setLoading(true);
+    let cancelled = false;
     const timeout = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(trimmed)}`);
-        if (res.ok) {
-          const data = await res.json();
-          setResults(data.results || []);
-        }
+        const res = await fetch(`/api/search?q=${encodeURIComponent(trimmedQuery)}`);
+        if (cancelled || !res.ok) return;
+        const data = await res.json();
+        if (cancelled) return;
+        setResults(data.results || []);
       } finally {
-        setLoading(false);
+        // Mark this query as settled either way, so a failed request stops
+        // the spinner exactly as it did before.
+        if (!cancelled) setResultsQuery(trimmedQuery);
       }
     }, 300);
 
-    return () => clearTimeout(timeout);
-  }, [query]);
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+    };
+  }, [trimmedQuery, isSearchable]);
 
   // Close the results dropdown on outside click
   useEffect(() => {
@@ -84,6 +92,7 @@ export default function Topbar({ onMobileMenuToggle }: TopbarProps) {
     setOpen(false);
     setQuery("");
     setResults([]);
+    setResultsQuery("");
     router.push(href);
   }
 
@@ -125,10 +134,10 @@ export default function Topbar({ onMobileMenuToggle }: TopbarProps) {
           {/* Results dropdown */}
           {open && query.trim().length >= 2 && (
             <div className="absolute right-0 top-12 z-40 max-h-96 w-80 overflow-y-auto rounded-xl border border-[#1f2528]/12 bg-white shadow-xl">
-              {results.length === 0 && !loading && (
+              {visibleResults.length === 0 && !loading && (
                 <p className="px-4 py-3 text-xs text-slate-400">No matches in drafts, posts, media, or team content.</p>
               )}
-              {results.map((result) => {
+              {visibleResults.map((result) => {
                 const Icon =
                   result.type === "draft" ? FileText :
                   result.type === "scheduled" ? CalendarClock :

@@ -57,6 +57,8 @@ export default async function AnalyticsPage() {
     void writeAnalyticsCache(user.id, analytics);
   }
 
+  const workspace: { id: string; name: string } | null = membership?.workspace ?? null;
+
   const publicAccounts = accounts.map(({ access_token: _a, refresh_token: _r, token_expires_at: _t, ...account }) => ({
     ...account,
     metadata: sanitizeMetadata(account.metadata),
@@ -70,7 +72,7 @@ export default async function AnalyticsPage() {
       servedFromCache={servedFromCache}
       cacheStale={cacheStale}
       isInWorkspace={!!membership}
-      workspaceId={(membership?.workspace as any)?.id}
+      workspaceId={workspace?.id}
       currentRole={membership?.role as WorkspaceRole | null}
     />
   );

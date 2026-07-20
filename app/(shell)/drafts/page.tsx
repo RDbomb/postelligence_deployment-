@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import DraftsClient from "./DraftsClient";
-import type { WorkspaceRole } from "@/types";
+import type { WorkspaceDraft, WorkspaceRole } from "@/types";
 
 export const dynamic = "force-dynamic";
 
@@ -36,7 +36,7 @@ export default async function DraftsPage() {
     .eq("user_id", user.id)
     .single();
 
-  let workspaceDrafts: any[] = [];
+  let workspaceDrafts: WorkspaceDraft[] = [];
   let currentRole: WorkspaceRole | null = null;
 
   if (membership) {

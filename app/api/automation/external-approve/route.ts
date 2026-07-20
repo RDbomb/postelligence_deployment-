@@ -156,9 +156,10 @@ export async function GET(req: NextRequest) {
 
     return renderHtmlResponse("Unsupported action.", false);
 
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("External Approval Action Error:", err);
-    return renderHtmlResponse(`Failed to process action: ${err.message || err}`, false);
+    const detail = err instanceof Error && err.message ? err.message : String(err);
+    return renderHtmlResponse(`Failed to process action: ${detail}`, false);
   }
 }
 

@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Loader2, Save, Upload, RotateCcw, X, Crop } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { motion, AnimatePresence } from "framer-motion";
+import type { User } from "@supabase/supabase-js";
 
 const ALL_PLATFORMS = [
   { id: "instagram",  label: "Instagram",  color: "#E1306C" },
@@ -38,7 +39,13 @@ const COUNTRIES = [
   { code: "+81", country: "JP", label: "Japan (+81)", digits: 10 },
 ];
 
-function DefaultAvatarItem({ av, isSelected, onClick }: { av: any; isSelected: boolean; onClick: () => void }) {
+interface AvatarOption {
+  id: string;
+  url: string;
+  isGoogle?: boolean;
+}
+
+function DefaultAvatarItem({ av, isSelected, onClick }: { av: AvatarOption; isSelected: boolean; onClick: () => void }) {
   const [error, setError] = useState(false);
   if (error) return null;
   return (
@@ -73,7 +80,7 @@ function DefaultAvatarItem({ av, isSelected, onClick }: { av: any; isSelected: b
 
 interface Props {
   initialDefaultPlatforms: string[];
-  initialUser: any;
+  initialUser: User | null;
 }
 
 export default function SettingsClient({ initialDefaultPlatforms, initialUser }: Props) {
@@ -88,15 +95,14 @@ export default function SettingsClient({ initialDefaultPlatforms, initialUser }:
   // Profile details
   const [fullName, setFullName] = useState(initialUser?.user_metadata?.full_name || initialUser?.user_metadata?.name || "");
   const [avatarUrl, setAvatarUrl] = useState(initialUser?.user_metadata?.avatar_url || "");
-  const [avatarLoadError, setAvatarLoadError] = useState(false);
+  // Remembers which avatar URL failed to load, so the error state resets
+  // automatically as soon as a different avatar is selected.
+  const [failedAvatarUrl, setFailedAvatarUrl] = useState<string | null>(null);
+  const avatarLoadError = !!avatarUrl && failedAvatarUrl === avatarUrl;
   const [uploading, setUploading] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setAvatarLoadError(false);
-  }, [avatarUrl]);
 
   // Phone states
   const [countryCode, setCountryCode] = useState(initialUser?.user_metadata?.phone_country_code || "+91");
@@ -299,7 +305,7 @@ export default function SettingsClient({ initialDefaultPlatforms, initialUser }:
                   src={avatarUrl}
                   alt={fullName}
                   className="h-24 w-24 rounded-full object-cover border border-[#1f2528]/12 shadow-sm"
-                  onError={() => setAvatarLoadError(true)}
+                  onError={() => setFailedAvatarUrl(avatarUrl)}
                 />
               ) : (
                 <div className="flex h-24 w-24 items-center justify-center rounded-full bg-[#2f7867]/10 text-2xl font-bold text-[#2f7867] border border-[#2f7867]/20">
@@ -320,7 +326,7 @@ export default function SettingsClient({ initialDefaultPlatforms, initialUser }:
                 <span className="text-xs font-bold text-slate-500">Select Default Avatar</span>
                 {/* Horizontal row of default avatars */}
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {defaultAvatars.map((av: any) => {
+                  {defaultAvatars.map((av) => {
                     const isSelected = avatarUrl === av.url;
                     return (
                       <DefaultAvatarItem

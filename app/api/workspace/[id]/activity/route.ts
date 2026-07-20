@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getActionLabel } from "@/lib/workspace/activity-logger";
+import { getActionLabel, type WorkspaceAction } from "@/lib/workspace/activity-logger";
 import type { WorkspaceRole, WorkspaceActivityLog } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -52,7 +52,7 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
         ...log,
         user_name:   userName,
         user_avatar: avatarUrl,
-        label:       getActionLabel(log.action as any, metadata),
+        label:       getActionLabel(log.action as WorkspaceAction, metadata),
       } as WorkspaceActivityLog & { label: string };
     })
   );

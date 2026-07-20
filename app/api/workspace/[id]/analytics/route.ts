@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAnalyticsDashboard, type AnalyticsAccount } from "@/lib/analytics/social-analytics";
 import { readWorkspaceAnalyticsCache, writeWorkspaceAnalyticsCache } from "@/lib/analytics/analytics-cache";
-import { getActionLabel } from "@/lib/workspace/activity-logger";
+import { getActionLabel, type WorkspaceAction } from "@/lib/workspace/activity-logger";
 import type { WorkspaceRole, ScheduledPost } from "@/types";
 import { canViewTeamAnalytics } from "@/lib/workspace/permissions";
 
@@ -116,7 +116,7 @@ export async function GET(_req: NextRequest, props: { params: Promise<{ id: stri
       created_at: log.created_at,
       user_name: actor?.name || "Unknown",
       user_avatar: actor?.avatar || "",
-      label: getActionLabel(log.action as any, metadata),
+      label: getActionLabel(log.action as WorkspaceAction, metadata),
       metadata: rawMetadata,
     };
   });

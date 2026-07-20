@@ -175,15 +175,19 @@ export default function AnalyticsClient({
   const [mainTab, setMainTab] = useState<"personal" | "team" | "reports">("personal");
   const searchParams = useSearchParams();
 
-  useEffect(() => {
-    const tab = searchParams.get("tab");
-    if (tab === "reports" && showReportsTab) {
+  // Sync the active tab with the "?tab=" URL param. Adjusting state during
+  // render (rather than in an effect) avoids the extra pass that would render
+  // the personal tab first and immediately swap it out.
+  const tabParam = searchParams.get("tab");
+  const [appliedTabParam, setAppliedTabParam] = useState<string | null>(null);
+  if (tabParam !== appliedTabParam) {
+    setAppliedTabParam(tabParam);
+    if (tabParam === "reports" && showReportsTab) {
       setMainTab("reports");
-    } else if (tab === "team" && showTeamTab) {
+    } else if (tabParam === "team" && showTeamTab) {
       setMainTab("team");
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, showReportsTab, showTeamTab]);
+  }
 
   const triggerBackgroundRefresh = useCallback(async () => {
     if (cacheStatus !== "stale") return;

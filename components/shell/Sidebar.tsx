@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -52,11 +52,12 @@ export default function Sidebar({ user, open, onToggle, workspaceName }: Sidebar
   const pathname = usePathname();
   const router = useRouter();
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [avatarError, setAvatarError] = useState(false);
-
-  useEffect(() => {
-    setAvatarError(false);
-  }, [user?.user_metadata?.avatar_url]);
+  // Remember which avatar URL failed to load rather than a bare boolean, so
+  // switching to a different avatar re-attempts it automatically — no effect
+  // needed to reset the flag.
+  const [failedAvatarUrl, setFailedAvatarUrl] = useState<string | null>(null);
+  const avatarUrl = user?.user_metadata?.avatar_url;
+  const avatarError = avatarUrl != null && failedAvatarUrl === avatarUrl;
 
   const name = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split("@")[0] || "Creator";
   const initials = name.slice(0, 2).toUpperCase();
@@ -176,7 +177,7 @@ export default function Sidebar({ user, open, onToggle, workspaceName }: Sidebar
                 src={user.user_metadata.avatar_url}
                 alt={name}
                 className="h-9 w-9 rounded-full object-cover border border-[#1f2528]/12 shrink-0"
-                onError={() => setAvatarError(true)}
+                onError={() => setFailedAvatarUrl(user.user_metadata!.avatar_url ?? null)}
               />
             ) : (
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#2f7867]/10 text-xs font-bold text-[#2f7867] border border-[#2f7867]/20">

@@ -99,16 +99,19 @@ export default function CalendarClient({ posts: initialPosts }: Props) {
   // this re-runs whenever the URL's "open" param changes (not just on
   // first mount), so clicking a different search result while already on
   // this page still opens the new post.
-  useEffect(() => {
-    const openId = searchParams.get("open");
-    if (!openId) return;
-    const match = posts.find((p) => p.id === openId);
-    if (match) {
-      setDetailPost(match);
-      setCalMonth(new Date(match.scheduled_time));
-      setDayPopup(null);
+  const openId = searchParams.get("open");
+  const [appliedOpenId, setAppliedOpenId] = useState<string | null>(null);
+  if (openId !== appliedOpenId) {
+    setAppliedOpenId(openId);
+    if (openId) {
+      const match = posts.find((p) => p.id === openId);
+      if (match) {
+        setDetailPost(match);
+        setCalMonth(new Date(match.scheduled_time));
+        setDayPopup(null);
+      }
     }
-  }, [searchParams, posts]);
+  }
 
 
   // Dismiss the detail panel, and if it was opened via a "?open=" deep
@@ -146,10 +149,16 @@ export default function CalendarClient({ posts: initialPosts }: Props) {
     setPosts(posts || []);
   };
 
+  // Poll the server for schedule changes. The initial catch-up refresh is
+  // scheduled as a task rather than run inline so this effect only ever
+  // subscribes — state lands from the fetch/interval callbacks.
   useEffect(() => {
-    void refreshPosts();
+    const initial = window.setTimeout(() => void refreshPosts(), 0);
     const id = window.setInterval(() => void refreshPosts(), 30_000);
-    return () => window.clearInterval(id);
+    return () => {
+      window.clearTimeout(initial);
+      window.clearInterval(id);
+    };
   }, []);
 
   const deletePost = async (id: string) => {
@@ -182,14 +191,14 @@ export default function CalendarClient({ posts: initialPosts }: Props) {
     setPublishingId(post.id);
     try {
       const isYouTube = post.platforms.includes("youtube");
-      const hasYouTubeVideoId = !!(post as any).youtube_video_id;
+      const hasYouTubeVideoId = !!post.youtube_video_id;
 
       if (isYouTube && hasYouTubeVideoId) {
         // YouTube video is already uploaded as private — just flip it to public
         const res = await fetch("/api/media/publish-youtube", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ youtube_video_id: (post as any).youtube_video_id }),
+          body: JSON.stringify({ youtube_video_id: post.youtube_video_id }),
         });
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));

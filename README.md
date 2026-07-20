@@ -121,6 +121,50 @@ npx supabase functions deploy bluesky-video-upload --project-ref YOUR_PROJECT_RE
 
 ---
 
+## Code Quality & Git Hooks
+
+Hooks are managed by [husky](https://typicode.github.io/husky/) and installed automatically by `yarn install`.
+
+| Hook | Runs | Blocks on |
+|---|---|---|
+| `pre-commit` | `lint-staged` → `eslint --fix` on staged files | any remaining ESLint **error** |
+| `commit-msg` | `commitlint` | message not matching Conventional Commits |
+| `pre-push` | `eslint .` then `next build` (type-checks too) | any lint error or build/type failure |
+
+### Commit message format
+
+Commits must follow [Conventional Commits](https://www.conventionalcommits.org/):
+
+```
+type(optional scope): subject
+```
+
+Allowed types: `feat`, `fix`, `refactor`, `perf`, `docs`, `style`, `test`, `build`, `ci`, `chore`, `revert`.
+Subject must be lower-case, non-empty, no trailing period; header ≤100 chars.
+
+```bash
+# accepted
+feat(automation): add discord webhook publishing
+fix(auth): handle expired youtube refresh token
+chore(deps): upgrade next to 16
+
+# rejected
+discord added
+Fixed the thing.
+```
+
+### Useful scripts
+
+```bash
+yarn lint         # eslint across the project
+yarn lint:fix     # eslint with --fix
+yarn typecheck    # tsc --noEmit
+```
+
+> **Bypassing hooks** (`--no-verify`) is discouraged — `pre-push` is the last gate before shared branches.
+
+---
+
 ## Tech Stack
 
 | Layer | Technology |

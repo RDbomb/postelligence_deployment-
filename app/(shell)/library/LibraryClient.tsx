@@ -46,12 +46,24 @@ export default function LibraryClient({ items: initialItems }: Props) {
   // this re-runs any time the URL's "open" param changes, not just on
   // first mount, so clicking a different search result while already on
   // this page still opens the new item.
-  useEffect(() => {
-    const openId = searchParams.get("open");
-    if (!openId) return;
-    const match = items.find((i) => i.id === openId);
-    if (match) setPreviewItem(match);
-  }, [searchParams, items]);
+  const openId = searchParams.get("open");
+  const [appliedOpenId, setAppliedOpenId] = useState<string | null>(null);
+  if (openId !== appliedOpenId) {
+    setAppliedOpenId(openId);
+    if (openId) {
+      const match = items.find((i) => i.id === openId);
+      if (match) setPreviewItem(match);
+    }
+  }
+
+  const closePreview = () => {
+    setPreviewItem(null);
+    if (searchParams.get("open")) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("open");
+      router.replace(params.toString() ? `/library?${params.toString()}` : "/library");
+    }
+  };
 
   // Listen to arrow keys for navigation
   useEffect(() => {
@@ -78,15 +90,6 @@ export default function LibraryClient({ items: initialItems }: Props) {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [previewItem, filtered]);
-
-  const closePreview = () => {
-    setPreviewItem(null);
-    if (searchParams.get("open")) {
-      const params = new URLSearchParams(searchParams.toString());
-      params.delete("open");
-      router.replace(params.toString() ? `/library?${params.toString()}` : "/library");
-    }
-  };
 
   const showToast = (msg: string, type: "success" | "error" = "success") => {
     setToast({ msg, type });
@@ -132,7 +135,7 @@ export default function LibraryClient({ items: initialItems }: Props) {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const useInPost = (item: MediaLibraryItem) => {
+  const sendToComposer = (item: MediaLibraryItem) => {
     // Navigate to create page — the media URL can be pasted in
     window.location.href = `/create?mediaUrl=${encodeURIComponent(item.file_url)}`;
   };
@@ -391,7 +394,7 @@ export default function LibraryClient({ items: initialItems }: Props) {
                     )}
                   </Button>
                   <button
-                    onClick={() => { useInPost(previewItem); setPreviewItem(null); }}
+                    onClick={() => { sendToComposer(previewItem); setPreviewItem(null); }}
                     className="btn-liquid-glass relative flex h-10 items-center gap-2 rounded-xl px-5 text-xs font-bold text-[#1a3d34] shadow-[0_4px_16px_rgba(47,120,103,0.18)]"
                   >
                     <Plus className="h-4 w-4 relative z-10" />

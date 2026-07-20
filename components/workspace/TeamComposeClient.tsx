@@ -32,10 +32,14 @@ export default function TeamComposeClient({
   editDraftId?: string | null;
 }) {
   const [accounts, setAccounts] = useState<SocialAccount[]>([]);
-  const [loading, setLoading]   = useState(true);
+  const [accountsLoaded, setAccountsLoaded] = useState(false);
   const [error, setError]       = useState<string | null>(null);
 
-  const [draftLoaded, setDraftLoaded] = useState(!editDraftId);
+  // Which draft the prefill state currently holds. Comparing it against the
+  // requested `editDraftId` derives the "loading draft" flag during render, so
+  // neither fetch effect needs a synchronous setState.
+  const [loadedDraftId, setLoadedDraftId] = useState<string | null>(null);
+  const draftLoaded = !editDraftId || loadedDraftId === editDraftId;
   const [draftTitle, setDraftTitle]       = useState("");
   const [draftCaption, setDraftCaption]   = useState("");
   const [draftMediaUrl, setDraftMediaUrl] = useState("");
@@ -47,8 +51,12 @@ export default function TeamComposeClient({
   // Owner can edit any draft, not just ones they authored).
   const allowed = editDraftId ? canEditDraft(currentRole) : canCreateDraft(currentRole);
 
+  // Only meaningful when `allowed` — the permission notice below returns
+  // before the loading state is ever consulted.
+  const loading = allowed && !accountsLoaded;
+
   useEffect(() => {
-    if (!allowed) { setLoading(false); return; }
+    if (!allowed) return;
     let cancelled = false;
     (async () => {
       try {
@@ -56,7 +64,8 @@ export default function TeamComposeClient({
         const data = await res.json();
         if (cancelled) return;
         if (!res.ok) throw new Error(data.error || "Failed to load connected accounts.");
-        const mapped: SocialAccount[] = (data.accounts || []).map((a: any) => ({
+        type WorkspaceAccountRow = Omit<SocialAccount, "scopes" | "workspace_id">;
+        const mapped: SocialAccount[] = (data.accounts || []).map((a: WorkspaceAccountRow) => ({
           id: a.id,
           platform: a.platform,
           account_id: a.account_id,
@@ -74,7 +83,7 @@ export default function TeamComposeClient({
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load connected accounts.");
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setAccountsLoaded(true);
       }
     })();
     return () => { cancelled = true; };
@@ -85,7 +94,6 @@ export default function TeamComposeClient({
   useEffect(() => {
     if (!editDraftId || !allowed) return;
     let cancelled = false;
-    setDraftLoaded(false);
     (async () => {
       try {
         const res = await fetch(`/api/workspace/drafts/${editDraftId}`);
@@ -101,7 +109,7 @@ export default function TeamComposeClient({
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load draft.");
       } finally {
-        if (!cancelled) setDraftLoaded(true);
+        if (!cancelled) setLoadedDraftId(editDraftId);
       }
     })();
     return () => { cancelled = true; };
@@ -116,7 +124,7 @@ export default function TeamComposeClient({
         </p>
         <p className="text-sm text-gray-400 mt-1 max-w-sm mx-auto">
           As {currentRole === "manager" ? "a Manager" : "an Analyst"}, you review, approve, schedule, and publish
-          drafts once a Creator submits them — head to the Schedule or Members tab to see what's in progress.
+          drafts once a Creator submits them — head to the Schedule or Members tab to see what&apos;s in progress.
         </p>
       </div>
     );

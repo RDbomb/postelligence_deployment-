@@ -13,8 +13,12 @@ export const dynamic = "force-dynamic";
 // Owner and Manager can send a submitted report back to the Analyst
 // for edits — this is the one exception to "Analyst can't modify a
 // report after submission."
-export async function POST(req: NextRequest, { params }: { params: { id: string; reportId: string } }) {
-  const supabase = createClient();
+export async function POST(
+  req: NextRequest,
+  props: { params: Promise<{ id: string; reportId: string }> }
+) {
+  const params = await props.params;
+  const supabase = await createClient();
   const admin    = createAdminClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

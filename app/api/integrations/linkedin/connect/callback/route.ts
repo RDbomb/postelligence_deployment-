@@ -16,7 +16,7 @@ export async function GET(request: Request) {
   const code = requestUrl.searchParams.get("code");
   const state = requestUrl.searchParams.get("state");
   const oauthError = requestUrl.searchParams.get("error");
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const redirect = (status: "connected" | "error", message?: string) => {
     const url = new URL("/dashboard", requestUrl.origin);
@@ -33,7 +33,7 @@ export async function GET(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.redirect(new URL("/", requestUrl.origin));
 
-  const raw = cookies().get("postelligence_linkedin_oauth_state")?.value;
+  const raw = (await cookies()).get("postelligence_linkedin_oauth_state")?.value;
   let cookieState: { state?: string; userId?: string } | null = null;
   try { cookieState = raw ? JSON.parse(raw) : null; } catch { cookieState = null; }
 

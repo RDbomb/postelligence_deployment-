@@ -10,11 +10,9 @@ export const dynamic = "force-dynamic";
 // ── POST /api/workspace/drafts/[id]/cancel-schedule ─────────
 // Owner/Manager cancels a pending scheduled post and returns the draft to
 // "approved" so it can be rescheduled, published now, or edited again.
-export async function POST(
-  _req: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  const supabase = createClient();
+export async function POST(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const supabase = await createClient();
   const admin    = createAdminClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

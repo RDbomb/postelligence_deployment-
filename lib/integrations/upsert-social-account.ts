@@ -19,7 +19,7 @@ import type { createClient } from "@/lib/supabase/server";
 // Rather than upsert-with-onConflict, do the lookup ourselves and issue an
 // explicit insert or update. This works regardless of the partial indexes.
 export async function upsertSocialAccount(
-  supabase: ReturnType<typeof createClient>,
+  supabase: Awaited<ReturnType<typeof createClient>>,
   record: Record<string, unknown> & {
     user_id: string;
     workspace_id?: string | null;

@@ -13,8 +13,12 @@ export const dynamic = "force-dynamic";
 // and Team & Platform Analytics, exactly as they were at submission
 // time. Owner/Manager may open any report; the Analyst may only open
 // their own submissions.
-export async function GET(_req: NextRequest, { params }: { params: { id: string; reportId: string } }) {
-  const supabase = createClient();
+export async function GET(
+  _req: NextRequest,
+  props: { params: Promise<{ id: string; reportId: string }> }
+) {
+  const params = await props.params;
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -69,8 +73,12 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string;
 // has actually been archived — a live "submitted" or
 // "changes_requested" report can't be deleted out from under the
 // Analyst.
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string; reportId: string } }) {
-  const supabase = createClient();
+export async function DELETE(
+  _req: NextRequest,
+  props: { params: Promise<{ id: string; reportId: string }> }
+) {
+  const params = await props.params;
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

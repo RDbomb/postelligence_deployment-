@@ -5,7 +5,7 @@ import AutomationClient from "./AutomationClient";
 export const dynamic = "force-dynamic";
 
 export default async function AutomationPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 

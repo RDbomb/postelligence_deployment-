@@ -7,18 +7,19 @@ import CreateClient from "./CreateClient";
 export const dynamic = "force-dynamic";
 
 type CreatePageProps = {
-  searchParams?: {
+  searchParams?: Promise<{
     youtube?: string; meta?: string; instagram?: string; twitter?: string;
     threads?: string; bluesky?: string; pinterest?: string; linkedin?: string;
     reddit?: string; mediaUrl?: string; title?: string; caption?: string;
     platforms?: string; message?: string;
     workspaceDraftId?: string;
     draftId?: string;
-  };
+  }>;
 };
 
-export default async function CreatePostPage({ searchParams }: CreatePageProps) {
-  const supabase = createClient();
+export default async function CreatePostPage(props: CreatePageProps) {
+  const searchParams = await props.searchParams;
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 

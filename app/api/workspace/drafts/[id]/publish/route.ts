@@ -23,11 +23,9 @@ function mediaTypeFor(url: string) {
 //                                draft.status = "scheduled"
 //   - scheduled_time omitted  -> publish immediately, draft.status =
 //                                "published" or "failed"
-export async function POST(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  const supabase = createClient();
+export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const supabase = await createClient();
   const admin    = createAdminClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -231,11 +229,9 @@ export async function POST(
 
 // ── PATCH /api/workspace/drafts/[id]/publish ────────────────
 // Reschedule an already-scheduled draft to a new time.
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  const supabase = createClient();
+export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

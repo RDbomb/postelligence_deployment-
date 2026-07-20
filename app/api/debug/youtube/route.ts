@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 // GET /api/debug/youtube?post_id=xxx  — call this manually to see exact error
 export async function GET(req: NextRequest) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

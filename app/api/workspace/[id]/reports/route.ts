@@ -11,8 +11,9 @@ export const dynamic = "force-dynamic";
 // report in the workspace; the Analyst sees only the reports they
 // personally submitted (their submission history). Creator/Manager-
 // without-permission get a 403 — Manager can view but not manage.
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
-  const supabase = createClient();
+export async function GET(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

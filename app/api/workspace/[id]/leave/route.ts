@@ -9,11 +9,9 @@ export const dynamic = "force-dynamic";
 // Lets the current user leave a workspace they're a member of.
 // Owners cannot leave their own workspace — they created it, so
 // the only way out is to dismiss (delete) the whole workspace.
-export async function POST(
-  _req: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  const supabase = createClient();
+export async function POST(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

@@ -5,7 +5,7 @@ import { THREADS_PLATFORM } from "@/lib/integrations/threads";
 export const dynamic = "force-dynamic";
 
 export async function DELETE() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) return NextResponse.json({ error: "Not signed in." }, { status: 401 });

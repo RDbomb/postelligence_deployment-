@@ -8,7 +8,7 @@ import type { WorkspaceRole } from "@/types";
 export const dynamic = "force-dynamic";
 
 async function getUserRole(
-  supabase: ReturnType<typeof createClient>,
+  supabase: Awaited<ReturnType<typeof createClient>>,
   workspaceId: string,
   userId: string
 ): Promise<WorkspaceRole | null> {
@@ -25,9 +25,10 @@ async function getUserRole(
 // Change a member's role (owner only)
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string; memberId: string } }
+  props: { params: Promise<{ id: string; memberId: string }> }
 ) {
-  const supabase = createClient();
+  const params = await props.params;
+  const supabase = await createClient();
   const admin    = createAdminClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -93,9 +94,10 @@ export async function PATCH(
 // Remove a member from the workspace (owner only)
 export async function DELETE(
   _req: NextRequest,
-  { params }: { params: { id: string; memberId: string } }
+  props: { params: Promise<{ id: string; memberId: string }> }
 ) {
-  const supabase = createClient();
+  const params = await props.params;
+  const supabase = await createClient();
   const admin    = createAdminClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 // whichever workspace(s) they belong to. Powers the notification
 // bell alongside the existing pending-invites stream.
 export async function GET() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

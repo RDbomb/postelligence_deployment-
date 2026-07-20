@@ -17,7 +17,7 @@ export default async function LoginPage() {
   let user = null;
 
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const {
       data: { user: currentUser }
     } = await supabase.auth.getUser();

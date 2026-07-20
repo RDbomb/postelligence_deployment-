@@ -6,8 +6,9 @@ export const dynamic = "force-dynamic";
 // POST /api/notifications/[id]/read
 // Marks a single notification as read. RLS already restricts this to
 // the recipient's own rows (user_id = auth.uid()).
-export async function POST(_req: Request, { params }: { params: { id: string } }) {
-  const supabase = createClient();
+export async function POST(_req: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

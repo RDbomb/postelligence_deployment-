@@ -57,7 +57,7 @@ export async function GET(request: Request) {
   const code = requestUrl.searchParams.get("code");
   const state = requestUrl.searchParams.get("state");
   const oauthError = requestUrl.searchParams.get("error");
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const redirectWithClearedState = (url: URL) => {
     const response = NextResponse.redirect(url);
@@ -85,7 +85,7 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL("/", requestUrl.origin));
   }
 
-  const cookieState = readStateCookie(cookies().get("postelligence_meta_oauth_state")?.value);
+  const cookieState = readStateCookie((await cookies()).get("postelligence_meta_oauth_state")?.value);
   const platformIntent =
     cookieState?.platform === "facebook" || cookieState?.platform === "instagram"
       ? cookieState.platform

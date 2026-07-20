@@ -5,7 +5,7 @@ import CalendarClient from "./CalendarClient";
 export const dynamic = "force-dynamic";
 
 export default async function CalendarPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 

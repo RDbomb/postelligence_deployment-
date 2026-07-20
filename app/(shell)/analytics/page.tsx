@@ -16,7 +16,7 @@ function sanitizeMetadata(metadata: Record<string, unknown> | null) {
 }
 
 export default async function AnalyticsPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 

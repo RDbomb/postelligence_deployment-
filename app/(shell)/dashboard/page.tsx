@@ -7,15 +7,16 @@ import DashboardOverviewClient from "./DashboardClient";
 export const dynamic = "force-dynamic";
 
 type Props = {
-  searchParams?: {
+  searchParams?: Promise<{
     youtube?: string; meta?: string; instagram?: string; twitter?: string;
     threads?: string; bluesky?: string; pinterest?: string; linkedin?: string;
     reddit?: string; message?: string;
-  };
+  }>;
 };
 
-export default async function DashboardPage({ searchParams }: Props) {
-  const supabase = createClient();
+export default async function DashboardPage(props: Props) {
+  const searchParams = await props.searchParams;
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 

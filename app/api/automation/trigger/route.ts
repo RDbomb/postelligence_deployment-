@@ -78,7 +78,7 @@ async function triggerAutomation(req: NextRequest) {
   const authHeader = req.headers.get("Authorization");
   const isServiceRole = authHeader === `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`;
 
-  let supabase = createClient();
+  let supabase = await createClient();
   let user = null;
 
   // 1. Check Global Scheduler Tick (Supabase pg_cron or Vercel cron hitting without a user session / specific user query)

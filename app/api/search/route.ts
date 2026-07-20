@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 // Text matching also naturally covers hashtags — "#launch" or "launch"
 // both match a caption containing "#launch" since it's a substring search.
 export async function GET(req: NextRequest) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

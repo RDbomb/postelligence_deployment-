@@ -35,7 +35,7 @@ export async function GET(request: Request) {
   const state = requestUrl.searchParams.get("state");
   const oauthError = requestUrl.searchParams.get("error");
 
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const redirect = (
     status: "connected" | "error",
@@ -82,7 +82,7 @@ export async function GET(request: Request) {
   }
 
   const cookieState = readStateCookie(
-    cookies().get("postelligence_instagram_oauth_state")?.value
+    (await cookies()).get("postelligence_instagram_oauth_state")?.value
   );
 
   if (

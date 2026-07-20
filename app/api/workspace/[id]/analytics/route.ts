@@ -17,8 +17,9 @@ export const dynamic = "force-dynamic";
 // by date range, best time/day, trends, etc. happens client-side from
 // this raw data — same approach the Solo Analytics page already uses
 // for its own trend/period filters.
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
-  const supabase = createClient();
+export async function GET(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const supabase = await createClient();
   const admin    = createAdminClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

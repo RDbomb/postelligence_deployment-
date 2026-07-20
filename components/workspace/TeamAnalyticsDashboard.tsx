@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, TooltipProps, Legend,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, TooltipContentProps, Legend,
 } from "recharts";
 import {
   Activity, AlertTriangle, Calendar, CheckCircle2, ClipboardList, Clock, FileDown, FileText,
@@ -150,7 +150,7 @@ function rangeEnd(range: DateRangeKey, customTo: string): Date {
 }
 
 // ── Tooltips ──────────────────────────────────────────────────────────────────
-function ChartTooltip({ active, payload, label }: TooltipProps<number, string>) {
+function ChartTooltip({ active, payload, label }: Partial<TooltipContentProps<number, string>>) {
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-xl border border-[#1f2528]/10 bg-white px-4 py-3 shadow-[0_8px_30px_rgba(31,37,40,0.12)]">

@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 // route's job). This route previously was a copy-paste of the
 // accept route and ended up doing exactly that.
 export async function POST(req: NextRequest) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

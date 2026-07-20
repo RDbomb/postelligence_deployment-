@@ -1082,7 +1082,7 @@ async function refreshStoredYouTubeToken(account: StoredAccount, userId: string)
   const nextRefreshToken = tokens.refresh_token || account.refresh_token;
   const nextExpiry = getTokenExpiry(tokens.expires_in);
 
-  const supabase = createClient();
+  const supabase = await createClient();
   // Workspace-owned accounts are matched by workspace_id — updating by
   // userId here would silently fail to persist the refreshed token for
   // whichever member happens to be publishing, since they don't own the row.
@@ -1204,7 +1204,7 @@ async function resolveMediaUrl(
   if (!attachment) return fallbackUrl;
 
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const ext = attachment.name.split(".").pop() || "bin";
     const path = `posts/${userId}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
 
@@ -1359,7 +1359,7 @@ export async function POST(request: Request) {
   const authHeader = request.headers.get("Authorization");
   const isServiceRole = authHeader === `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`;
 
-  let supabase = createClient();
+  let supabase = await createClient();
   let user = null;
 
   if (isServiceRole) {

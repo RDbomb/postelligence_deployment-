@@ -7,12 +7,13 @@ import type { WorkspaceRole } from "@/types";
 
 export const dynamic = "force-dynamic";
 
-export default async function TeamPage({
-  searchParams,
-}: {
-  searchParams?: { bluesky?: string; message?: string };
-}) {
-  const supabase = createClient();
+export default async function TeamPage(
+  props: {
+    searchParams?: Promise<{ bluesky?: string; message?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
+  const supabase = await createClient();
   const admin    = createAdminClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");

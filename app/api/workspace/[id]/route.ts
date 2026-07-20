@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 // ── Helper: get user's role in a workspace ───────────────────
 async function getUserRole(
-  supabase: ReturnType<typeof createClient>,
+  supabase: Awaited<ReturnType<typeof createClient>>,
   workspaceId: string,
   userId: string
 ): Promise<WorkspaceRole | null> {
@@ -24,11 +24,9 @@ async function getUserRole(
 
 // ── PATCH /api/workspace/[id] ────────────────────────────────
 // Update workspace name (owner only)
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  const supabase = createClient();
+export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const supabase = await createClient();
   const admin    = createAdminClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -68,11 +66,9 @@ export async function PATCH(
 
 // ── DELETE /api/workspace/[id] ───────────────────────────────
 // Delete workspace entirely (owner only)
-export async function DELETE(
-  _req: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  const supabase = createClient();
+export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

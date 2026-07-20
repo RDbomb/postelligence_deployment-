@@ -18,7 +18,7 @@ export async function GET(request: Request) {
   const code = requestUrl.searchParams.get("code");
   const state = requestUrl.searchParams.get("state");
   const oauthError = requestUrl.searchParams.get("error");
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const redirect = (
     status: "connected" | "error",
@@ -64,7 +64,7 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL("/", requestUrl.origin));
   }
 
-  const raw = cookies().get("postelligence_threads_oauth_state")?.value;
+  const raw = (await cookies()).get("postelligence_threads_oauth_state")?.value;
 
   let cookieState: {
     state?: string;

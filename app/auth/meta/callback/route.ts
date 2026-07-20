@@ -1,1 +1,3 @@
-export { dynamic, GET } from "@/app/api/integrations/meta/callback/route";
+export const dynamic = "force-dynamic";
+
+export { GET } from "@/app/api/integrations/meta/callback/route";

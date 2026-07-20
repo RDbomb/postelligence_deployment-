@@ -2,13 +2,14 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import fs from "fs";
 import path from "path";
+import { requireAdminSession } from "@/lib/admin/guard";
 
 export async function POST(req: Request) {
   try {
-    const { email, password, enabled } = await req.json();
-    if (email !== "postsync@2007" || password !== "rishi@1307") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const denied = await requireAdminSession();
+    if (denied) return denied;
+
+    const { enabled } = await req.json();
 
     const isChatEnabled = !!enabled;
 

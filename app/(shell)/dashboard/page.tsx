@@ -1,8 +1,14 @@
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import type { Metadata } from "next";
+import { requireUser } from "@/lib/supabase/require-user";
 import type { SocialAccount } from "@/lib/integrations/social-accounts";
 import { getLocalSocialAccounts } from "@/lib/integrations/local-social-accounts";
 import DashboardOverviewClient from "./DashboardClient";
+
+export const metadata: Metadata = {
+  title: "Dashboard",
+  description: "Your publishing overview across every connected platform."
+};
+
 
 export const dynamic = "force-dynamic";
 
@@ -16,9 +22,7 @@ type Props = {
 
 export default async function DashboardPage(props: Props) {
   const searchParams = await props.searchParams;
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { supabase, user } = await requireUser();
 
   const { data: socialAccounts, error } = await supabase
     .from("social_accounts")

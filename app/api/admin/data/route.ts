@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import fs from "fs";
 import path from "path";
+import { requireAdminSession } from "@/lib/admin/guard";
 
 interface SupportTicketMessage {
   sender: "user" | "admin";
@@ -24,12 +25,10 @@ interface AdminSupportTicket {
   user_name: string;
 }
 
-export async function POST(req: Request) {
+export async function POST() {
   try {
-    const { email, password } = await req.json();
-    if (email !== "postsync@2007" || password !== "rishi@1307") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const denied = await requireAdminSession();
+    if (denied) return denied;
 
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,

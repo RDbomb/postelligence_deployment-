@@ -1,9 +1,16 @@
+import type { Metadata } from "next";
+import { requireUser } from "@/lib/supabase/require-user";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getActionLabel, type WorkspaceAction } from "@/lib/workspace/activity-logger";
 import TeamClient from "./TeamClient";
 import type { Workspace, WorkspaceInvite, WorkspaceRole } from "@/types";
+
+export const metadata: Metadata = {
+  title: "Team",
+  description: "Members, roles and workspace activity."
+};
+
 
 export const dynamic = "force-dynamic";
 
@@ -13,10 +20,8 @@ export default async function TeamPage(
   }
 ) {
   const searchParams = await props.searchParams;
-  const supabase = await createClient();
+  const { supabase, user } = await requireUser();
   const admin    = createAdminClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
 
   // Get membership
   const { data: membership } = await supabase

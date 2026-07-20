@@ -1,11 +1,16 @@
+import type { Metadata } from "next";
+import { requireUser } from "@/lib/supabase/require-user";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import WorkspaceSetupClient from "./WorkspaceSetupClient";
 
+export const metadata: Metadata = {
+  title: "Workspace",
+  description: "Manage your shared workspace."
+};
+
+
 export default async function WorkspacePage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { supabase, user } = await requireUser();
 
   // If already in a workspace, redirect to team page
   const { data: member } = await supabase

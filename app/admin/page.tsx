@@ -81,12 +81,17 @@ type CronResult = Record<string, unknown>;
 // Fallback Mock tickets with description and replies history
 const INITIAL_TICKETS: SupportTicket[] = [];
 
-const ADMIN_EMAIL = "postsync@2007";
-const ADMIN_PASSWORD = "rishi@1307";
-
+/**
+ * Admin credentials are verified server-side against env vars and are never
+ * present in this bundle. Authentication state lives in an httpOnly cookie set
+ * by POST /api/admin/login, which this component cannot read by design.
+ *
+ * The sessionStorage key below is a non-sensitive UI hint only — it tells the
+ * component which view to render on reload. It grants no access: every admin API
+ * call is authorised by the cookie, and a stale hint simply yields a 401 that
+ * sends the operator back to the login form.
+ */
 const SESSION_KEY = "admin_session";
-const SESSION_EMAIL_KEY = "admin_email";
-const SESSION_PASS_KEY = "admin_pass";
 
 const sessionListeners = new Set<() => void>();
 
@@ -97,11 +102,7 @@ function emitAdminSessionChange() {
 // Snapshot is a primitive so useSyncExternalStore can compare it by value.
 function getAdminSessionSnapshot(): string | null {
   if (typeof window === "undefined") return null;
-  if (window.sessionStorage.getItem(SESSION_KEY) !== "active") return null;
-  const savedEmail = window.sessionStorage.getItem(SESSION_EMAIL_KEY);
-  const savedPass = window.sessionStorage.getItem(SESSION_PASS_KEY);
-  if (savedEmail !== ADMIN_EMAIL || savedPass !== ADMIN_PASSWORD) return null;
-  return "active";
+  return window.sessionStorage.getItem(SESSION_KEY) === "active" ? "active" : null;
 }
 
 function getAdminSessionServerSnapshot(): string | null {
@@ -117,10 +118,8 @@ function subscribeToAdminSession(onStoreChange: () => void) {
   };
 }
 
-function saveAdminSession(adminEmail: string, adminPassword: string) {
+function saveAdminSession() {
   window.sessionStorage.setItem(SESSION_KEY, "active");
-  window.sessionStorage.setItem(SESSION_EMAIL_KEY, adminEmail);
-  window.sessionStorage.setItem(SESSION_PASS_KEY, adminPassword);
   emitAdminSessionChange();
 }
 
@@ -146,14 +145,9 @@ export default function AdminPage() {
     getAdminSessionSnapshot,
     getAdminSessionServerSnapshot
   );
-  const storedSession = useMemo(
-    () => (sessionSnapshot === "active" ? { email: ADMIN_EMAIL, password: ADMIN_PASSWORD } : null),
-    [sessionSnapshot]
-  );
-
-  const isLoggedIn = storedSession !== null;
-  const activeEmail = storedSession?.email ?? email;
-  const activePassword = storedSession?.password ?? password;
+  const isLoggedIn = sessionSnapshot === "active";
+  // Shown in the sidebar only. The authoritative identity lives server-side.
+  const activeEmail = email;
 
   // Views control: default/start with "support" as requested!
   const [adminView, setAdminView] = useState<"support" | "automation" | "queue" | "settings">("support");
@@ -178,15 +172,17 @@ export default function AdminPage() {
   const [typingTimeout, setTypingTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
   const [isTypingSent, setIsTypingSent] = useState(false);
 
-  const fetchAdminData = async (mailId = activeEmail, pass = activePassword) => {
+  const fetchAdminData = async () => {
     setFetchingData(true);
     try {
-      const res = await fetch("/api/admin/data", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: mailId, password: pass }),
-      });
+      // Authorised by the httpOnly admin session cookie — no credentials in the body.
+      const res = await fetch("/api/admin/data", { method: "POST" });
       const resData: AdminDataResponse = await res.json();
+      if (res.status === 401) {
+        // Session expired or was never valid — drop back to the login form.
+        clearAdminSession();
+        throw new Error("Your administrative session has expired. Please sign in again.");
+      }
       if (!res.ok) throw new Error(resData.error || "Failed to retrieve system status");
       setData(resData);
       if (resData.chatSupportEnabled !== undefined) {
@@ -212,7 +208,7 @@ export default function AdminPage() {
       const res = await fetch("/api/admin/toggle-chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: activeEmail, password: activePassword, enabled })
+        body: JSON.stringify({ enabled })
       });
       if (!res.ok) throw new Error("Failed to toggle support chat");
       await fetchAdminData();
@@ -224,11 +220,10 @@ export default function AdminPage() {
 
   // Poll admin data while an admin session is active
   useEffect(() => {
-    if (!storedSession) return;
+    if (!isLoggedIn) return;
 
-    const { email: sessionEmail, password: sessionPassword } = storedSession;
     const poll = () => {
-      fetchAdminData(sessionEmail, sessionPassword);
+      fetchAdminData();
     };
 
     // The first poll is scheduled rather than run inline so that no state
@@ -240,7 +235,7 @@ export default function AdminPage() {
       clearTimeout(initialPoll);
       clearInterval(interval);
     };
-  }, [storedSession]);
+  }, [isLoggedIn]);
 
   const sendTypingStatus = async (ticketId: string, isTyping: boolean) => {
     if (String(ticketId).startsWith("TCK-")) return;
@@ -282,13 +277,29 @@ export default function AdminPage() {
     setLoading(true);
     setError(null);
 
-    if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-      saveAdminSession(email, password);
-      await fetchAdminData(email, password);
-    } else {
-      setError("Invalid administrative credentials.");
+    try {
+      // Credentials are verified server-side; on success the server sets an
+      // httpOnly session cookie that authorises subsequent admin API calls.
+      const res = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setError(body.error || "Invalid administrative credentials.");
+        return;
+      }
+
+      setPassword("");
+      saveAdminSession();
+      await fetchAdminData();
+    } catch (err: unknown) {
+      setError(toErrorMessage(err, "Unable to reach the authentication service."));
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const triggerCronJob = async () => {
@@ -409,12 +420,20 @@ export default function AdminPage() {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    // Clear the local UI hint first so the form returns immediately, then revoke
+    // the server-side cookie. A failed revoke must not strand the operator in
+    // a logged-in-looking UI.
     clearAdminSession();
     setData(null);
     setCronResult(null);
     setEmail("");
     setPassword("");
+    try {
+      await fetch("/api/admin/logout", { method: "POST" });
+    } catch (err: unknown) {
+      console.error("Admin logout error:", err);
+    }
   };
 
   const selectedTicket = tickets.find(t => t.id === selectedTicketId);

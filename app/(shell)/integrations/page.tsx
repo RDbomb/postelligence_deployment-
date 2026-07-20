@@ -1,15 +1,19 @@
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import type { Metadata } from "next";
+import { requireUser } from "@/lib/supabase/require-user";
 import IntegrationsClient from "./IntegrationsClient";
 import type { SocialAccount } from "@/lib/integrations/social-accounts";
 import { fetchDiscordWebhookInfo } from "@/lib/integrations/discord";
 
+export const metadata: Metadata = {
+  title: "Integrations",
+  description: "Connect and manage your social accounts."
+};
+
+
 export const dynamic = "force-dynamic";
 
 export default async function IntegrationsPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { supabase, user } = await requireUser();
 
   const { data: socialAccounts } = await supabase
     .from("social_accounts")

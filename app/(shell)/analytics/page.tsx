@@ -1,11 +1,17 @@
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import type { Metadata } from "next";
+import { requireUser } from "@/lib/supabase/require-user";
 import type { SocialAccount } from "@/lib/integrations/social-accounts";
 import { getLocalSocialAccounts } from "@/lib/integrations/local-social-accounts";
 import type { ScheduledPost, WorkspaceRole } from "@/types";
 import { getAnalyticsDashboard, type AnalyticsAccount } from "@/lib/analytics/social-analytics";
 import { readAnalyticsCache, writeAnalyticsCache } from "@/lib/analytics/analytics-cache";
 import AnalyticsClient from "./AnalyticsClient";
+
+export const metadata: Metadata = {
+  title: "Analytics",
+  description: "Reach, engagement and performance across your connected accounts."
+};
+
 
 export const dynamic = "force-dynamic";
 
@@ -16,9 +22,7 @@ function sanitizeMetadata(metadata: Record<string, unknown> | null) {
 }
 
 export default async function AnalyticsPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { supabase, user } = await requireUser();
 
   const [
     { data: socialAccounts, error: socialAccountsError },

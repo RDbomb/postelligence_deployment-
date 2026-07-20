@@ -1,15 +1,22 @@
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import type { Metadata } from "next";
+import { requireUser } from "@/lib/supabase/require-user";
 import type { SocialAccount } from "@/lib/integrations/social-accounts";
 import { getLocalSocialAccounts } from "@/lib/integrations/local-social-accounts";
 import DashboardShellClient from "@/app/(shell)/dashboard/DashboardShellClient";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * Everything under this layout is behind authentication, so it should never be
+ * indexed. Child pages still set their own `title`; this only adds the robots
+ * directive, which they inherit.
+ */
+export const metadata: Metadata = {
+  robots: { index: false, follow: false }
+};
+
 export default async function DashboardSubLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { supabase, user } = await requireUser();
 
   const { data: socialAccounts, error } = await supabase
     .from("social_accounts")

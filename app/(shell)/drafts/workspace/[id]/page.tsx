@@ -1,5 +1,5 @@
+import { requireUser } from "@/lib/supabase/require-user";
 import { redirect, notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import WorkspaceDraftDetailClient from "./WorkspaceDraftDetailClient";
 import type { WorkspaceRole } from "@/types";
@@ -10,10 +10,8 @@ export default async function WorkspaceDraftDetailPage(
   }
 ) {
   const params = await props.params;
-  const supabase = await createClient();
+  const { supabase, user } = await requireUser();
   const admin    = createAdminClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
 
   // Get membership
   const { data: membership } = await supabase

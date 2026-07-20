@@ -1,8 +1,14 @@
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import type { Metadata } from "next";
+import { requireUser } from "@/lib/supabase/require-user";
 import type { SocialAccount } from "@/lib/integrations/social-accounts";
 import { getLocalSocialAccounts } from "@/lib/integrations/local-social-accounts";
 import CreateClient from "./CreateClient";
+
+export const metadata: Metadata = {
+  title: "Create post",
+  description: "Write once and publish to every connected platform."
+};
+
 
 export const dynamic = "force-dynamic";
 
@@ -19,9 +25,7 @@ type CreatePageProps = {
 
 export default async function CreatePostPage(props: CreatePageProps) {
   const searchParams = await props.searchParams;
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { supabase, user } = await requireUser();
 
   const [{ data: socialAccounts, error: socialAccountsError }, { data: settings }] =
     await Promise.all([

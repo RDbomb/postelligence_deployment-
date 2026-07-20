@@ -8,7 +8,7 @@ import type { WorkspaceRole } from "@/types";
 export const dynamic = "force-dynamic";
 
 // ── GET /api/workspace/[id]/members ─── (helper, shared below) ─
-async function getMembership(supabase: ReturnType<typeof createClient>, userId: string, workspaceId: string) {
+async function getMembership(supabase: Awaited<ReturnType<typeof createClient>>, userId: string, workspaceId: string) {
   const { data } = await supabase
     .from("workspace_members")
     .select("*")
@@ -21,8 +21,9 @@ async function getMembership(supabase: ReturnType<typeof createClient>, userId: 
 // ── GET /api/workspace/[id]/social-accounts ───────────────────
 // Any workspace member can view which accounts the workspace is
 // connected to (read-only for Creators/Analysts).
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
-  const supabase = createClient();
+export async function GET(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const supabase = await createClient();
   const admin = createAdminClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -57,8 +58,9 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 
 // ── DELETE /api/workspace/[id]/social-accounts?platform=X&accountId=Y
 // Only Owner/Manager can disconnect a workspace-owned account.
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
-  const supabase = createClient();
+export async function DELETE(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const supabase = await createClient();
   const admin = createAdminClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

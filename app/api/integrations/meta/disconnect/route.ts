@@ -16,7 +16,7 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: "A valid Meta platform is required." }, { status: 400 });
   }
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user }
   } = await supabase.auth.getUser();

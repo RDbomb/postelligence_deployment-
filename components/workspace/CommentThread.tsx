@@ -30,15 +30,17 @@ export default function CommentThread({ draftId, comments, canComment, onComment
   const [liveComments, setLiveComments] = useState(comments);
 
   const listRef      = useRef<HTMLDivElement>(null);
-  const knownIdsRef   = useRef<Set<string>>(new Set(comments.map((c) => c.id)));
   const isPollingRef  = useRef(false);
 
   // Keep local list in sync if the parent's comments prop changes
   // (e.g. after the current user's own comment is appended upstream).
-  useEffect(() => {
+  // Adjusting during render rather than in an effect avoids painting one
+  // frame of the stale list before the corrected one.
+  const [syncedComments, setSyncedComments] = useState(comments);
+  if (syncedComments !== comments) {
+    setSyncedComments(comments);
     setLiveComments(comments);
-    knownIdsRef.current = new Set(comments.map((c) => c.id));
-  }, [comments]);
+  }
 
   // Always keep the view pinned to the most recent comment — this is a
   // chat thread, not an article, so people shouldn't have to scroll down
@@ -62,11 +64,14 @@ export default function CommentThread({ draftId, comments, canComment, onComment
         const data = await res.json();
         if (cancelled) return;
         const fresh: WorkspaceDraftComment[] = data.comments || [];
-        const hasNew = fresh.some((c) => !knownIdsRef.current.has(c.id));
-        if (hasNew || fresh.length !== knownIdsRef.current.size) {
-          knownIdsRef.current = new Set(fresh.map((c) => c.id));
-          setLiveComments(fresh);
-        }
+        // The known-id set is just the ids already on screen, so read it from
+        // the current list instead of tracking it in a parallel ref. Returning
+        // `prev` unchanged makes React bail out, exactly as the old guard did.
+        setLiveComments((prev) => {
+          const knownIds = new Set(prev.map((c) => c.id));
+          const hasNew = fresh.some((c) => !knownIds.has(c.id));
+          return hasNew || fresh.length !== knownIds.size ? fresh : prev;
+        });
       } catch {
         // transient network error — try again on the next tick
       } finally {
@@ -90,7 +95,6 @@ export default function CommentThread({ draftId, comments, canComment, onComment
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to post comment");
-      knownIdsRef.current.add(data.comment.id);
       setLiveComments((prev) => [...prev, data.comment]);
       onCommentAdded(data.comment);
       setContent("");

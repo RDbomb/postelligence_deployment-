@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useSyncExternalStore } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   MoreHorizontal, Plus, X, Check, Loader2,
@@ -97,10 +97,21 @@ function discordConnectionDetails(account: SocialAccount) {
   return [account.account_name];
 }
 
+// Returns false while server-rendering and during the first (hydrating) client
+// render, then true afterwards. Reading it through useSyncExternalStore keeps
+// the server and client markup identical without an extra state-setting effect.
+const subscribeToNothing = () => () => {};
+function useIsHydrated() {
+  return useSyncExternalStore(
+    subscribeToNothing,
+    () => true,
+    () => false
+  );
+}
+
 function PlatformAvatar({ platform, size = "lg" }: { platform: Platform; size?: "sm" | "lg" }) {
   const [imgError, setImgError] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
+  const mounted = useIsHydrated();
 
   const sizeClass = size === "lg" ? "h-14 w-14" : "h-9 w-9";
   const logoClass = size === "lg" ? "h-7 w-7" : "h-4 w-4";
@@ -567,7 +578,7 @@ export default function IntegrationsClient({ socialAccounts }: Props) {
       return;
     }
     if (platform.id === "discord") {
-      window.location.href = "/api/integrations/discord/connect";
+      window.location.assign("/api/integrations/discord/connect");
       return;
     }
     if (platform.id === "telegram") {
@@ -576,7 +587,7 @@ export default function IntegrationsClient({ socialAccounts }: Props) {
       return;
     }
     if (platform.id === "linkedin") {
-      window.location.href = "/api/integrations/linkedin/connect";
+      window.location.assign("/api/integrations/linkedin/connect");
       return;
     }
     const routes: Record<string, string> = {
@@ -586,7 +597,7 @@ export default function IntegrationsClient({ socialAccounts }: Props) {
       pinterest: "/api/integrations/pinterest/connect",
       youtube:   "/api/integrations/youtube/connect",
     };
-    if (routes[platform.id]) window.location.href = routes[platform.id];
+    if (routes[platform.id]) window.location.assign(routes[platform.id]);
   };
 
   const handleDisconnect = async (platform: Platform) => {
@@ -876,7 +887,7 @@ export default function IntegrationsClient({ socialAccounts }: Props) {
                 <WifiOff className="h-7 w-7 text-slate-400" />
               </div>
               <p className="text-slate-600 font-bold">No platforms in this filter</p>
-              <p className="text-slate-400 text-sm mt-1">Try switching to "All" to see everything.</p>
+              <p className="text-slate-400 text-sm mt-1">Try switching to &quot;All&quot; to see everything.</p>
             </motion.div>
           ) : (
             <motion.div

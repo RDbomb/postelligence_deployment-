@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { requireAdminSession } from "@/lib/admin/guard";
 
 export async function POST(req: Request) {
   try {
-    const { email, password, ticketId, messages, status } = await req.json();
-    if (email !== "postsync@2007" || password !== "rishi@1307") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const denied = await requireAdminSession();
+    if (denied) return denied;
+
+    const { ticketId, messages, status } = await req.json();
 
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -29,7 +30,8 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ ticket: data });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Failed to update support ticket" }, { status: 500 });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "";
+    return NextResponse.json({ error: message || "Failed to update support ticket" }, { status: 500 });
   }
 }

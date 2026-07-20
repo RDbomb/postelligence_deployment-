@@ -43,7 +43,10 @@ export default function TeamClient({
 }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const initialTab = searchParams.get("tab") === "schedule" ? "schedule"
+  // A "draftId" in the URL always means "open this draft in Compose", which is
+  // why it outranks any other ?tab= value here.
+  const initialTab = (searchParams.get("tab") === "compose" || searchParams.get("draftId")) ? "compose"
+    : searchParams.get("tab") === "schedule" ? "schedule"
     : searchParams.get("tab") === "members" ? "members"
     : searchParams.get("tab") === "accounts" ? "accounts"
     : searchParams.get("tab") === "activity" ? "activity"
@@ -52,13 +55,17 @@ export default function TeamClient({
   const [editDraftId, setEditDraftId] = useState<string | null>(searchParams.get("draftId"));
 
   // Keep the tab/edit target in sync if the URL changes (e.g. clicking
-  // "Edit" on a workspace draft again while already on this page).
-  useEffect(() => {
+  // "Edit" on a workspace draft again while already on this page). Adjusting
+  // during render rather than in an effect avoids rendering one frame against
+  // the stale tab before correcting it.
+  const [syncedParams, setSyncedParams] = useState(searchParams);
+  if (syncedParams !== searchParams) {
+    setSyncedParams(searchParams);
     const urlTab = searchParams.get("tab");
     const urlDraftId = searchParams.get("draftId");
     if (urlTab === "compose" || urlDraftId) setTab("compose");
     setEditDraftId(urlDraftId);
-  }, [searchParams]);
+  }
   const [members, setMembers]       = useState(initialMembers);
   const [invites, setInvites]       = useState(initialInvites);
   const [showInvite, setShowInvite] = useState(false);

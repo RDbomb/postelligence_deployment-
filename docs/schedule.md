@@ -237,10 +237,10 @@ Get values from:
 
 ```bash
 # Install dependencies
-npm install
+yarn install
 
 # Start the dev server
-npm run dev
+yarn dev
 ```
 
 The app runs at `http://localhost:3000`.

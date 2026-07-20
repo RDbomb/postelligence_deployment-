@@ -1,18 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getActionLabel } from "@/lib/workspace/activity-logger";
+import { getActionLabel, type WorkspaceAction } from "@/lib/workspace/activity-logger";
 import type { WorkspaceRole, WorkspaceActivityLog } from "@/types";
 
 export const dynamic = "force-dynamic";
 
 // ── GET /api/workspace/[id]/activity ────────────────────────
 // Returns paginated activity log for a workspace
-export async function GET(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  const supabase = createClient();
+export async function GET(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const supabase = await createClient();
   const admin    = createAdminClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -54,7 +52,7 @@ export async function GET(
         ...log,
         user_name:   userName,
         user_avatar: avatarUrl,
-        label:       getActionLabel(log.action as any, metadata),
+        label:       getActionLabel(log.action as WorkspaceAction, metadata),
       } as WorkspaceActivityLog & { label: string };
     })
   );

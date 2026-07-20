@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 //   1. The analytics page when it detects a stale cache (background refresh)
 //   2. The "Refresh" button click (force = true — invalidates cache first)
 export async function POST(request: Request) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

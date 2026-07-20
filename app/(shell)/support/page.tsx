@@ -1,13 +1,17 @@
-import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
+import type { Metadata } from "next";
+import { requireUser } from "@/lib/supabase/require-user";
 import SupportClient from "./SupportClient";
+
+export const metadata: Metadata = {
+  title: "Support",
+  description: "Get help with your account."
+};
+
 
 export const dynamic = "force-dynamic";
 
 export default async function SupportPage() {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { supabase, user } = await requireUser();
 
   return <SupportClient user={user} />;
 }

@@ -22,13 +22,18 @@ export default function TeamScheduleClient({ workspaceId, currentRole }: { works
   const [mode, setMode] = useState<"calendar" | "list">("calendar");
   const [view, setView] = useState<"upcoming" | "published">("upcoming");
   const [drafts, setDrafts] = useState<WorkspaceDraft[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Which (workspace, view) pair the loaded `drafts` belong to. Comparing it
+  // against the current pair derives the spinner during render, so the fetch
+  // effect never has to push a loading flag into state synchronously.
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const listKey = `${workspaceId}|${view}`;
+  const loading = mode === "list" && loadedKey !== listKey;
 
   useEffect(() => {
     if (mode !== "list") return;
     let cancelled = false;
-    setLoading(true);
     const status = view === "upcoming" ? "scheduled" : "published";
     (async () => {
       try {
@@ -45,18 +50,18 @@ export default function TeamScheduleClient({ workspaceId, currentRole }: { works
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load schedule.");
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setLoadedKey(listKey);
       }
     })();
     return () => { cancelled = true; };
-  }, [workspaceId, view, mode]);
+  }, [workspaceId, view, mode, listKey]);
 
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border border-blue-100 bg-blue-50 px-5 py-4 text-sm text-blue-700 flex items-start gap-2">
         <CalendarClock className="h-4 w-4 mt-0.5 shrink-0" />
         <p>
-          This is the workspace's own schedule — posts a Manager or Owner has scheduled for the team's connected
+          This is the workspace&apos;s own schedule — posts a Manager or Owner has scheduled for the team&apos;s connected
           accounts. Your personal Calendar is separate and unaffected.
         </p>
       </div>

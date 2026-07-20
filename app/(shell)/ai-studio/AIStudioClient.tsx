@@ -50,6 +50,15 @@ interface Tool {
   supportsMultiPlatform?: boolean;
 }
 
+// One entry of the "trends-list" payload returned by /api/ai/generate.
+interface Trend {
+  title: string;
+  explanation: string;
+  category: string;
+  imagePrompt: string;
+  captionPrompt: string;
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const TOOLS: Tool[] = [
@@ -194,10 +203,10 @@ export default function AIStudioClient({ user }: { user: { email?: string | null
   const [activeTab, setActiveTab] = useState<"text" | "image" | "trends">("text");
 
   // Trends Analyzer State
-  const [trends, setTrends] = useState<any[]>([]);
+  const [trends, setTrends] = useState<Trend[]>([]);
   const [trendsLoading, setTrendsLoading] = useState(false);
   const [trendsError, setTrendsError] = useState<string | null>(null);
-  const [selectedTrend, setSelectedTrend] = useState<any | null>(null);
+  const [selectedTrend, setSelectedTrend] = useState<Trend | null>(null);
   const [trendTextLoading, setTrendTextLoading] = useState(false);
   const [trendImageLoading, setTrendImageLoading] = useState(false);
   const [trendGeneratedPost, setTrendGeneratedPost] = useState<{ caption: string; imageUrl: string; publicUrl: string } | null>(null);
@@ -262,7 +271,7 @@ export default function AIStudioClient({ user }: { user: { email?: string | null
     fetchTrends(keywords, selectedGeo, newCategory);
   }
 
-  async function generateTrendPost(trend: any) {
+  async function generateTrendPost(trend: Trend) {
     setSelectedTrend(trend);
     setTrendTextLoading(true);
     setTrendImageLoading(true);
@@ -382,12 +391,6 @@ export default function AIStudioClient({ user }: { user: { email?: string | null
     const { caption, publicUrl } = trendGeneratedPost;
     router.push(`/create?caption=${encodeURIComponent(caption)}&mediaUrl=${encodeURIComponent(publicUrl)}`);
   }
-
-  useEffect(() => {
-    if (activeTab === "trends" && !trends.length) {
-      fetchTrends();
-    }
-  }, [activeTab, trends.length]);
 
   const activeTool = TOOLS.find((t) => t.id === activeToolId)!;
   const resultRef = useRef<HTMLDivElement>(null);
@@ -523,7 +526,11 @@ export default function AIStudioClient({ user }: { user: { email?: string | null
             Image Generator
           </button>
           <button
-            onClick={() => { setActiveTab("trends"); }}
+            onClick={() => {
+              setActiveTab("trends");
+              // Load the trend feed the first time this tab is opened.
+              if (!trends.length && !trendsLoading) void fetchTrends();
+            }}
             className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition-all cursor-pointer ${
               activeTab === "trends"
                 ? "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-300"

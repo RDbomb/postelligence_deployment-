@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
 export async function GET() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -35,7 +35,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -86,7 +86,8 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ settings: data });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Invalid payload" }, { status: 400 });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "";
+    return NextResponse.json({ error: message || "Invalid payload" }, { status: 400 });
   }
 }

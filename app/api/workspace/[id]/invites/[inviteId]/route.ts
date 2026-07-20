@@ -11,9 +11,10 @@ export const dynamic = "force-dynamic";
 // check only looks at non-cancelled pending invites.
 export async function DELETE(
   _req: NextRequest,
-  { params }: { params: { id: string; inviteId: string } }
+  props: { params: Promise<{ id: string; inviteId: string }> }
 ) {
-  const supabase = createClient();
+  const params = await props.params;
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

@@ -28,7 +28,9 @@ interface User {
   email?: string | null;
 }
 
-interface AutomationSettings {
+export type AutomationScheduleType = "daily" | "weekly" | "weekdays" | "monthly";
+
+export interface AutomationSettings {
   is_enabled: boolean;
   post_time: string;
   mode: "manual" | "automatic";
@@ -36,7 +38,7 @@ interface AutomationSettings {
   categories: string[];
   keywords: string[];
   approval_email?: string | null;
-  schedule_type?: string;
+  schedule_type?: AutomationScheduleType;
   post_times?: string[];
   post_days?: string[];
   post_day_of_month?: number;
@@ -45,7 +47,7 @@ interface AutomationSettings {
   time_configs?: Record<string, { platforms: string[], categories: string[], keywords: string[] }>;
 }
 
-interface AutomationLog {
+export interface AutomationLog {
   id: string;
   trend_title: string;
   caption: string;
@@ -63,6 +65,11 @@ interface Props {
   user: User;
   initialSettings: AutomationSettings;
   initialLogs: AutomationLog[];
+}
+
+// Caught values are `unknown`; pull a usable message out without asserting.
+function getErrorMessage(err: unknown, fallback: string): string {
+  return err instanceof Error && err.message ? err.message : fallback;
 }
 
 const AVAILABLE_PLATFORMS = [
@@ -103,8 +110,8 @@ export default function AutomationClient({ user, initialSettings, initialLogs }:
   // Settings states
   const [isEnabled, setIsEnabled] = useState(initialSettings.is_enabled !== false);
   const [postTimes, setPostTimes] = useState<string[]>(getInitialLocalTimes());
-  const [scheduleType, setScheduleType] = useState<"daily" | "weekly" | "weekdays" | "monthly">(
-    (initialSettings.schedule_type as any) || "daily"
+  const [scheduleType, setScheduleType] = useState<AutomationScheduleType>(
+    initialSettings.schedule_type || "daily"
   );
   const [postDays, setPostDays] = useState<string[]>(
     initialSettings.post_days || ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
@@ -136,7 +143,19 @@ export default function AutomationClient({ user, initialSettings, initialLogs }:
   const [triggering, setTriggering] = useState(false);
   const [processingLogId, setProcessingLogId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
+  // The approval emails redirect back here with ?status=&message=. Derive that
+  // toast as the initial state instead of setting it from an effect, which
+  // would kick off an extra render pass on every arrival.
+  const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(() => {
+    const status = searchParams.get("status");
+    const msg = searchParams.get("message");
+    if (!status || !msg) return null;
+    return { msg, type: status === "success" ? "success" : "error" };
+  });
+
+  const showToast = (msg: string, type: "success" | "error" = "success") => {
+    setToast({ msg, type });
+  };
 
   // Auto-hide toast
   useEffect(() => {
@@ -146,24 +165,17 @@ export default function AutomationClient({ user, initialSettings, initialLogs }:
     }
   }, [toast]);
 
-  // Handle email redirection toast notifications
+  // Strip the one-shot notification params off the URL once they've been read.
   useEffect(() => {
     const status = searchParams.get("status");
     const msg = searchParams.get("message");
     if (status && msg) {
-      showToast(msg, status === "success" ? "success" : "error");
-
-      // Clean up URL query parameters
       const url = new URL(window.location.href);
       url.searchParams.delete("status");
       url.searchParams.delete("message");
       window.history.replaceState({}, "", url.pathname + url.search);
     }
   }, [searchParams]);
-
-  const showToast = (msg: string, type: "success" | "error" = "success") => {
-    setToast({ msg, type });
-  };
 
   // Convert local selectedTimeForConfig ("17:15") to UTC key ("11:45:00")
   const localTimeToUtcStr = (localTime: string): string => {
@@ -300,7 +312,7 @@ export default function AutomationClient({ user, initialSettings, initialLogs }:
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to update status");
       showToast(nextState ? "Content Automation Enabled." : "Content Automation Paused.");
-    } catch (err: any) {
+    } catch {
       showToast("Failed to update status", "error");
       setIsEnabled(!nextState); // rollback
     }
@@ -336,8 +348,8 @@ export default function AutomationClient({ user, initialSettings, initialLogs }:
       if (!res.ok) throw new Error(data.error || "Failed to save settings");
 
       showToast("Automation configurations saved.");
-    } catch (err: any) {
-      setActionError(err.message || "Failed to save configurations");
+    } catch (err: unknown) {
+      setActionError(getErrorMessage(err, "Failed to save configurations"));
       showToast("Failed to save configurations", "error");
     } finally {
       setSaving(false);
@@ -371,8 +383,8 @@ export default function AutomationClient({ user, initialSettings, initialLogs }:
           ? "Automation triggered: Post generated and published!"
           : "Automation triggered: New draft pending review!"
       );
-    } catch (err: any) {
-      setActionError(err.message || "Failed to run automation trigger");
+    } catch (err: unknown) {
+      setActionError(getErrorMessage(err, "Failed to run automation trigger"));
       showToast("Trigger failed", "error");
     } finally {
       setTriggering(false);
@@ -394,7 +406,7 @@ export default function AutomationClient({ user, initialSettings, initialLogs }:
         prev.map((l) => (l.id === logId ? { ...l, status: "rejected" as const } : l))
       );
       showToast("Draft rejected.");
-    } catch (err: any) {
+    } catch {
       showToast("Action failed", "error");
     } finally {
       setProcessingLogId(null);
@@ -416,7 +428,7 @@ export default function AutomationClient({ user, initialSettings, initialLogs }:
       );
       setEditingLogId(null);
       showToast("Caption updated.");
-    } catch (err: any) {
+    } catch {
       showToast("Failed to save caption edits", "error");
     }
   };
@@ -454,8 +466,8 @@ export default function AutomationClient({ user, initialSettings, initialLogs }:
         prev.map((l) => (l.id === log.id ? { ...l, status: "published" as const } : l))
       );
       showToast("Post published successfully!");
-    } catch (err: any) {
-      showToast(err.message || "Failed to publish", "error");
+    } catch (err: unknown) {
+      showToast(getErrorMessage(err, "Failed to publish"), "error");
     } finally {
       setProcessingLogId(null);
     }
@@ -500,8 +512,8 @@ export default function AutomationClient({ user, initialSettings, initialLogs }:
         prev.map((l) => (l.id === log.id ? { ...l, status: "approved" as const, scheduled_post_id: schedData.post.id } : l))
       );
       showToast("Post approved and scheduled.");
-    } catch (err: any) {
-      showToast(err.message || "Failed to schedule", "error");
+    } catch (err: unknown) {
+      showToast(getErrorMessage(err, "Failed to schedule"), "error");
     } finally {
       setProcessingLogId(null);
     }
@@ -660,7 +672,7 @@ export default function AutomationClient({ user, initialSettings, initialLogs }:
                   </label>
                   <select
                     value={scheduleType}
-                    onChange={(e) => setScheduleType(e.target.value as any)}
+                    onChange={(e) => setScheduleType(e.target.value as AutomationScheduleType)}
                     className="mt-2 block w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-[#1f2528] shadow-sm focus:border-[#2f7867] focus:outline-none"
                   >
                     <option value="daily">Daily</option>
@@ -1063,7 +1075,7 @@ export default function AutomationClient({ user, initialSettings, initialLogs }:
                     <h4 className="text-xs font-black text-[#1f2528] mt-0.5">Example: Tech Trends Live</h4>
                   </div>
                   <div className="rounded-lg bg-slate-50 p-2 text-[10px] text-slate-500 font-medium italic border border-slate-100">
-                    "AI agents are taking over corporate administration task schedules..."
+                    &ldquo;AI agents are taking over corporate administration task schedules...&rdquo;
                   </div>
                   <div className="flex gap-1.5 pt-1">
                     <div className="rounded bg-[#2f7867] px-2.5 py-1 text-[8px] font-black text-white">Approve & Schedule</div>

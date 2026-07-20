@@ -1,8 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
+type AutomationLogStatus = "pending" | "approved" | "rejected" | "published" | "failed";
+
+// Body accepted by this endpoint — every field is optional because which ones
+// are meaningful depends on `action`.
+interface AutomationLogActionBody {
+  logId?: string;
+  action?: "reject" | "approve" | "edit";
+  caption?: string;
+  mediaUrl?: string;
+  scheduledPostId?: string;
+  status?: AutomationLogStatus;
+}
+
+// Partial `automation_logs` row — only the columns this endpoint ever writes.
+interface AutomationLogUpdate {
+  status?: AutomationLogStatus;
+  scheduled_post_id?: string;
+  caption?: string;
+  media_url?: string;
+}
+
 export async function GET() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -20,18 +41,19 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
-    const { logId, action, caption, mediaUrl, scheduledPostId, status } = await req.json();
+    const { logId, action, caption, mediaUrl, scheduledPostId, status } =
+      (await req.json()) as AutomationLogActionBody;
 
     if (!logId) {
       return NextResponse.json({ error: "Missing logId" }, { status: 400 });
     }
 
-    let updateData: any = {};
+    const updateData: AutomationLogUpdate = {};
 
     if (action === "reject") {
       updateData.status = "rejected";
@@ -60,7 +82,8 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ log: data });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Invalid request payload" }, { status: 400 });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "";
+    return NextResponse.json({ error: message || "Invalid request payload" }, { status: 400 });
   }
 }

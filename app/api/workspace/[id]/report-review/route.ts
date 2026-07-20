@@ -7,7 +7,7 @@ import type { WorkspaceRole } from "@/types";
 
 export const dynamic = "force-dynamic";
 
-async function getMembership(supabase: ReturnType<typeof createClient>, workspaceId: string, userId: string) {
+async function getMembership(supabase: Awaited<ReturnType<typeof createClient>>, workspaceId: string, userId: string) {
   const { data } = await supabase
     .from("workspace_members")
     .select("role")
@@ -20,8 +20,9 @@ async function getMembership(supabase: ReturnType<typeof createClient>, workspac
 // GET /api/workspace/[id]/report-review?from=YYYY-MM-DD&to=YYYY-MM-DD
 // Returns the saved Observations/Recommendations for this exact
 // report range, or null if the Analyst hasn't reviewed this period yet.
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
-  const supabase = createClient();
+export async function GET(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -59,8 +60,9 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 // Body: { rangeKey, from, to, observations, recommendations }
 // Only Owner/Analyst may write (canManageReportInsights) — Manager can
 // generate and read the report but not sign off on it.
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const supabase = createClient();
+export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const supabase = await createClient();
   const admin    = createAdminClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

@@ -16,8 +16,9 @@ export const dynamic = "force-dynamic";
 // Same two call sites as the personal version:
 //   1. Background refresh when the dashboard detects a stale cache
 //   2. The "Refresh" button (force = true — invalidates cache first)
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const supabase = createClient();
+export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

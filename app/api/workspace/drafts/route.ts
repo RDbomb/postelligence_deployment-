@@ -7,7 +7,7 @@ import type { WorkspaceRole, WorkspaceDraftStatus } from "@/types";
 
 export const dynamic = "force-dynamic";
 
-async function getUserMembership(supabase: ReturnType<typeof createClient>, userId: string) {
+async function getUserMembership(supabase: Awaited<ReturnType<typeof createClient>>, userId: string) {
   const { data } = await supabase
     .from("workspace_members")
     .select("*, workspace:workspaces(*)")
@@ -19,7 +19,7 @@ async function getUserMembership(supabase: ReturnType<typeof createClient>, user
 // ── GET /api/workspace/drafts ────────────────────────────────
 // List workspace drafts — filterable by status
 export async function GET(req: NextRequest) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const admin    = createAdminClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
 // ── POST /api/workspace/drafts ───────────────────────────────
 // Create a new workspace draft
 export async function POST(req: NextRequest) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const admin    = createAdminClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

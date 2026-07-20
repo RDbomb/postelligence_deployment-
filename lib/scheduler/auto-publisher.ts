@@ -25,6 +25,13 @@ type PublishResult = {
   id?: string;
 };
 
+// Minimal shapes for the third-party JSON responses this module reads.
+// Only the fields actually consumed here are declared.
+type MetaIdResponse = { id?: string };
+type MetaContainerResponse = { id: string };
+type ThreadsStatusResponse = { status?: string; error_message?: string };
+type InstagramStatusResponse = { status_code?: string; status?: string };
+
 const graphVersion = process.env.META_GRAPH_VERSION || "v23.0";
 const linkedInVersion = process.env.LINKEDIN_API_VERSION || "202605";
 const linkedInHeaders = {
@@ -496,8 +503,8 @@ async function publishBluesky(account: StoredAccount, post: ScheduledPost, attac
 
 async function requirePublishedId(res: Response, label: string) {
   if (!res.ok) throw new Error(`${label}: ${await res.text()}`);
-  const payload = await res.json().catch(() => ({} as Record<string, unknown>));
-  const id = (payload as any)?.id as string | undefined;
+  const payload: MetaIdResponse = await res.json().catch(() => ({}));
+  const id = payload?.id;
   if (!id) {
     // A 200 with no id means Meta accepted the request but didn't actually
     // hand back a published media object — treating that as success is how
@@ -553,8 +560,8 @@ async function processPost(post: ScheduledPost) {
   // claimed it, crashed/timed out mid-publish, and it got reclaimed after
   // the staleness window. `platform_results` from that earlier attempt may
   // already contain real successes — those must be skipped, not re-posted.
-  const priorResults: PublishResult[] = Array.isArray((post as any).platform_results)
-    ? (post as any).platform_results
+  const priorResults: PublishResult[] = Array.isArray(post.platform_results)
+    ? post.platform_results
     : [];
   const alreadyPublished = new Set(
     priorResults.filter((r) => r.status === "published").map((r) => r.platform)
@@ -726,7 +733,8 @@ export async function runScheduler(): Promise<{ processed: number }> {
     throw new Error(error.message);
   }
 
-  await Promise.allSettled((duePosts || []).map((post: any) => processPost(post as ScheduledPost)));
+  const claimedPosts: ScheduledPost[] = duePosts || [];
+  await Promise.allSettled(claimedPosts.map((post) => processPost(post)));
   return { processed: duePosts?.length || 0 };
 }
 async function publishFacebook(account: StoredAccount, text: string, mediaUrl: string, mediaType: string, mediaUrls: string[]) {
@@ -739,7 +747,7 @@ async function publishFacebook(account: StoredAccount, text: string, mediaUrl: s
     if (text) params.set("description", text);
     const res = await fetch(`${base}/videos`, { method: "POST", body: params });
     if (!res.ok) throw new Error(`Facebook publish failed: ${await res.text()}`);
-    return ((await res.json()) as any)?.id as string | undefined;
+    return ((await res.json()) as MetaIdResponse)?.id;
   }
 
   // Multiple images: upload each unpublished, then attach them all to one /feed post.
@@ -749,7 +757,7 @@ async function publishFacebook(account: StoredAccount, text: string, mediaUrl: s
       const params = new URLSearchParams({ access_token: token, url, published: "false" });
       const res = await fetch(`${base}/photos`, { method: "POST", body: params });
       if (!res.ok) return null;
-      return ((await res.json()) as any)?.id as string | undefined;
+      return ((await res.json()) as MetaIdResponse)?.id;
     }))).filter((id): id is string => Boolean(id));
 
     if (photoIds.length > 1) {
@@ -758,7 +766,7 @@ async function publishFacebook(account: StoredAccount, text: string, mediaUrl: s
       photoIds.forEach((id, i) => feedParams.set(`attached_media[${i}]`, JSON.stringify({ media_fbid: id })));
       const res = await fetch(`${base}/feed`, { method: "POST", body: feedParams });
       if (!res.ok) throw new Error(`Facebook publish failed: ${await res.text()}`);
-      return ((await res.json()) as any)?.id as string | undefined;
+      return ((await res.json()) as MetaIdResponse)?.id;
     }
   }
 
@@ -768,14 +776,14 @@ async function publishFacebook(account: StoredAccount, text: string, mediaUrl: s
     if (text) params.set("caption", text);
     const res = await fetch(`${base}/photos`, { method: "POST", body: params });
     if (!res.ok) throw new Error(`Facebook publish failed: ${await res.text()}`);
-    return ((await res.json()) as any)?.id as string | undefined;
+    return ((await res.json()) as MetaIdResponse)?.id;
   }
 
   // Text only: /feed
   const params = new URLSearchParams({ access_token: token, message: text });
   const res = await fetch(`${base}/feed`, { method: "POST", body: params });
   if (!res.ok) throw new Error(`Facebook publish failed: ${await res.text()}`);
-  return ((await res.json()) as any)?.id as string | undefined;
+  return ((await res.json()) as MetaIdResponse)?.id;
 }
 
 async function publishThreads(account: StoredAccount, text: string, mediaUrl: string, mediaType: string, mediaUrls: string[]) {
@@ -788,7 +796,7 @@ async function publishThreads(account: StoredAccount, text: string, mediaUrl: st
       await new Promise(r => setTimeout(r, 2000));
       try {
         const statusRes = await fetch(`https://graph.threads.net/${containerId}?${statusParams}`);
-        const status = await statusRes.json() as any;
+        const status = await statusRes.json() as ThreadsStatusResponse;
         if (status.status === "FINISHED") return;
         if (status.status === "ERROR") throw new Error(`Threads media processing failed: ${status.error_message || "unknown"}`);
       } catch (e) {
@@ -811,8 +819,8 @@ async function publishThreads(account: StoredAccount, text: string, mediaUrl: st
       });
       const res = await fetch(`https://graph.threads.net/${userId}/threads`, { method: "POST", body: params });
       if (!res.ok) return undefined;
-      const child = await res.json() as any;
-      return child?.id as string | undefined;
+      const child = await res.json() as MetaIdResponse;
+      return child?.id;
     }))).filter((id): id is string => Boolean(id));
 
     if (childIds.length > 1) {
@@ -824,7 +832,7 @@ async function publishThreads(account: StoredAccount, text: string, mediaUrl: st
       });
       const containerRes = await fetch(`https://graph.threads.net/${userId}/threads`, { method: "POST", body: carouselParams });
       if (!containerRes.ok) throw new Error(`Threads carousel container failed: ${await containerRes.text()}`);
-      const container = await containerRes.json() as any;
+      const container = await containerRes.json() as MetaContainerResponse;
       await waitForThreadsContainer(container.id);
       const publishRes = await fetch(`https://graph.threads.net/${userId}/threads_publish`, {
         method: "POST",
@@ -843,7 +851,7 @@ async function publishThreads(account: StoredAccount, text: string, mediaUrl: st
   }
   const containerRes = await fetch(`https://graph.threads.net/${userId}/threads`, { method: "POST", body: createParams });
   if (!containerRes.ok) throw new Error(`Threads container failed: ${await containerRes.text()}`);
-  const container = await containerRes.json() as any;
+  const container = await containerRes.json() as MetaContainerResponse;
 
   const publishParams = new URLSearchParams({ access_token: token, creation_id: container.id });
 
@@ -857,7 +865,7 @@ async function publishThreads(account: StoredAccount, text: string, mediaUrl: st
       await new Promise(r => setTimeout(r, 2000));
       try {
         const statusRes = await fetch(`https://graph.threads.net/${container.id}?${statusParams}`);
-        const status = await statusRes.json() as any;
+        const status = await statusRes.json() as ThreadsStatusResponse;
         if (status.status === "FINISHED") { imageFinished = true; break; }
         if (status.status === "ERROR") throw new Error(`Threads media processing failed: ${status.error_message || "unknown"}`);
       } catch (e) {
@@ -878,7 +886,7 @@ async function publishThreads(account: StoredAccount, text: string, mediaUrl: st
     await new Promise(r => setTimeout(r, 5000));
     try {
       const statusRes = await fetch(`https://graph.threads.net/${container.id}?${statusParams}`);
-      const status = await statusRes.json() as any;
+      const status = await statusRes.json() as ThreadsStatusResponse;
       if (status.status === "FINISHED") { finished = true; break; }
       if (status.status === "ERROR") throw new Error(`Threads video processing failed: ${status.error_message || "unknown"}`);
     } catch (e) {
@@ -895,7 +903,7 @@ async function publishThreads(account: StoredAccount, text: string, mediaUrl: st
 async function publishInstagram(account: StoredAccount, text: string, mediaUrl: string, mediaType: string, mediaUrls: string[]) {
   const token = account.access_token || "";
   const userId = account.account_id;
-  const isDirectLogin = (account.metadata as any)?.login_type === "instagram";
+  const isDirectLogin = account.metadata?.login_type === "instagram";
   const base = isDirectLogin ? `https://graph.instagram.com/${graphVersion}` : `https://graph.facebook.com/${graphVersion}`;
   const statusParams = new URLSearchParams({ access_token: token, fields: "status_code,status" });
 
@@ -903,7 +911,7 @@ async function publishInstagram(account: StoredAccount, text: string, mediaUrl: 
     for (let i = 0; i < 10; i++) {
       await new Promise(r => setTimeout(r, 2000));
       const statusRes = await fetch(`${base}/${containerId}?${statusParams}`);
-      const status = await statusRes.json() as any;
+      const status = await statusRes.json() as InstagramStatusResponse;
       if (status.status_code === "FINISHED") return;
       if (status.status_code === "ERROR") throw new Error(`Instagram media processing failed: ${status.status || "unknown"}`);
     }
@@ -918,8 +926,8 @@ async function publishInstagram(account: StoredAccount, text: string, mediaUrl: 
       const params = new URLSearchParams({ access_token: token, image_url: url, is_carousel_item: "true" });
       const res = await fetch(`${base}/${userId}/media`, { method: "POST", body: params });
       if (!res.ok) return undefined;
-      const child = await res.json() as any;
-      return child?.id as string | undefined;
+      const child = await res.json() as MetaIdResponse;
+      return child?.id;
     }))).filter((id): id is string => Boolean(id));
 
     if (childIds.length > 1) {
@@ -927,7 +935,7 @@ async function publishInstagram(account: StoredAccount, text: string, mediaUrl: 
       childIds.forEach((id, i) => carouselParams.set(`children[${i}]`, id));
       const containerRes = await fetch(`${base}/${userId}/media`, { method: "POST", body: carouselParams });
       if (!containerRes.ok) throw new Error(`Instagram carousel failed: ${await containerRes.text()}`);
-      const container = await containerRes.json() as any;
+      const container = await containerRes.json() as MetaContainerResponse;
       await waitForContainer(container.id);
       const publishRes = await fetch(`${base}/${userId}/media_publish`, {
         method: "POST",
@@ -952,7 +960,7 @@ async function publishInstagram(account: StoredAccount, text: string, mediaUrl: 
   }
   const containerRes = await fetch(`${base}/${userId}/media`, { method: "POST", body: createParams });
   if (!containerRes.ok) throw new Error(`Instagram container failed: ${await containerRes.text()}`);
-  const container = await containerRes.json() as any;
+  const container = await containerRes.json() as MetaContainerResponse;
 
   const publishParams = new URLSearchParams({ access_token: token, creation_id: container.id });
 
@@ -965,7 +973,7 @@ async function publishInstagram(account: StoredAccount, text: string, mediaUrl: 
     for (let i = 0; i < 10; i++) {
       await new Promise(r => setTimeout(r, 2000));
       const statusRes = await fetch(`${base}/${container.id}?${statusParams}`);
-      const status = await statusRes.json() as any;
+      const status = await statusRes.json() as InstagramStatusResponse;
       if (status.status_code === "FINISHED") { imageFinished = true; break; }
       if (status.status_code === "ERROR") throw new Error(`Instagram media processing failed: ${status.status || "unknown"}`);
     }
@@ -981,7 +989,7 @@ async function publishInstagram(account: StoredAccount, text: string, mediaUrl: 
   for (let i = 0; i < 30; i++) {
     await new Promise(r => setTimeout(r, 5000));
     const statusRes = await fetch(`${base}/${container.id}?${statusParams}`);
-    const status = await statusRes.json() as any;
+    const status = await statusRes.json() as InstagramStatusResponse;
     if (status.status_code === "FINISHED") { finished = true; break; }
     if (status.status_code === "ERROR") throw new Error(`Instagram media processing failed: ${status.status || "unknown"}`);
   }

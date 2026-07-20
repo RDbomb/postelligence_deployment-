@@ -19,7 +19,7 @@ export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   let savedState: { state?: string; userId?: string; workspaceId?: string | null } | null = null;
   try {
-    const raw = cookies().get("postelligence_discord_oauth_state")?.value;
+    const raw = (await cookies()).get("postelligence_discord_oauth_state")?.value;
     savedState = raw ? JSON.parse(raw) : null;
   } catch { /* invalid cookie is handled below */ }
   const destination = savedState?.workspaceId ? "/team?tab=accounts" : "/integrations";
@@ -38,7 +38,7 @@ export async function GET(request: Request) {
   if (oauthError) return redirect("error", `Discord authorization failed: ${oauthError}`);
   if (!code || !state) return redirect("error", "Missing Discord authorization data.");
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.redirect(new URL("/", requestUrl.origin));
 

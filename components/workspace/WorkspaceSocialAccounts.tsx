@@ -35,7 +35,13 @@ export default function WorkspaceSocialAccounts({
   currentRole: WorkspaceRole;
 }) {
   const [accounts, setAccounts] = useState<WorkspaceAccount[]>([]);
-  const [loading, setLoading]   = useState(true);
+  // `loading` is derived rather than stored: the initial fetch is "loading"
+  // until the workspace it belongs to has been recorded, and manual refreshes
+  // flip `reloading` from their own event handler. This keeps the mount effect
+  // free of synchronous setState.
+  const [loadedWorkspaceId, setLoadedWorkspaceId] = useState<string | null>(null);
+  const [reloading, setReloading] = useState(false);
+  const loading = reloading || loadedWorkspaceId !== workspaceId;
   const [error, setError]       = useState<string | null>(null);
   const [disconnecting, setDisconnecting] = useState<string | null>(null);
   const [blueskyModal, setBlueskyModal] = useState(false);
@@ -54,8 +60,9 @@ export default function WorkspaceSocialAccounts({
 
   const canManage = canManageSocialAccounts(currentRole);
 
-  const load = async () => {
-    setLoading(true);
+  // Fetch only — deliberately does not raise a loading flag synchronously, so
+  // it is safe to call straight from the mount effect.
+  const fetchAccounts = async () => {
     try {
       const res = await fetch(`/api/workspace/${workspaceId}/social-accounts`);
       const data = await res.json();
@@ -64,11 +71,18 @@ export default function WorkspaceSocialAccounts({
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load connected accounts.");
     } finally {
-      setLoading(false);
+      setLoadedWorkspaceId(workspaceId);
+      setReloading(false);
     }
   };
 
-  useEffect(() => { void load(); }, [workspaceId]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Refresh triggered by a user action — shows the spinner straight away.
+  const load = async () => {
+    setReloading(true);
+    await fetchAccounts();
+  };
+
+  useEffect(() => { void (async () => { await fetchAccounts(); })(); }, [workspaceId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const disconnect = async (platform: string, accountId: string) => {
     if (!confirm("Disconnect this account? Scheduled posts using it may fail until reconnected.")) return;

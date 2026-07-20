@@ -8,11 +8,9 @@ export const dynamic = "force-dynamic";
 
 // ── POST /api/workspace/[id]/transfer ───────────────────────
 // Transfer ownership to another member (owner only)
-export async function POST(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  const supabase = createClient();
+export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const supabase = await createClient();
   const admin    = createAdminClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

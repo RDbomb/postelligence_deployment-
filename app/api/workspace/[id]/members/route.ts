@@ -8,7 +8,7 @@ import type { WorkspaceRole } from "@/types";
 export const dynamic = "force-dynamic";
 
 async function getUserRole(
-  supabase: ReturnType<typeof createClient>,
+  supabase: Awaited<ReturnType<typeof createClient>>,
   workspaceId: string,
   userId: string
 ): Promise<WorkspaceRole | null> {
@@ -23,11 +23,9 @@ async function getUserRole(
 
 // ── GET /api/workspace/[id]/members ─────────────────────────
 // Returns all members with their email and display name
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  const supabase = createClient();
+export async function GET(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const supabase = await createClient();
   const admin    = createAdminClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -76,11 +74,9 @@ export async function GET(
 
 // ── POST /api/workspace/[id]/members ────────────────────────
 // Invite a user by email (owner/manager only)
-export async function POST(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  const supabase = createClient();
+export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const supabase = await createClient();
   const admin    = createAdminClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

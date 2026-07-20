@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useSyncExternalStore } from "react";
 import { 
   ShieldAlert, 
   Lock, 
@@ -31,21 +31,129 @@ import {
 } from "lucide-react";
 import { BrandMark } from "@/components/marketing/BrandMark";
 
+interface TicketMessage {
+  sender: "user" | "admin";
+  text: string;
+  time: string;
+}
+
+interface SupportTicket {
+  id: string;
+  subject: string;
+  description?: string | null;
+  status: string;
+  updated?: string | null;
+  images?: string[] | null;
+  messages: TicketMessage[];
+  typing_status?: { user?: boolean; admin?: boolean } | null;
+  user_name?: string | null;
+  user_email?: string | null;
+}
+
+interface AutomationLogRow {
+  id: string;
+  created_at: string;
+  user_id: string;
+  trend_title?: string | null;
+  status: string;
+  approval_email?: string | null;
+}
+
+interface ScheduledPostRow {
+  id: string;
+  scheduled_at: string;
+  platforms?: string[] | null;
+  caption?: string | null;
+  is_approved?: boolean | null;
+}
+
+interface AdminDataResponse {
+  stats: { automations: number; logs: number; posts: number };
+  tickets?: SupportTicket[];
+  logs: AutomationLogRow[];
+  posts: ScheduledPostRow[];
+  chatSupportEnabled?: boolean;
+  error?: string;
+}
+
+type CronResult = Record<string, unknown>;
+
 // Fallback Mock tickets with description and replies history
-const INITIAL_TICKETS: any[] = [];
+const INITIAL_TICKETS: SupportTicket[] = [];
+
+/**
+ * Admin credentials are verified server-side against env vars and are never
+ * present in this bundle. Authentication state lives in an httpOnly cookie set
+ * by POST /api/admin/login, which this component cannot read by design.
+ *
+ * The sessionStorage key below is a non-sensitive UI hint only — it tells the
+ * component which view to render on reload. It grants no access: every admin API
+ * call is authorised by the cookie, and a stale hint simply yields a 401 that
+ * sends the operator back to the login form.
+ */
+const SESSION_KEY = "admin_session";
+
+const sessionListeners = new Set<() => void>();
+
+function emitAdminSessionChange() {
+  sessionListeners.forEach((listener) => listener());
+}
+
+// Snapshot is a primitive so useSyncExternalStore can compare it by value.
+function getAdminSessionSnapshot(): string | null {
+  if (typeof window === "undefined") return null;
+  return window.sessionStorage.getItem(SESSION_KEY) === "active" ? "active" : null;
+}
+
+function getAdminSessionServerSnapshot(): string | null {
+  return null;
+}
+
+function subscribeToAdminSession(onStoreChange: () => void) {
+  sessionListeners.add(onStoreChange);
+  window.addEventListener("storage", onStoreChange);
+  return () => {
+    sessionListeners.delete(onStoreChange);
+    window.removeEventListener("storage", onStoreChange);
+  };
+}
+
+function saveAdminSession() {
+  window.sessionStorage.setItem(SESSION_KEY, "active");
+  emitAdminSessionChange();
+}
+
+function clearAdminSession() {
+  window.sessionStorage.clear();
+  emitAdminSessionChange();
+}
+
+function toErrorMessage(err: unknown, fallback: string) {
+  return err instanceof Error && err.message ? err.message : fallback;
+}
 
 export default function AdminPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // The admin session lives in sessionStorage (an external store), so it is read
+  // through useSyncExternalStore rather than copied into state from an effect.
+  const sessionSnapshot = useSyncExternalStore(
+    subscribeToAdminSession,
+    getAdminSessionSnapshot,
+    getAdminSessionServerSnapshot
+  );
+  const isLoggedIn = sessionSnapshot === "active";
+  // Shown in the sidebar only. The authoritative identity lives server-side.
+  const activeEmail = email;
 
   // Views control: default/start with "support" as requested!
   const [adminView, setAdminView] = useState<"support" | "automation" | "queue" | "settings">("support");
 
   // Support Tickets State
-  const [tickets, setTickets] = useState<any[]>(INITIAL_TICKETS);
+  const [tickets, setTickets] = useState<SupportTicket[]>(INITIAL_TICKETS);
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
   const [chatSupportEnabled, setChatSupportEnabled] = useState(true);
@@ -53,16 +161,46 @@ export default function AdminPage() {
   // System Database Data
   const [data, setData] = useState<{
     stats: { automations: number; logs: number; posts: number };
-    logs: any[];
-    posts: any[];
+    logs: AutomationLogRow[];
+    posts: ScheduledPostRow[];
   } | null>(null);
 
   const [triggeringCron, setTriggeringCron] = useState(false);
-  const [cronResult, setCronResult] = useState<any>(null);
+  const [cronResult, setCronResult] = useState<CronResult | null>(null);
   const [fetchingData, setFetchingData] = useState(false);
 
-  const [typingTimeout, setTypingTimeout] = useState<any>(null);
+  const [typingTimeout, setTypingTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
   const [isTypingSent, setIsTypingSent] = useState(false);
+
+  const fetchAdminData = async () => {
+    setFetchingData(true);
+    try {
+      // Authorised by the httpOnly admin session cookie — no credentials in the body.
+      const res = await fetch("/api/admin/data", { method: "POST" });
+      const resData: AdminDataResponse = await res.json();
+      if (res.status === 401) {
+        // Session expired or was never valid — drop back to the login form.
+        clearAdminSession();
+        throw new Error("Your administrative session has expired. Please sign in again.");
+      }
+      if (!res.ok) throw new Error(resData.error || "Failed to retrieve system status");
+      setData(resData);
+      if (resData.chatSupportEnabled !== undefined) {
+        setChatSupportEnabled(resData.chatSupportEnabled);
+      }
+
+      // Load tickets from database if available (or default to initial mock fallback list)
+      if (resData.tickets && resData.tickets.length > 0) {
+        setTickets(resData.tickets);
+      } else {
+        setTickets(INITIAL_TICKETS);
+      }
+    } catch (err: unknown) {
+      setError(toErrorMessage(err, "Failed to fetch database data"));
+    } finally {
+      setFetchingData(false);
+    }
+  };
 
   const handleToggleChatSupport = async (enabled: boolean) => {
     try {
@@ -70,7 +208,7 @@ export default function AdminPage() {
       const res = await fetch("/api/admin/toggle-chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, enabled })
+        body: JSON.stringify({ enabled })
       });
       if (!res.ok) throw new Error("Failed to toggle support chat");
       await fetchAdminData();
@@ -80,35 +218,24 @@ export default function AdminPage() {
     }
   };
 
-  // Restore session & Setup Polling
+  // Poll admin data while an admin session is active
   useEffect(() => {
-    const savedSession = sessionStorage.getItem("admin_session");
-    if (savedSession === "active") {
-      const savedEmail = sessionStorage.getItem("admin_email");
-      const savedPass = sessionStorage.getItem("admin_pass");
-      if (savedEmail === "postsync@2007" && savedPass === "rishi@1307") {
-        setIsLoggedIn(true);
-        setEmail(savedEmail);
-        setPassword(savedPass);
-        fetchAdminData(savedEmail, savedPass);
-      }
-    }
+    if (!isLoggedIn) return;
 
-    const interval = setInterval(() => {
-      const activeSession = sessionStorage.getItem("admin_session");
-      if (activeSession === "active") {
-        const savedEmail = sessionStorage.getItem("admin_email");
-        const savedPass = sessionStorage.getItem("admin_pass");
-        if (savedEmail && savedPass) {
-          fetchAdminData(savedEmail, savedPass);
-        }
-      }
-    }, 2000); // Poll every 2 seconds
+    const poll = () => {
+      fetchAdminData();
+    };
+
+    // The first poll is scheduled rather than run inline so that no state
+    // update happens synchronously while the effect is committing.
+    const initialPoll = setTimeout(poll, 0);
+    const interval = setInterval(poll, 2000); // Poll every 2 seconds
 
     return () => {
+      clearTimeout(initialPoll);
       clearInterval(interval);
     };
-  }, []);
+  }, [isLoggedIn]);
 
   const sendTypingStatus = async (ticketId: string, isTyping: boolean) => {
     if (String(ticketId).startsWith("TCK-")) return;
@@ -150,43 +277,28 @@ export default function AdminPage() {
     setLoading(true);
     setError(null);
 
-    if (email === "postsync@2007" && password === "rishi@1307") {
-      sessionStorage.setItem("admin_session", "active");
-      sessionStorage.setItem("admin_email", email);
-      sessionStorage.setItem("admin_pass", password);
-      setIsLoggedIn(true);
-      await fetchAdminData(email, password);
-    } else {
-      setError("Invalid administrative credentials.");
-    }
-    setLoading(false);
-  };
-
-  const fetchAdminData = async (mailId = email, pass = password) => {
-    setFetchingData(true);
     try {
-      const res = await fetch("/api/admin/data", {
+      // Credentials are verified server-side; on success the server sets an
+      // httpOnly session cookie that authorises subsequent admin API calls.
+      const res = await fetch("/api/admin/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: mailId, password: pass }),
+        body: JSON.stringify({ email, password }),
       });
-      const resData = await res.json();
-      if (!res.ok) throw new Error(resData.error || "Failed to retrieve system status");
-      setData(resData);
-      if (resData.chatSupportEnabled !== undefined) {
-        setChatSupportEnabled(resData.chatSupportEnabled);
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setError(body.error || "Invalid administrative credentials.");
+        return;
       }
-      
-      // Load tickets from database if available (or default to initial mock fallback list)
-      if (resData.tickets && resData.tickets.length > 0) {
-        setTickets(resData.tickets);
-      } else {
-        setTickets(INITIAL_TICKETS);
-      }
-    } catch (err: any) {
-      setError(err.message || "Failed to fetch database data");
+
+      setPassword("");
+      saveAdminSession();
+      await fetchAdminData();
+    } catch (err: unknown) {
+      setError(toErrorMessage(err, "Unable to reach the authentication service."));
     } finally {
-      setFetchingData(false);
+      setLoading(false);
     }
   };
 
@@ -197,11 +309,11 @@ export default function AdminPage() {
       const res = await fetch("/api/automation/trigger", {
         method: "POST"
       });
-      const result = await res.json();
+      const result: CronResult = await res.json();
       setCronResult(result);
       await fetchAdminData();
-    } catch (err: any) {
-      setCronResult({ error: err.message || "Failed to trigger cron trigger endpoint" });
+    } catch (err: unknown) {
+      setCronResult({ error: toErrorMessage(err, "Failed to trigger cron trigger endpoint") });
     } finally {
       setTriggeringCron(false);
     }
@@ -215,7 +327,7 @@ export default function AdminPage() {
     if (typingTimeout) clearTimeout(typingTimeout);
     sendTypingStatus(ticketId, false);
 
-    const newReply = { sender: "admin", text: replyText, time: new Date().toLocaleString() };
+    const newReply: TicketMessage = { sender: "admin", text: replyText, time: new Date().toLocaleString() };
     const updatedMessages = [...(activeTicket.messages || []), newReply];
     const newStatus = activeTicket.status === "open" ? "in_progress" : activeTicket.status;
 
@@ -255,7 +367,7 @@ export default function AdminPage() {
       
       setReplyText("");
       await fetchAdminData();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.warn("Could not save admin reply to DB, updating client state fallback.", err);
       setTickets(prevTickets => 
         prevTickets.map(t => {
@@ -308,13 +420,20 @@ export default function AdminPage() {
     }
   };
 
-  const handleLogout = () => {
-    sessionStorage.clear();
-    setIsLoggedIn(false);
+  const handleLogout = async () => {
+    // Clear the local UI hint first so the form returns immediately, then revoke
+    // the server-side cookie. A failed revoke must not strand the operator in
+    // a logged-in-looking UI.
+    clearAdminSession();
     setData(null);
     setCronResult(null);
     setEmail("");
     setPassword("");
+    try {
+      await fetch("/api/admin/logout", { method: "POST" });
+    } catch (err: unknown) {
+      console.error("Admin logout error:", err);
+    }
   };
 
   const selectedTicket = tickets.find(t => t.id === selectedTicketId);
@@ -484,7 +603,7 @@ export default function AdminPage() {
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-[10px] font-bold text-slate-800 truncate leading-none">System Admin</p>
-                <p className="text-[9px] text-slate-400 truncate mt-0.5">{email}</p>
+                <p className="text-[9px] text-slate-400 truncate mt-0.5">{activeEmail}</p>
               </div>
             </div>
             <button
@@ -626,7 +745,7 @@ export default function AdminPage() {
 
                       {/* Messages Thread */}
                       <div className="space-y-3 h-[250px] overflow-y-auto pr-1 leading-normal border-t border-slate-50 pt-3">
-                        {selectedTicket.messages.map((m: any, idx: number) => {
+                        {selectedTicket.messages.map((m: TicketMessage, idx: number) => {
                           const isAdmin = m.sender === "admin";
                           return (
                             <div key={idx} className={`flex flex-col max-w-[85%] ${isAdmin ? "ml-auto items-end" : "mr-auto items-start"}`}>
@@ -724,7 +843,7 @@ export default function AdminPage() {
                       {cronResult ? (
                         <pre className="whitespace-pre-wrap">{JSON.stringify(cronResult, null, 2)}</pre>
                       ) : (
-                        <span className="text-zinc-600 italic">// Waiting for cron execution trigger...</span>
+                        <span className="text-zinc-600 italic">{"// Waiting for cron execution trigger..."}</span>
                       )}
                     </div>
                   </div>
@@ -756,7 +875,7 @@ export default function AdminPage() {
                             <td className="py-2.5 pr-4 text-[10px] font-mono text-indigo-650 truncate max-w-[120px]" title={log.user_id}>
                               {log.user_id}
                             </td>
-                            <td className="py-2.5 pr-4 truncate max-w-[300px]" title={log.trend_title}>
+                            <td className="py-2.5 pr-4 truncate max-w-[300px]" title={log.trend_title ?? undefined}>
                               {log.trend_title || <span className="text-slate-300 italic">None</span>}
                             </td>
                             <td className="py-2.5 whitespace-nowrap">
@@ -820,7 +939,7 @@ export default function AdminPage() {
                               ))}
                             </div>
                           </td>
-                          <td className="py-2.5 pr-4 truncate max-w-[320px]" title={post.caption}>
+                          <td className="py-2.5 pr-4 truncate max-w-[320px]" title={post.caption ?? undefined}>
                             {post.caption}
                           </td>
                           <td className="py-2.5 whitespace-nowrap">

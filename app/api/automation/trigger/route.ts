@@ -3,11 +3,79 @@ import { createClient } from "@/lib/supabase/server";
 import { createClient as createBaseClient } from "@supabase/supabase-js";
 import { createHash } from "crypto";
 import { PLATFORM_COMPOSE_RULES, type ComposePlatformId, type PlatformComposeRule } from "@/lib/compose/platform-rules";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { ScheduledPost } from "@/types";
 
 export const maxDuration = 60; // Allow execution to take up to 60 seconds
 
 const POLLINATIONS_TEXT_URL = "https://text.pollinations.ai/";
 const POLLINATIONS_IMAGE_URL = "https://image.pollinations.ai/prompt/";
+
+// Per-time-slot overrides stored on automation_settings.time_configs when
+// use_same_settings is false.
+interface AutomationTimeConfig {
+  platforms?: string[] | null;
+  categories?: string[] | null;
+  keywords?: string[] | null;
+}
+
+// Row shape of the `automation_settings` table (only the columns read here).
+interface AutomationSettings {
+  user_id: string;
+  mode: string;
+  approval_email: string | null;
+  is_enabled?: boolean;
+  timezone?: string | null;
+  schedule_type?: string | null;
+  post_time?: string | null;
+  post_times?: string[] | null;
+  post_days?: string[] | null;
+  post_day_of_month?: number | string | null;
+  platforms?: string[] | null;
+  categories?: string[] | null;
+  keywords?: string[] | null;
+  use_same_settings?: boolean | null;
+  time_configs?: Record<string, AutomationTimeConfig> | null;
+}
+
+// Row shape of the `automation_logs` table (only the columns read here).
+interface AutomationLogRow {
+  id: string;
+  user_id: string;
+  trend_title: string;
+  caption: string;
+  media_url: string | null;
+  mode: string;
+  status: string;
+  scheduled_post_id?: string | null;
+  created_at?: string;
+}
+
+type AutomationRunResult =
+  | { success: true; mode: "automatic"; log: AutomationLogRow; scheduledPost: ScheduledPost }
+  | { success: true; mode: "manual"; log: AutomationLogRow; emailSent: boolean; emailError: string | null };
+
+// One entry per (user, time slot) processed by the global cron tick.
+interface GlobalTickResult {
+  user_id: string;
+  success: boolean;
+  timeSlot: string;
+  response?: AutomationRunResult;
+  error?: string;
+}
+
+// Preserves the previous `err.message || fallback` behaviour while keeping the
+// caught value typed as `unknown`: Supabase/Postgrest errors are plain objects
+// carrying a `message`, not Error instances.
+function errorMessage(err: unknown, fallback: string): string {
+  if (err instanceof Error && err.message) return err.message;
+  if (typeof err === "object" && err !== null) {
+    const message = (err as { message?: unknown }).message;
+    if (typeof message === "string" && message) return message;
+  }
+  if (typeof err === "string" && err) return err;
+  return fallback;
+}
 
 function getNextPostTime(postTimeStr: string): Date {
   const [h, m, s] = postTimeStr.split(":").map(Number);
@@ -33,7 +101,10 @@ function getNextPostTimeUTC(postTimeStr: string): Date {
   return target;
 }
 
-function isScheduleActiveOnDay(targetTime: Date, settings: any): boolean {
+function isScheduleActiveOnDay(
+  targetTime: Date,
+  settings: Pick<AutomationSettings, "timezone" | "schedule_type" | "post_days" | "post_day_of_month">
+): boolean {
   const tz = settings.timezone || "UTC";
   const type = settings.schedule_type || "daily";
 
@@ -78,7 +149,7 @@ async function triggerAutomation(req: NextRequest) {
   const authHeader = req.headers.get("Authorization");
   const isServiceRole = authHeader === `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`;
 
-  let supabase = createClient();
+  let supabase = await createClient();
   let user = null;
 
   // 1. Check Global Scheduler Tick (Supabase pg_cron or Vercel cron hitting without a user session / specific user query)
@@ -99,12 +170,14 @@ async function triggerAutomation(req: NextRequest) {
       return NextResponse.json({ error: `Failed to fetch active settings: ${allErr.message}` }, { status: 500 });
     }
 
-    const results: any[] = [];
+    const results: GlobalTickResult[] = [];
     const evaluationTime = new Date();
     const promises: Promise<void>[] = [];
 
-    for (const settings of (allSettings || [])) {
-      const times = settings.post_times || [settings.post_time || "09:00:00"];
+    const activeSettings: AutomationSettings[] = allSettings || [];
+
+    for (const settings of activeSettings) {
+      const times: string[] = settings.post_times || [settings.post_time || "09:00:00"];
       for (const timeStr of times) {
         const targetTime = getNextPostTimeUTC(timeStr);
         const triggerTime = new Date(targetTime.getTime() - 10 * 60000);
@@ -126,8 +199,8 @@ async function triggerAutomation(req: NextRequest) {
                 
                 const runRes = await runAutomationForUser(baseClient, settings.user_id, settings, email, req.nextUrl.origin, false, timeStr);
                 results.push({ user_id: settings.user_id, success: true, response: runRes, timeSlot: timeStr });
-              } catch (e: any) {
-                results.push({ user_id: settings.user_id, success: false, error: e.message || String(e), timeSlot: timeStr });
+              } catch (e: unknown) {
+                results.push({ user_id: settings.user_id, success: false, error: errorMessage(e, String(e)), timeSlot: timeStr });
               }
             })());
           }
@@ -212,9 +285,9 @@ async function triggerAutomation(req: NextRequest) {
     const res = await runAutomationForUser(supabase, userId, settings, user.email || "", req.nextUrl.origin, isManualTest);
     return NextResponse.json(res);
 
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Automation Single User Error:", err);
-    return NextResponse.json({ error: err.message || "Failed during automation processing." }, { status: 500 });
+    return NextResponse.json({ error: errorMessage(err, "Failed during automation processing.") }, { status: 500 });
   }
 }
 
@@ -380,7 +453,15 @@ function extractCleanText(text: string): string {
 }
 
 // core automation script
-async function runAutomationForUser(supabase: any, userId: string, settings: any, userEmail: string, origin: string, isTest = false, activePostTime?: string) {
+async function runAutomationForUser(
+  supabase: SupabaseClient,
+  userId: string,
+  settings: AutomationSettings,
+  userEmail: string,
+  origin: string,
+  isTest = false,
+  activePostTime?: string
+): Promise<AutomationRunResult> {
   const { mode, approval_email } = settings;
   const post_time = activePostTime || settings.post_time || "09:00:00";
 
@@ -414,7 +495,9 @@ async function runAutomationForUser(supabase: any, userId: string, settings: any
       .order("created_at", { ascending: false })
       .limit(30);
     const usedTitles = new Set(
-      (recentLogs || []).map((l: any) => l.trend_title.toLowerCase().trim())
+      ((recentLogs || []) as Array<Pick<AutomationLogRow, "trend_title">>).map((l) =>
+        l.trend_title.toLowerCase().trim()
+      )
     );
 
     let rssUrl = "";
@@ -799,9 +882,9 @@ Return ONLY a valid JSON object with a single key "caption" containing your gene
         } else {
           emailError = emailData.message || "Failed to deliver email through Resend API";
         }
-      } catch (e: any) {
+      } catch (e: unknown) {
         console.error("Resend email post failed:", e);
-        emailError = e.message || String(e);
+        emailError = errorMessage(e, String(e));
       }
     } else {
       emailError = "Resend API key is missing. Add RESEND_API_KEY to your environment variables.";

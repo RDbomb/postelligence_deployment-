@@ -20,8 +20,9 @@ type EventType = keyof typeof EVENT_ACTIONS;
 // Fire-and-forget audit trail for the report workflow, and the raw
 // signal behind the Analyst's "Reports Generated" / "Reports
 // Exported" contribution metrics.
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const supabase = createClient();
+export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const supabase = await createClient();
   const admin    = createAdminClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

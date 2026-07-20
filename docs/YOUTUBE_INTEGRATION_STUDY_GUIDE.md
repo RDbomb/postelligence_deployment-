@@ -419,7 +419,7 @@ Production improvement: encrypt access and refresh tokens before storing them. R
 ### Install
 
 ```powershell
-pnpm install
+yarn install
 ```
 
 ### Type check

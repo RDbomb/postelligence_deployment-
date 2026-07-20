@@ -10,10 +10,8 @@ Built with Next.js 14, Supabase, Tailwind CSS, and Recharts.
 
 Before you begin, make sure you have the following installed:
 
-- **Node.js v22.13+** — [Download here](https://nodejs.org/)
-- **pnpm v9+** — Install with `npm install -g pnpm@9`
-
-> **Note:** pnpm v10+ requires Node.js v22.13. If you're on an older Node version, install pnpm v9 specifically with `npm install -g pnpm@9`.
+- **Node.js v20+** — [Download here](https://nodejs.org/)
+- **Yarn v1.22+** — Install with `npm install -g yarn`
 
 ---
 
@@ -22,17 +20,10 @@ Before you begin, make sure you have the following installed:
 ### 1. Install dependencies
 
 ```bash
-pnpm install
+yarn install
 ```
 
-If you run into a `packages field missing` error, fix your `pnpm-workspace.yaml` first:
-
-```powershell
-# PowerShell (Windows)
-Set-Content -Path pnpm-workspace.yaml -Value "packages:`n  - '.'" -Encoding UTF8
-```
-
-Then run `pnpm install` again.
+This project uses Yarn as its package manager. Do not use `npm install` or `pnpm install` — they generate competing lockfiles that will drift from `yarn.lock`.
 
 ---
 
@@ -53,7 +44,7 @@ Open `.env.local` and replace each placeholder value with your actual credential
 **Standard HTTP (recommended for local dev):**
 
 ```bash
-pnpm dev
+yarn dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
@@ -61,7 +52,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 **HTTPS (required for some OAuth callbacks like Instagram):**
 
 ```bash
-pnpm dev:https
+yarn dev:https
 ```
 
 Open [https://localhost:3000](https://localhost:3000) in your browser. SSL certificates are pre-generated in the `certificates/` folder.
@@ -130,6 +121,81 @@ npx supabase functions deploy bluesky-video-upload --project-ref YOUR_PROJECT_RE
 
 ---
 
+## Auth & Route Protection
+
+Authentication is enforced at **two** layers, on purpose.
+
+### 1. `proxy.ts` (Next.js 16 middleware)
+
+Runs before rendering on every matched request and does two jobs:
+
+- **Refreshes the Supabase session.** `getUser()` revalidates the access token and rotates the auth cookies when it has expired. Without this, a signed-in user's session dies silently when the token lapses.
+- **Redirects optimistically** — signed-out visitors leaving the app shell go to `/login`; signed-in visitors hitting `/login` go to `/dashboard`.
+
+Protected prefixes mirror the `app/(shell)/` segments. Deliberate exclusions:
+
+| Excluded | Why |
+|---|---|
+| `/automation/action-completed` | Public landing page for token-authenticated external approval links sent over Discord/Telegram. Sits under the protected `/automation` prefix but must stay open. |
+| `/api/*` | Route handlers authenticate themselves and must return 401 JSON, not an HTML redirect. Keeps `/api/scheduler/run` (cron) and `/api/automation/external-approve` (token) reachable. |
+| `/auth/*` | OAuth callbacks — redirecting these breaks the code exchange. |
+| `/admin` | Authenticates client-side against `sessionStorage`, not Supabase. |
+
+### 2. `getUser()` in pages, layouts and route handlers
+
+These are **kept**, not replaced by the proxy. Two reasons:
+
+- A proxy is a single spoofable choke point. [CVE-2025-29927](https://nvd.nist.gov/vuln/detail/CVE-2025-29927) let a crafted `x-middleware-subrequest` header skip Next.js middleware entirely. If the proxy were the only gate, that bug would have exposed every page and API route.
+- In the App Router a **layout's guard does not stop its child page from executing** — they render in parallel. A page cannot rely on its layout for protection.
+
+The rule: the proxy avoids rendering work and keeps tokens fresh; **authorisation lives next to the data it protects.**
+
+---
+
+## Code Quality & Git Hooks
+
+Hooks are managed by [husky](https://typicode.github.io/husky/) and installed automatically by `yarn install`.
+
+| Hook | Runs | Blocks on |
+|---|---|---|
+| `pre-commit` | `lint-staged` → `eslint --fix` on staged files | any remaining ESLint **error** |
+| `commit-msg` | `commitlint` | message not matching Conventional Commits |
+| `pre-push` | `eslint .` then `next build` (type-checks too) | any lint error or build/type failure |
+
+### Commit message format
+
+Commits must follow [Conventional Commits](https://www.conventionalcommits.org/):
+
+```
+type(optional scope): subject
+```
+
+Allowed types: `feat`, `fix`, `refactor`, `perf`, `docs`, `style`, `test`, `build`, `ci`, `chore`, `revert`.
+Subject must be lower-case, non-empty, no trailing period; header ≤100 chars.
+
+```bash
+# accepted
+feat(automation): add discord webhook publishing
+fix(auth): handle expired youtube refresh token
+chore(deps): upgrade next to 16
+
+# rejected
+discord added
+Fixed the thing.
+```
+
+### Useful scripts
+
+```bash
+yarn lint         # eslint across the project
+yarn lint:fix     # eslint with --fix
+yarn typecheck    # tsc --noEmit
+```
+
+> **Bypassing hooks** (`--no-verify`) is discouraged — `pre-push` is the last gate before shared branches.
+
+---
+
 ## Tech Stack
 
 | Layer | Technology |
@@ -143,7 +209,7 @@ npx supabase functions deploy bluesky-video-upload --project-ref YOUR_PROJECT_RE
 | Auth & Database | Supabase (PostgreSQL + Auth) |
 | File Storage | Supabase Storage |
 | Edge Functions | Supabase Edge Functions (Deno) |
-| Package Manager | pnpm |
+| Package Manager | Yarn (v1 Classic) |
 
 ---
 

@@ -1,13 +1,17 @@
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import type { Metadata } from "next";
+import { requireUser } from "@/lib/supabase/require-user";
 import CalendarClient from "./CalendarClient";
+
+export const metadata: Metadata = {
+  title: "Calendar",
+  description: "See and reschedule everything queued to publish."
+};
+
 
 export const dynamic = "force-dynamic";
 
 export default async function CalendarPage() {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { supabase, user } = await requireUser();
 
   const { data: posts } = await supabase
     .from("scheduled_posts")

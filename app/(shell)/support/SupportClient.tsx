@@ -27,6 +27,25 @@ interface User {
   email?: string | null;
 }
 
+interface TicketMessage {
+  sender: "user" | "admin";
+  text: string;
+  time: string;
+}
+
+interface SupportTicket {
+  id: string;
+  user_id: string;
+  subject: string;
+  description?: string | null;
+  status: string;
+  images?: string[] | null;
+  messages?: TicketMessage[] | null;
+  typing_status?: { user?: boolean; admin?: boolean } | null;
+  created_at?: string;
+  updated?: string | null;
+}
+
 export default function SupportClient({ user }: { user: User }) {
   const supabase = createClient();
   const [activeTab, setActiveTab] = useState<"submit" | "list">("submit");
@@ -38,11 +57,11 @@ export default function SupportClient({ user }: { user: User }) {
   const [submitting, setSubmitting] = useState(false);
 
   // Tickets List States
-  const [myTickets, setMyTickets] = useState<any[]>([]);
+  const [myTickets, setMyTickets] = useState<SupportTicket[]>([]);
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [userReplyText, setUserReplyText] = useState("");
   const [fetchingTickets, setFetchingTickets] = useState(false);
-  const [typingTimeout, setTypingTimeout] = useState<any>(null);
+  const [typingTimeout, setTypingTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
   const [isTypingSent, setIsTypingSent] = useState(false);
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
   const [chatEnabled, setChatEnabled] = useState(true);
@@ -50,12 +69,52 @@ export default function SupportClient({ user }: { user: User }) {
   // Toast notifications
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
+  const fetchMyTickets = async () => {
+    setFetchingTickets(true);
+    try {
+      // Fetch system settings for Chat Support Enabled via API
+      try {
+        const res = await fetch("/api/support/config");
+        if (res.ok) {
+          const config = await res.json();
+          if (config && typeof config.chatSupportEnabled === "boolean") {
+            setChatEnabled(config.chatSupportEnabled);
+          }
+        }
+      } catch (err) {
+        console.warn("Could not retrieve system chat setting via API:", err);
+      }
+
+      const { data: dbData, error } = await supabase
+        .from("support_tickets")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      setMyTickets(dbData || []);
+    } catch (err) {
+      console.warn("Could not query support_tickets from Supabase. Falling back to local storage.", err);
+      // Fetch from local fallback
+      const localData = localStorage.getItem(`local_tickets_${user.id}`);
+      if (localData) {
+        setMyTickets(JSON.parse(localData) as SupportTicket[]);
+      }
+    } finally {
+      setFetchingTickets(false);
+    }
+  };
+
   useEffect(() => {
-    fetchMyTickets();
-    const interval = setInterval(() => {
+    const poll = () => {
       fetchMyTickets();
-    }, 2000); // Poll every 2 seconds for seamless updates!
+    };
+
+    // The first poll is scheduled rather than run inline so that no state
+    // update happens synchronously while the effect is committing.
+    const initialPoll = setTimeout(poll, 0);
+    const interval = setInterval(poll, 2000); // Poll every 2 seconds for seamless updates!
     return () => {
+      clearTimeout(initialPoll);
       clearInterval(interval);
     };
   }, []);
@@ -100,41 +159,6 @@ export default function SupportClient({ user }: { user: User }) {
     setTimeout(() => setToast(null), 3500);
   };
 
-  const fetchMyTickets = async () => {
-    setFetchingTickets(true);
-    try {
-      // Fetch system settings for Chat Support Enabled via API
-      try {
-        const res = await fetch("/api/support/config");
-        if (res.ok) {
-          const config = await res.json();
-          if (config && typeof config.chatSupportEnabled === "boolean") {
-            setChatEnabled(config.chatSupportEnabled);
-          }
-        }
-      } catch (err) {
-        console.warn("Could not retrieve system chat setting via API:", err);
-      }
-
-      const { data: dbData, error } = await supabase
-        .from("support_tickets")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      setMyTickets(dbData || []);
-    } catch (err) {
-      console.warn("Could not query support_tickets from Supabase. Falling back to local storage.", err);
-      // Fetch from local fallback
-      const localData = localStorage.getItem(`local_tickets_${user.id}`);
-      if (localData) {
-        setMyTickets(JSON.parse(localData));
-      }
-    } finally {
-      setFetchingTickets(false);
-    }
-  };
-
   // Convert files to base64
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
@@ -165,7 +189,7 @@ export default function SupportClient({ user }: { user: User }) {
     if (!subject.trim() || !description.trim()) return;
 
     setSubmitting(true);
-    const newMessages = [
+    const newMessages: TicketMessage[] = [
       { sender: "user", text: description, time: new Date().toLocaleString() }
     ];
 
@@ -192,12 +216,12 @@ export default function SupportClient({ user }: { user: User }) {
       setDescription("");
       setSelectedImages([]);
       setActiveTab("list");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.warn("Writing to database failed, storing locally to fallback storage", err);
-      
+
       // Fallback
-      const localTickets = JSON.parse(localStorage.getItem(`local_tickets_${user.id}`) || "[]");
-      const fallbackTicket = {
+      const localTickets = JSON.parse(localStorage.getItem(`local_tickets_${user.id}`) || "[]") as SupportTicket[];
+      const fallbackTicket: SupportTicket = {
         id: `TCK-MOCK-${Math.floor(1000 + Math.random() * 9000)}`,
         user_id: user.id,
         subject,
@@ -231,7 +255,7 @@ export default function SupportClient({ user }: { user: User }) {
     if (typingTimeout) clearTimeout(typingTimeout);
     sendTypingStatus(ticketId, false);
 
-    const newReply = { sender: "user", text: userReplyText, time: new Date().toLocaleString() };
+    const newReply: TicketMessage = { sender: "user", text: userReplyText, time: new Date().toLocaleString() };
     const updatedMessages = [...(activeTicket.messages || []), newReply];
 
     // Check if it's a mock fallback ticket
@@ -711,7 +735,7 @@ export default function SupportClient({ user }: { user: User }) {
 
                     {/* Messages Thread list */}
                     <div className="space-y-3 h-[240px] overflow-y-auto pr-1 border-t border-slate-50 pt-3">
-                      {selectedTicket.messages?.map((m: any, idx: number) => {
+                      {selectedTicket.messages?.map((m: TicketMessage, idx: number) => {
                         const isUser = m.sender === "user";
                         return (
                           <div key={idx} className={`flex flex-col max-w-[85%] ${isUser ? "ml-auto items-end" : "mr-auto items-start"}`}>

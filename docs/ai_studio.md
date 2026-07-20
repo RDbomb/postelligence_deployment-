@@ -103,7 +103,7 @@ Get a key from [Google AI Studio → Get API Key](https://aistudio.google.com/ap
 
 | Issue | Cause | Fix |
 |---|---|---|
-| "Gemini API key not configured" | `GEMINI_API_KEY` missing, or added after the dev server was already running | Add the key to `.env.local` and **restart** `npm run dev` — Next.js only reads `.env.local` at startup |
+| "Gemini API key not configured" | `GEMINI_API_KEY` missing, or added after the dev server was already running | Add the key to `.env.local` and **restart** `yarn dev` — Next.js only reads `.env.local` at startup |
 | "No content generated" | Gemini's safety filter blocked the response | Rephrase the topic to avoid sensitive wording, then retry |
 | 429 / quota error | Free-tier Gemini quota exceeded | Wait for quota reset, or use a key on a paid Gemini tier |
 | Result isn't numbered / doesn't split into cards | Gemini didn't follow the formatting instruction exactly | Regenerate — the splitter falls back gracefully but cleanly numbered output displays best |
@@ -225,8 +225,8 @@ Get a token from [huggingface.co/settings/tokens](https://huggingface.co/setting
 
 | Issue | Cause | Fix |
 |---|---|---|
-| "Internal server error" with no further detail | An exception was thrown before a clean HTTP error could be returned — usually a network-level failure calling Hugging Face | Check the terminal running `npm run dev` right after generating — the real error is logged via `console.error("Image generate error:", err)` |
-| "Hugging Face API token not configured" | `HUGGINGFACE_API_TOKEN` missing, or added after the dev server was already running | Add it to `.env.local` and **restart** `npm run dev` |
+| "Internal server error" with no further detail | An exception was thrown before a clean HTTP error could be returned — usually a network-level failure calling Hugging Face | Check the terminal running `yarn dev` right after generating — the real error is logged via `console.error("Image generate error:", err)` |
+| "Hugging Face API token not configured" | `HUGGINGFACE_API_TOKEN` missing, or added after the dev server was already running | Add it to `.env.local` and **restart** `yarn dev` |
 | 401/403 from Hugging Face | Token doesn't have the Inference Providers permission | Regenerate the token at huggingface.co/settings/tokens with that permission checked |
 | "Image model is warming up" (503) | FLUX.1-schnell is cold-starting on Hugging Face's shared GPU pool | Wait 20–30 seconds and retry |
 | Image generates but doesn't show up in the Library | The auto-save step failed (storage or database error) | Check `libraryError` in the response / server logs; confirm the `media-library` bucket and its RLS policies (see `library.md`) are set up |

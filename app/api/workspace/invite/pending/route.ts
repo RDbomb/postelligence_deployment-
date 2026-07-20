@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 // still pending (not accepted, not rejected, not expired).
 // Powers the notification bell in the topbar.
 export async function GET() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

@@ -6,11 +6,9 @@ export const dynamic = "force-dynamic";
 // ── GET /api/workspace/invite/[token] ───────────────────────
 // Validate an invite token and return workspace info
 // Used to show the "You've been invited to X workspace" page
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: { token: string } }
-) {
-  const supabase = createClient();
+export async function GET(_req: NextRequest, props: { params: Promise<{ token: string }> }) {
+  const params = await props.params;
+  const supabase = await createClient();
 
   const { data: invite, error } = await supabase
     .from("workspace_invites")

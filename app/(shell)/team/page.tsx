@@ -1,21 +1,27 @@
+import type { Metadata } from "next";
+import { requireUser } from "@/lib/supabase/require-user";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getActionLabel } from "@/lib/workspace/activity-logger";
+import { getActionLabel, type WorkspaceAction } from "@/lib/workspace/activity-logger";
 import TeamClient from "./TeamClient";
-import type { WorkspaceRole } from "@/types";
+import type { Workspace, WorkspaceInvite, WorkspaceRole } from "@/types";
+
+export const metadata: Metadata = {
+  title: "Team",
+  description: "Members, roles and workspace activity."
+};
+
 
 export const dynamic = "force-dynamic";
 
-export default async function TeamPage({
-  searchParams,
-}: {
-  searchParams?: { bluesky?: string; message?: string };
-}) {
-  const supabase = createClient();
+export default async function TeamPage(
+  props: {
+    searchParams?: Promise<{ bluesky?: string; message?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
+  const { supabase, user } = await requireUser();
   const admin    = createAdminClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
 
   // Get membership
   const { data: membership } = await supabase
@@ -27,7 +33,7 @@ export default async function TeamPage({
   // Not in a workspace — redirect to setup
   if (!membership) redirect("/workspace");
 
-  const workspace   = membership.workspace as any;
+  const workspace   = membership.workspace as Workspace;
   const currentRole = membership.role as WorkspaceRole;
 
   // Fetch all members
@@ -51,7 +57,7 @@ export default async function TeamPage({
   );
 
   // Fetch pending invites (owner/manager only)
-  let invites: any[] = [];
+  let invites: WorkspaceInvite[] = [];
   if (currentRole === "owner" || currentRole === "manager") {
     const { data } = await supabase
       .from("workspace_invites")
@@ -81,7 +87,7 @@ export default async function TeamPage({
         ...log,
         user_name:   userName,
         user_avatar: userData?.user?.user_metadata?.avatar_url || "",
-        label:       getActionLabel(log.action as any, metadata),
+        label:       getActionLabel(log.action as WorkspaceAction, metadata),
       };
     })
   );

@@ -19,7 +19,7 @@ export type CacheResult =
  *   - hit: true, stale: true  → stale cache, serve immediately + trigger background refresh
  */
 export async function readAnalyticsCache(userId: string): Promise<CacheResult> {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data, error } = await supabase
     .from("analytics_cache")
@@ -52,7 +52,7 @@ export async function writeAnalyticsCache(
   userId: string,
   analytics: AnalyticsDashboardData
 ): Promise<void> {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   await supabase.from("analytics_cache").upsert(
     {
@@ -71,7 +71,7 @@ export async function writeAnalyticsCache(
  * Prevents multiple concurrent background refreshes.
  */
 export async function markCacheRefreshing(userId: string): Promise<boolean> {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // Only set is_refreshing = true if it's currently false
   const { data, error } = await supabase
@@ -92,7 +92,7 @@ export async function markCacheRefreshing(userId: string): Promise<boolean> {
  * Call this when the user clicks "Refresh" to force a fresh fetch.
  */
 export async function invalidateAnalyticsCache(userId: string): Promise<void> {
-  const supabase = createClient();
+  const supabase = await createClient();
   await supabase.from("analytics_cache").delete().eq("user_id", userId).is("workspace_id", null);
 }
 
@@ -102,7 +102,7 @@ export async function invalidateAnalyticsCache(userId: string): Promise<void> {
 // so the personal-analytics code path above is never touched.
 
 export async function readWorkspaceAnalyticsCache(workspaceId: string): Promise<CacheResult> {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data, error } = await supabase
     .from("analytics_cache")
@@ -137,7 +137,7 @@ export async function writeWorkspaceAnalyticsCache(
   userId: string,
   analytics: AnalyticsDashboardData
 ): Promise<void> {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data: existing } = await supabase
     .from("analytics_cache")
@@ -161,7 +161,7 @@ export async function writeWorkspaceAnalyticsCache(
 }
 
 export async function markWorkspaceCacheRefreshing(workspaceId: string): Promise<boolean> {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data, error } = await supabase
     .from("analytics_cache")
@@ -176,6 +176,6 @@ export async function markWorkspaceCacheRefreshing(workspaceId: string): Promise
 }
 
 export async function invalidateWorkspaceAnalyticsCache(workspaceId: string): Promise<void> {
-  const supabase = createClient();
+  const supabase = await createClient();
   await supabase.from("analytics_cache").delete().eq("workspace_id", workspaceId);
 }

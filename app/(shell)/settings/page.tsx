@@ -1,13 +1,17 @@
-import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
+import type { Metadata } from "next";
+import { requireUser } from "@/lib/supabase/require-user";
 import SettingsClient from "./SettingsClient";
+
+export const metadata: Metadata = {
+  title: "Settings",
+  description: "Manage your account, workspace and preferences."
+};
+
 
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { supabase, user } = await requireUser();
 
   const { data: settings } = await supabase
     .from("user_settings")

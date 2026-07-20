@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 // Returns the current user's workspace + their role
 // Returns null if user is not in any workspace
 export async function GET() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -41,7 +41,7 @@ export async function GET() {
 // ── POST /api/workspace ──────────────────────────────────────
 // Creates a new workspace and adds the creator as owner
 export async function POST(req: NextRequest) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const admin    = createAdminClient();
 
   const { data: { user } } = await supabase.auth.getUser();

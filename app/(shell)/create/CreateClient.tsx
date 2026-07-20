@@ -135,6 +135,12 @@ type MediaLibraryItem = {
 
 const fadeUp = { hidden: { opacity: 0, y: 24 }, visible: { opacity: 1, y: 0 } };
 
+// Narrows the `cond && {...}` entries used to build the per-platform counter
+// rows, so the surviving entries keep their object type instead of `false`.
+function isPresent<T>(value: T | false): value is T {
+  return value !== false;
+}
+
 function PlatformLogo({ id, className }: { id: string; className?: string }) {
   const isWhite = className?.includes("text-white");
   const style = isWhite ? { color: "#ffffff", fill: "#ffffff" } : undefined;
@@ -649,7 +655,7 @@ export default function CreateClient({
   // Appends one or more images to the gallery instead of replacing the
   // existing selection — this is the fix for images disappearing when a
   // second one is added, since social platforms support multi-image posts.
-  const addImageAttachments = (files: File[]) => {
+  function addImageAttachments(files: File[]) {
     if (files.length === 0) return;
     setImageAttachments((prev) => {
       const room = Math.max(0, MAX_IMAGE_ATTACHMENTS - prev.length);
@@ -663,7 +669,7 @@ export default function CreateClient({
     // platforms — attaching an image clears any previous video/file.
     if (attachment) { if (attachmentPreview) URL.revokeObjectURL(attachmentPreview); setAttachment(null); setAttachmentPreview(null); }
     setActiveTab("image");
-  };
+  }
 
   const removeImageAttachment = (index: number) => {
     setImageAttachments((prev) => prev.filter((_, i) => i !== index));
@@ -870,7 +876,7 @@ export default function CreateClient({
                       selectedPlatformHas("youtube")   && { id: "youtube",   label: "YT",  color: "#FF0033", limit: 100 },
                       selectedPlatformHas("pinterest") && { id: "pinterest", label: "PI",  color: "#E60023", limit: 100 },
                       selectedPlatformHas("reddit")    && { id: "reddit",    label: "RD",  color: "#FF4500", limit: 300 },
-                    ] as const).filter(Boolean).map((p: any) => {
+                    ] as const).filter(isPresent).map((p) => {
                       const remaining = p.limit - postTitle.length;
                       const pct = postTitle.length / p.limit;
                       const urgent = remaining < 0;
@@ -914,7 +920,7 @@ export default function CreateClient({
                     selectedPlatformHas("reddit")    && { id: "reddit",    label: "RD",  color: "#FF4500", limit: 40000 },
                     selectedPlatformHas("discord")   && { id: "discord",   label: "DC",  color: "#5865F2", limit: 2000 },
                     selectedPlatformHas("telegram")  && { id: "telegram",  label: "TG",  color: "#26A5E4", limit: 4096 },
-                  ] as const).filter(Boolean).map((p: any) => {
+                  ] as const).filter(isPresent).map((p) => {
                     const remaining = p.limit - caption.length;
                     const pct = caption.length / p.limit;
                     const urgent = remaining < 0;
@@ -1035,7 +1041,7 @@ export default function CreateClient({
                       <div className="text-xs leading-5 text-amber-800">
                         {youtubeSelectedWithImage ? (
                           otherPlatformsSelected ? <><strong>YouTube will be skipped</strong> — it only supports video uploads, not images. <a href="https://studio.youtube.com" target="_blank" rel="noreferrer" className="underline font-bold">Create image posts in YouTube Studio ↗</a></> :
-                          <><strong>YouTube doesn't support image posts.</strong> Please attach a video instead, or <a href="https://studio.youtube.com" target="_blank" rel="noreferrer" className="underline font-bold">use YouTube Studio ↗</a></>
+                          <><strong>YouTube doesn&apos;t support image posts.</strong> Please attach a video instead, or <a href="https://studio.youtube.com" target="_blank" rel="noreferrer" className="underline font-bold">use YouTube Studio ↗</a></>
                         ) : (
                           otherPlatformsSelected ? <><strong>YouTube needs a video to publish.</strong> Without one, YouTube will be skipped. <a href="https://studio.youtube.com" target="_blank" rel="noreferrer" className="underline font-bold">For text posts, use YouTube Studio ↗</a></> :
                           <><strong>YouTube only supports video uploads.</strong> Attach a video to publish, or <a href="https://studio.youtube.com" target="_blank" rel="noreferrer" className="underline font-bold">use YouTube Studio ↗</a></>

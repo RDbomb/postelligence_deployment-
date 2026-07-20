@@ -8,9 +8,9 @@ export interface ButtonProps
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className = "", variant = "default", size = "default", ...props }, ref) => {
-    let baseStyle = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 cursor-pointer";
+    const baseStyle = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 cursor-pointer";
     
-    let variantStyles = {
+    const variantStyles = {
       default: "bg-[#1f2528] text-white hover:bg-[#2f7867]",
       primary: "bg-[#2f7867] text-white hover:bg-[#3a8b76]",
       danger: "bg-red-500 text-white hover:bg-red-600",
@@ -21,7 +21,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       link: "text-[#2f7867] underline-offset-4 hover:underline"
     };
 
-    let sizeStyles = {
+    const sizeStyles = {
       default: "h-9 px-4 py-2",
       sm: "h-8 rounded-md px-3 text-xs",
       lg: "h-10 rounded-md px-8",

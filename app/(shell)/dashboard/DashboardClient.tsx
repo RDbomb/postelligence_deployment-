@@ -189,7 +189,7 @@ export default function DashboardOverviewClient({
                 Good {greeting}, {displayName.split(" ")[0]}. Your content engine is humming.
               </h1>
               <p className="mt-5 max-w-2xl text-base leading-7 text-[#5a656c]">
-                AI found 3 stronger posting windows, 2 stale drafts, and one platform that needs attention before tonight's queue ships.
+                AI found 3 stronger posting windows, 2 stale drafts, and one platform that needs attention before tonight&apos;s queue ships.
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <Button variant="primary" onClick={() => window.location.href = "/create"}>

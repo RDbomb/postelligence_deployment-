@@ -1,15 +1,16 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, TooltipProps, Legend,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, TooltipContentProps, Legend,
 } from "recharts";
 import {
   Activity, AlertTriangle, Calendar, CheckCircle2, ClipboardList, Clock, FileDown, FileText,
   Lightbulb, Lock, RefreshCw, Sparkles, Target, ThumbsDown, TrendingUp, Users, XCircle,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import RoleBadge from "@/components/workspace/RoleBadge";
 import { cn } from "@/lib/utils";
@@ -17,7 +18,7 @@ import type { WorkspaceMember, WorkspaceRole, ScheduledPost } from "@/types";
 import type { AnalyticsDashboardData, AnalyticsPost } from "@/lib/analytics/social-analytics";
 import { canExportReports, canManageReportInsights, canSubmitReport, getRoleLabel } from "@/lib/workspace/permissions";
 
-// ── Types ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 type WorkspaceDraftRow = {
   id: string;
   created_by: string;
@@ -87,7 +88,7 @@ type SubmittedReport = {
   change_requested_at: string | null;
 };
 
-// ── Constants ─────────────────────────────────────────────────────────────────
+// â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const TEAL = "#2f7867";
 const STATUS_COLORS: Record<string, string> = {
   Published: "#2f7867", Scheduled: "#2563eb", "In progress": "#94a3b8", Failed: "#e11d48",
@@ -97,17 +98,17 @@ const RANGE_LABELS: Record<DateRangeKey, string> = {
   today: "today", "7d": "the last 7 days", "30d": "the last 30 days", custom: "the selected period",
 };
 
-// ── Formatters ────────────────────────────────────────────────────────────────
+// â”€â”€ Formatters â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function formatCompact(value: number | null | undefined) {
-  if (value == null) return "—";
+  if (value == null) return "â€”";
   return new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(value);
 }
 function formatPercent(value: number | null | undefined) {
-  if (value == null) return "—";
+  if (value == null) return "â€”";
   return `${value.toFixed(value >= 10 ? 0 : 1)}%`;
 }
 function formatHours(value: number | null) {
-  if (value == null) return "—";
+  if (value == null) return "â€”";
   if (value < 1) return `${Math.round(value * 60)}m`;
   if (value < 48) return `${value.toFixed(1)}h`;
   return `${(value / 24).toFixed(1)}d`;
@@ -120,7 +121,7 @@ function startOfDay(d: Date) { const c = new Date(d); c.setHours(0, 0, 0, 0); re
 function dayKey(d: Date) { return d.toISOString().slice(0, 10); }
 // A date-only value like "2026-07-03" must round-trip through the exact
 // same calendar day it started as. new Date("2026-07-03") parses as UTC
-// midnight, and toISOString() always formats back in UTC too — for any
+// midnight, and toISOString() always formats back in UTC too â€” for any
 // timezone ahead of UTC (e.g. IST, UTC+5:30), converting that UTC-midnight
 // instant to local time and back shifts the date a full day backward.
 // parseLocalDate/isoDate below stay in local calendar time throughout, so
@@ -149,8 +150,8 @@ function rangeEnd(range: DateRangeKey, customTo: string): Date {
   const d = new Date(); d.setHours(23, 59, 59, 999); return d;
 }
 
-// ── Tooltips ──────────────────────────────────────────────────────────────────
-function ChartTooltip({ active, payload, label }: TooltipProps<number, string>) {
+// â”€â”€ Tooltips â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function ChartTooltip({ active, payload, label }: Partial<TooltipContentProps<number, string>>) {
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-xl border border-[#1f2528]/10 bg-white px-4 py-3 shadow-[0_8px_30px_rgba(31,37,40,0.12)]">
@@ -166,7 +167,7 @@ function ChartTooltip({ active, payload, label }: TooltipProps<number, string>) 
   );
 }
 
-// ── CSV / PDF export ──────────────────────────────────────────────────────────
+// â”€â”€ CSV / PDF export â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function downloadCsv(filename: string, rows: (string | number)[][]) {
   const csv = rows.map((row) =>
     row.map((cell) => {
@@ -209,8 +210,8 @@ function openPrintReport(title: string, bodyHtml: string) {
   setTimeout(() => win.print(), 300);
 }
 
-// ── Small building blocks ──────────────────────────────────────────────────────
-function StatCard({ label, value, sub, icon: Icon, tone }: { label: string; value: string; sub: string; icon: any; tone: string }) {
+// â”€â”€ Small building blocks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function StatCard({ label, value, sub, icon: Icon, tone }: { label: string; value: string; sub: string; icon: LucideIcon; tone: string }) {
   return (
     <div className="rounded-xl border border-[#1f2528]/10 bg-white p-4 shadow-[0_10px_32px_rgba(31,37,40,0.06)]">
       <div className={cn("grid h-10 w-10 place-items-center rounded-xl mb-3", tone)}><Icon className="h-5 w-5" /></div>
@@ -284,7 +285,7 @@ function RoleMetricsTable({
   );
 }
 
-// ── Main component ──────────────────────────────────────────────────────────────
+// â”€â”€ Main component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export default function TeamAnalyticsDashboard({ workspaceId, currentRole }: { workspaceId: string; currentRole: WorkspaceRole }) {
   const searchParams = useSearchParams();
   const [data, setData] = useState<TeamAnalyticsResponse | null>(null);
@@ -302,13 +303,23 @@ export default function TeamAnalyticsDashboard({ workspaceId, currentRole }: { w
   const [observations, setObservations] = useState("");
   const [recommendations, setRecommendations] = useState("");
   const [savingReview, setSavingReview] = useState(false);
-  const [reviewLoaded, setReviewLoaded] = useState(false);
+  // Which selected range the loaded review belongs to. Comparing it against the
+  // current range derives "has the review for this period finished loading?"
+  // during render, so the fetch effect below needs no synchronous setState.
+  const [loadedReviewKey, setLoadedReviewKey] = useState<string | null>(null);
 
-  // Official submission workflow state — replaces "Save Review" with
+  // Official submission workflow state â€” replaces "Save Review" with
   // "Submit Report" once the range has an official workspace_reports row.
   const [submittedReport, setSubmittedReport] = useState<SubmittedReport | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
+  // Tagged with the range it was raised for, so switching ranges clears it by
+  // derivation instead of an effect writing `null` into state.
+  const [submitErrorState, setSubmitErrorState] = useState<{ key: string; message: string } | null>(null);
+
+  // Changes exactly when the review-loading effect below re-runs.
+  const reviewKey = data ? `${range}|${customFrom}|${customTo}` : null;
+  const reviewLoaded = reviewKey !== null && loadedReviewKey === reviewKey;
+  const submitError = submitErrorState?.key === reviewKey ? submitErrorState.message : null;
 
   const canExport = canExportReports(currentRole);
   const canReview = canManageReportInsights(currentRole);
@@ -330,7 +341,7 @@ export default function TeamAnalyticsDashboard({ workspaceId, currentRole }: { w
     }
   };
 
-  useEffect(() => { void load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [workspaceId]);
+  useEffect(() => { void (async () => { await load(); })();   }, [workspaceId]);
 
   // Deep link from the notification bell / Reports "Edit Report" button:
   // "?editReportId=..." jumps straight to that report's exact custom date
@@ -349,7 +360,7 @@ export default function TeamAnalyticsDashboard({ workspaceId, currentRole }: { w
         }
       })
       .catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [workspaceId, searchParams]);
 
   useEffect(() => {
@@ -377,7 +388,7 @@ export default function TeamAnalyticsDashboard({ workspaceId, currentRole }: { w
     }
   }
 
-  // ── Derived / filtered data ────────────────────────────────────────────────
+  // â”€â”€ Derived / filtered data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const from = useMemo(() => rangeStart(range, customFrom), [range, customFrom]);
   const to = useMemo(() => rangeEnd(range, customTo), [range, customTo]);
 
@@ -392,24 +403,20 @@ export default function TeamAnalyticsDashboard({ workspaceId, currentRole }: { w
   const filteredDrafts = useMemo(() => {
     if (!data) return [];
     return data.drafts.filter((d) => inRange(d.updated_at) || inRange(d.created_at));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, from, to]);
 
   const filteredActivity = useMemo(
     () => (data ? data.activity.filter((a) => inRange(a.created_at)) : []),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [data, from, to]
   );
 
   // Re-check whether a saved Analyst review already exists whenever the
-  // selected range changes — matches "Select Date Range → Generate Report
-  // → Analyst Reviews" as a per-period workflow rather than one global note.
+  // selected range changes â€” matches "Select Date Range â†’ Generate Report
+  // â†’ Analyst Reviews" as a per-period workflow rather than one global note.
   useEffect(() => {
-    if (!data) return;
-    setReviewLoaded(false);
+    if (!data || reviewKey === null) return;
     const f = isoDate(from ?? startOfDay(new Date(0)));
     const t = isoDate(to);
-    setSubmitError(null);
     fetch(`/api/workspace/${workspaceId}/report-review?from=${f}&to=${t}`)
       .then((r) => r.json())
       .then((json) => {
@@ -426,7 +433,7 @@ export default function TeamAnalyticsDashboard({ workspaceId, currentRole }: { w
         }
       })
       .catch(() => {})
-      .finally(() => setReviewLoaded(true));
+      .finally(() => setLoadedReviewKey(reviewKey));
 
     fetch(`/api/workspace/${workspaceId}/report-submit?from=${f}&to=${t}`)
       .then((r) => r.json())
@@ -458,49 +465,12 @@ export default function TeamAnalyticsDashboard({ workspaceId, currentRole }: { w
     }
   }
 
-  // "Submit Report" — replaces the old "Save Review" button. Persists
+  // "Submit Report" â€” replaces the old "Save Review" button. Persists
   // the working Observations/Recommendations draft, then freezes a
-  // full snapshot (Executive Summary, Observations, Recommendations,
-  // Charts, Team & Platform Analytics) as an official workspace_reports
-  // row that the Owner/Manager see in the Reports section.
-  async function handleSubmitReport() {
-    if (!data) return;
-    setSubmitting(true);
-    setSubmitError(null);
-    try {
-      await handleSaveReview();
-
-      const chartsData = {
-        overview,
-        platformRows: platformRows.map((r) => ({
-          name: r.name, posts: r.posts, likes: r.likes, comments: r.comments,
-          shares: r.shares, reach: r.reach, followers: r.followers, engagementRate: r.engagementRate,
-        })),
-        topPosts: topPosts.map((p) => ({ platform: p.platform, title: p.title, engagements: engagementScore(p) })),
-        publishingIssues,
-      };
-      const analyticsData = {
-        members: data.members.map((m) => ({ name: m.full_name || m.email || "Unknown", role: getRoleLabel(m.role as WorkspaceRole) })),
-      };
-
-      const res = await fetch(`/api/workspace/${workspaceId}/report-submit`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          rangeKey: range,
-          from: isoDate(from ?? startOfDay(new Date(0))),
-          to: isoDate(to),
-          observations, recommendations, executiveSummary,
-          chartsData, analyticsData,
-        }),
-      });
-      const json = await res.json();
-      if (!res.ok) { setSubmitError(json.error || "Failed to submit report."); return; }
-      setSubmittedReport(json.report);
-    } finally {
-      setSubmitting(false);
-    }
-  }
+  // NOTE: handleSubmitReport is defined further down, after every memo it
+  // reads (overview, platformRows, topPosts, publishingIssues,
+  // executiveSummary). Declaring it above them stops the React Compiler from
+  // preserving those memos.
 
   const overview = useMemo(() => {
     const src = filteredDrafts;
@@ -520,7 +490,6 @@ export default function TeamAnalyticsDashboard({ workspaceId, currentRole }: { w
 
   const filteredPosts = useMemo(
     () => allRecentPosts.filter((p) => inRange(p.createdAt)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [allRecentPosts, from, to]
   );
 
@@ -535,7 +504,9 @@ export default function TeamAnalyticsDashboard({ workspaceId, currentRole }: { w
     [filteredPosts]
   );
 
-  const platformRows = data?.analytics.platforms ?? [];
+  // Memoized so the identity is stable across renders â€” `bestPlatform` below
+  // depends on it, and a fresh `[]` each render would defeat that memo.
+  const platformRows = useMemo(() => data?.analytics.platforms ?? [], [data]);
   const bestPlatform = useMemo(() => {
     const withData = platformRows.filter((r) => r.posts > 0 && (r.likes !== null || r.comments !== null || r.shares !== null || r.reach !== null));
     if (withData.length === 0) return null;
@@ -599,10 +570,9 @@ export default function TeamAnalyticsDashboard({ workspaceId, currentRole }: { w
       bestDay: posts.length > 0 ? { label: DAY_LABELS[maxDay], count: dayCounts[maxDay] } : null,
       bestHour: posts.length > 0 ? { label: formatHour(maxHour), count: hourCounts[maxHour] } : null,
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, from, to]);
 
-  // ── Publishing issues summary ───────────────────────────────────────────
+  // â”€â”€ Publishing issues summary â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const publishingIssues = useMemo(() => {
     const avgApprovalHours = (() => {
       const rows = filteredDrafts.filter((d) => d.submitted_at && d.reviewed_at);
@@ -628,12 +598,11 @@ export default function TeamAnalyticsDashboard({ workspaceId, currentRole }: { w
     }
     const commonErrors = Array.from(errorCounts.entries()).sort((a, b) => b[1] - a[1]).slice(0, 3);
     return { avgApprovalHours, avgPublishHours, commonErrors, failedCount: overview.failed };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filteredDrafts, data, from, to, overview.failed]);
 
-  // ── Role-based Team Performance ─────────────────────────────────────────
+  // â”€â”€ Role-based Team Performance â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // Each role is measured only on what that role is actually responsible
-  // for — Creators and Analysts never show a "Posts Published" figure,
+  // for â€” Creators and Analysts never show a "Posts Published" figure,
   // since publishing isn't a task either role can perform.
   const membersByRole = useMemo(() => {
     const groups: Record<WorkspaceRole, TeamMemberRow[]> = { owner: [], manager: [], creator: [], analyst: [] };
@@ -676,7 +645,7 @@ export default function TeamAnalyticsDashboard({ workspaceId, currentRole }: { w
     return rows.reduce((s, d) => s + (new Date(d.reviewed_at!).getTime() - new Date(d.submitted_at!).getTime()) / 3600000, 0) / rows.length;
   };
 
-  // ── Export ───────────────────────────────────────────────────────────────
+  // â”€â”€ Export â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const executiveSummary = useMemo(() => {
     if (!data) return "";
     const rangeLabel = RANGE_LABELS[range];
@@ -692,13 +661,60 @@ export default function TeamAnalyticsDashboard({ workspaceId, currentRole }: { w
     return parts.join(" ");
   }, [data, range, overview, bestPlatform, bestDay, bestHour, publishingIssues]);
 
+  // "Submit Report" — replaces the old "Save Review" button. Persists
+  // the working Observations/Recommendations draft, then freezes a
+  // full snapshot (Executive Summary, Observations, Recommendations,
+  // Charts, Team & Platform Analytics) as an official workspace_reports
+  // row that the Owner/Manager see in the Reports section.
+  async function handleSubmitReport() {
+    if (!data) return;
+    setSubmitting(true);
+    setSubmitErrorState(null);
+    try {
+      await handleSaveReview();
+
+      const chartsData = {
+        overview,
+        platformRows: platformRows.map((r) => ({
+          name: r.name, posts: r.posts, likes: r.likes, comments: r.comments,
+          shares: r.shares, reach: r.reach, followers: r.followers, engagementRate: r.engagementRate,
+        })),
+        topPosts: topPosts.map((p) => ({ platform: p.platform, title: p.title, engagements: engagementScore(p) })),
+        publishingIssues,
+      };
+      const analyticsData = {
+        members: data.members.map((m) => ({ name: m.full_name || m.email || "Unknown", role: getRoleLabel(m.role as WorkspaceRole) })),
+      };
+
+      const res = await fetch(`/api/workspace/${workspaceId}/report-submit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          rangeKey: range,
+          from: isoDate(from ?? startOfDay(new Date(0))),
+          to: isoDate(to),
+          observations, recommendations, executiveSummary,
+          chartsData, analyticsData,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        if (reviewKey !== null) setSubmitErrorState({ key: reviewKey, message: json.error || "Failed to submit report." });
+        return;
+      }
+      setSubmittedReport(json.report);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   function exportCsv() {
     if (!data || !canExport) return;
     void fetch(`/api/workspace/${workspaceId}/report-event`, {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "export_csv" }),
     }).catch(() => {});
     const rows: (string | number)[][] = [
-      ["Team Analytics Report — Executive Summary"],
+      ["Team Analytics Report â€” Executive Summary"],
       [executiveSummary],
       [],
       ["Overview", ""],
@@ -720,8 +736,8 @@ export default function TeamAnalyticsDashboard({ workspaceId, currentRole }: { w
       ["Avg. publish latency", formatHours(publishingIssues.avgPublishHours)],
       ...publishingIssues.commonErrors.map(([msg, count]) => [`Error: ${msg}`, count]),
       [],
-      ["Analyst Observations"], [observations || "—"],
-      ["Recommendations"], [recommendations || "—"],
+      ["Analyst Observations"], [observations || "â€”"],
+      ["Recommendations"], [recommendations || "â€”"],
       [],
       ["Member", "Role", ""],
       ...(data.members.map((m) => [m.full_name || m.email || "Unknown", getRoleLabel(m.role as WorkspaceRole)])),
@@ -750,7 +766,7 @@ export default function TeamAnalyticsDashboard({ workspaceId, currentRole }: { w
     const errorRows = publishingIssues.commonErrors.map(([m, c]) => `<tr><td>${m}</td><td>${c}</td></tr>`).join("");
     const body = `
       <h1>Team Analytics Report</h1>
-      <p class="sub">Generated ${new Date().toLocaleString()} · Range: ${range === "custom" ? `${customFrom} to ${customTo}` : range}</p>
+      <p class="sub">Generated ${new Date().toLocaleString()} Â· Range: ${range === "custom" ? `${customFrom} to ${customTo}` : range}</p>
       <h2>Executive Summary</h2>
       <p class="body-text">${executiveSummary}</p>
       <h2>Overview</h2>
@@ -775,7 +791,7 @@ export default function TeamAnalyticsDashboard({ workspaceId, currentRole }: { w
     openPrintReport("Team Analytics Report", body);
   }
 
-  // ── Render ───────────────────────────────────────────────────────────────
+  // â”€â”€ Render â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (loading) {
     return (
       <div className="space-y-3">
@@ -790,7 +806,7 @@ export default function TeamAnalyticsDashboard({ workspaceId, currentRole }: { w
 
   return (
     <div className="space-y-5">
-      {/* ── Header: filters, refresh ──────────────────────────────────────── */}
+      {/* â”€â”€ Header: filters, refresh â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <section className="rounded-xl border border-[#1f2528]/10 bg-white p-5 shadow-[0_14px_45px_rgba(31,37,40,0.08)] md:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -805,7 +821,7 @@ export default function TeamAnalyticsDashboard({ workspaceId, currentRole }: { w
           <button onClick={() => void handleRefresh()} disabled={refreshing}
             className="flex items-center gap-2 rounded-xl border border-[#1f2528]/10 bg-[#f9faf7] px-4 py-2 text-sm font-bold text-[#1f2528] transition hover:bg-[#eaf3ed] hover:text-[#2f7867] disabled:opacity-60">
             <RefreshCw className={cn("h-3.5 w-3.5", refreshing && "animate-spin")} />
-            {refreshing ? "Syncing…" : "Refresh"}
+            {refreshing ? "Syncingâ€¦" : "Refresh"}
           </button>
         </div>
 
@@ -828,12 +844,12 @@ export default function TeamAnalyticsDashboard({ workspaceId, currentRole }: { w
           )}
           <span className="ml-auto flex items-center gap-1.5 text-[11px] font-bold text-slate-400">
             {data.servedFromCache && !data.cacheStale && <span className="flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-emerald-700"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />Cached</span>}
-            {data.cacheStale && <span className="flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-amber-700"><span className="h-1.5 w-1.5 rounded-full bg-amber-400" />Refreshing…</span>}
+            {data.cacheStale && <span className="flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-amber-700"><span className="h-1.5 w-1.5 rounded-full bg-amber-400" />Refreshingâ€¦</span>}
           </span>
         </div>
       </section>
 
-      {/* ── Overall Workspace Performance ─────────────────────────────────── */}
+      {/* â”€â”€ Overall Workspace Performance â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Published" value={overview.published.toString()} sub="Posts live on connected accounts" icon={CheckCircle2} tone="bg-emerald-50 text-emerald-700" />
         <StatCard label="Scheduled" value={overview.scheduled.toString()} sub="Queued for future publishing" icon={Clock} tone="bg-blue-50 text-blue-700" />
@@ -841,15 +857,15 @@ export default function TeamAnalyticsDashboard({ workspaceId, currentRole }: { w
         <StatCard label="Failed" value={overview.failed.toString()} sub="Publish attempts that need attention" icon={XCircle} tone="bg-rose-50 text-rose-700" />
       </div>
 
-      {/* ── Growth metrics ─────────────────────────────────────────────────── */}
+      {/* â”€â”€ Growth metrics â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Reach" value={formatCompact(totals.reach)} sub="Total views & impressions" icon={Target} tone="bg-cyan-50 text-cyan-700" />
         <StatCard label="Engagement Rate" value={formatPercent(totals.engagementRate)} sub="Likes + comments + shares / views" icon={Activity} tone="bg-teal-50 text-teal-700" />
         <StatCard label="Followers" value={formatCompact(totals.followers)} sub="Combined audience across platforms" icon={Users} tone="bg-blue-50 text-blue-700" />
-        <StatCard label="Clicks" value="—" sub="Not exposed by any connected platform's API yet" icon={TrendingUp} tone="bg-slate-100 text-slate-500" />
+        <StatCard label="Clicks" value="â€”" sub="Not exposed by any connected platform's API yet" icon={TrendingUp} tone="bg-slate-100 text-slate-500" />
       </div>
 
-      {/* ── Platform-wise performance ──────────────────────────────────────── */}
+      {/* â”€â”€ Platform-wise performance â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <Section eyebrow="By channel" title="Platform-wise Performance">
         {platformRows.length === 0 ? (
           <EmptyState message="Connect the workspace's social accounts to see platform performance." />
@@ -877,7 +893,7 @@ export default function TeamAnalyticsDashboard({ workspaceId, currentRole }: { w
         )}
       </Section>
 
-      {/* ── Engagement trends + status split ────────────────────────────────── */}
+      {/* â”€â”€ Engagement trends + status split â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <Section eyebrow="Over time" title="Engagement Trends">
@@ -921,7 +937,7 @@ export default function TeamAnalyticsDashboard({ workspaceId, currentRole }: { w
         </Section>
       </div>
 
-      {/* ── Top / lowest posts + best platform/time/day ────────────────────── */}
+      {/* â”€â”€ Top / lowest posts + best platform/time/day â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="grid gap-5 lg:grid-cols-3">
         <Section eyebrow="Standouts" title="Top Performing Posts">
           {topPosts.length === 0 ? (
@@ -934,7 +950,7 @@ export default function TeamAnalyticsDashboard({ workspaceId, currentRole }: { w
                   <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[#eaf3ed] text-[11px] font-black text-[#2f7867]">{i + 1}</span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-bold text-[#1f2528]">{post.title}</p>
-                    <p className="mt-0.5 text-xs capitalize text-slate-400">{post.platform} · {formatCompact(engagementScore(post))} engagements</p>
+                    <p className="mt-0.5 text-xs capitalize text-slate-400">{post.platform} Â· {formatCompact(engagementScore(post))} engagements</p>
                   </div>
                 </a>
               ))}
@@ -960,13 +976,13 @@ export default function TeamAnalyticsDashboard({ workspaceId, currentRole }: { w
             <div className="rounded-xl border border-[#1f2528]/10 bg-white p-4 shadow-[0_10px_32px_rgba(31,37,40,0.06)]">
               <Clock className="h-4 w-4 text-[#2f7867]" />
               <p className="mt-2 text-xs font-bold uppercase tracking-widest text-slate-400">Best time</p>
-              <p className="mt-1 text-lg font-black text-[#1f2528]">{bestHour ? bestHour.label : "—"}</p>
+              <p className="mt-1 text-lg font-black text-[#1f2528]">{bestHour ? bestHour.label : "â€”"}</p>
               <p className="text-xs text-slate-400">{bestHour ? `${bestHour.count} published` : "No data yet"}</p>
             </div>
             <div className="rounded-xl border border-[#1f2528]/10 bg-white p-4 shadow-[0_10px_32px_rgba(31,37,40,0.06)]">
               <Calendar className="h-4 w-4 text-[#2f7867]" />
               <p className="mt-2 text-xs font-bold uppercase tracking-widest text-slate-400">Best day</p>
-              <p className="mt-1 text-lg font-black text-[#1f2528]">{bestDay ? bestDay.label : "—"}</p>
+              <p className="mt-1 text-lg font-black text-[#1f2528]">{bestDay ? bestDay.label : "â€”"}</p>
               <p className="text-xs text-slate-400">{bestDay ? `${bestDay.count} published` : "No data yet"}</p>
             </div>
           </div>
@@ -983,7 +999,7 @@ export default function TeamAnalyticsDashboard({ workspaceId, currentRole }: { w
                   <ThumbsDown className="mt-1 h-3.5 w-3.5 shrink-0 text-slate-300" />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-bold text-[#1f2528]">{post.title}</p>
-                    <p className="mt-0.5 text-xs capitalize text-slate-400">{post.platform} · {formatCompact(engagementScore(post))} engagements</p>
+                    <p className="mt-0.5 text-xs capitalize text-slate-400">{post.platform} Â· {formatCompact(engagementScore(post))} engagements</p>
                   </div>
                 </a>
               ))}
@@ -992,7 +1008,7 @@ export default function TeamAnalyticsDashboard({ workspaceId, currentRole }: { w
         </Section>
       </div>
 
-      {/* ── Publishing success vs failure ──────────────────────────────────── */}
+      {/* â”€â”€ Publishing success vs failure â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <Section eyebrow="Reliability" title="Publishing Success vs Failure Trends">
         {publishTrend.length === 0 ? (
           <EmptyState message="No published or failed posts in this range yet." />
@@ -1010,7 +1026,7 @@ export default function TeamAnalyticsDashboard({ workspaceId, currentRole }: { w
         )}
       </Section>
 
-      {/* ── Publishing issues summary ────────────────────────────────────────── */}
+      {/* â”€â”€ Publishing issues summary â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <Section eyebrow="Troubleshooting" title="Publishing Issues">
         <div className="grid gap-3 sm:grid-cols-3">
           <div className="rounded-xl border border-[#1f2528]/10 bg-[#fbfcf8] p-4">
@@ -1034,7 +1050,7 @@ export default function TeamAnalyticsDashboard({ workspaceId, currentRole }: { w
                 <div key={msg} className="flex items-start gap-2 rounded-lg border border-rose-100 bg-rose-50 px-3 py-2 text-xs text-rose-700">
                   <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                   <span className="flex-1">{msg}</span>
-                  <Badge variant="secondary" className="shrink-0">{count}×</Badge>
+                  <Badge variant="secondary" className="shrink-0">{count}Ã—</Badge>
                 </div>
               ))}
             </div>
@@ -1042,7 +1058,7 @@ export default function TeamAnalyticsDashboard({ workspaceId, currentRole }: { w
         )}
       </Section>
 
-      {/* ── Team Performance (role-based) ───────────────────────────────────── */}
+      {/* â”€â”€ Team Performance (role-based) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <Section eyebrow="Per role" title="Team Performance">
         <div className="space-y-6">
           <div>
@@ -1091,7 +1107,7 @@ export default function TeamAnalyticsDashboard({ workspaceId, currentRole }: { w
         </div>
       </Section>
 
-      {/* ── Recent publishing activity timeline ─────────────────────────────── */}
+      {/* â”€â”€ Recent publishing activity timeline â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <Section eyebrow="Timeline" title="Recent Publishing Activity">
         {(() => {
           const timelineActions = new Set(["draft_scheduled", "draft_published", "draft_publish_failed", "draft_submitted", "draft_approved", "draft_rejected"]);
@@ -1115,12 +1131,12 @@ export default function TeamAnalyticsDashboard({ workspaceId, currentRole }: { w
         })()}
       </Section>
 
-      {/* ── Executive Report workflow ────────────────────────────────────────── */}
+      {/* â”€â”€ Executive Report workflow â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <section className="rounded-xl border border-[#1f2528]/10 bg-gradient-to-br from-[#1f2528] to-[#2a3236] p-5 shadow-[0_14px_45px_rgba(31,37,40,0.18)] md:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs font-bold uppercase tracking-widest text-white/50">Executive report</p>
-            <h3 className="mt-1 text-xl font-black text-white">Select range → Generate → Analyst reviews → Export & share</h3>
+            <h3 className="mt-1 text-xl font-black text-white">Select range â†’ Generate â†’ Analyst reviews â†’ Export & share</h3>
           </div>
           {!reportGenerated ? (
             <button onClick={() => void handleGenerateReport()}
@@ -1159,7 +1175,7 @@ export default function TeamAnalyticsDashboard({ workspaceId, currentRole }: { w
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
                 <div>
                   <p className="text-xs font-bold text-amber-200">
-                    The Owner requested changes on this report{submittedReport?.change_requested_at ? ` · ${new Date(submittedReport.change_requested_at).toLocaleString()}` : ""}
+                    The Owner requested changes on this report{submittedReport?.change_requested_at ? ` Â· ${new Date(submittedReport.change_requested_at).toLocaleString()}` : ""}
                   </p>
                   {submittedReport?.change_request_note && (
                     <p className="mt-1 text-xs leading-5 text-amber-100/80">&ldquo;{submittedReport.change_request_note}&rdquo;</p>
@@ -1175,7 +1191,7 @@ export default function TeamAnalyticsDashboard({ workspaceId, currentRole }: { w
                 <p className="mb-1.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-white/50"><Lightbulb className="h-3.5 w-3.5" />Analyst Observations</p>
                 {canEditReview ? (
                   <textarea value={observations} onChange={(e) => setObservations(e.target.value)}
-                    placeholder="What does the data show? e.g. Instagram engagement dipped after the 12th while LinkedIn held steady…"
+                    placeholder="What does the data show? e.g. Instagram engagement dipped after the 12th while LinkedIn held steadyâ€¦"
                     className="h-28 w-full resize-none rounded-lg border border-white/10 bg-white/5 p-3 text-sm text-white placeholder:text-white/30 focus:border-white/30 focus:outline-none" />
                 ) : (
                   <p className="text-sm leading-6 text-white/80">{observations || "No observations recorded yet."}</p>
@@ -1185,7 +1201,7 @@ export default function TeamAnalyticsDashboard({ workspaceId, currentRole }: { w
                 <p className="mb-1.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-white/50"><ClipboardList className="h-3.5 w-3.5" />Recommendations</p>
                 {canEditReview ? (
                   <textarea value={recommendations} onChange={(e) => setRecommendations(e.target.value)}
-                    placeholder="What should the team do next? e.g. Shift more budget toward LinkedIn, revisit the Tuesday posting slot…"
+                    placeholder="What should the team do next? e.g. Shift more budget toward LinkedIn, revisit the Tuesday posting slotâ€¦"
                     className="h-28 w-full resize-none rounded-lg border border-white/10 bg-white/5 p-3 text-sm text-white placeholder:text-white/30 focus:border-white/30 focus:outline-none" />
                 ) : (
                   <p className="text-sm leading-6 text-white/80">{recommendations || "No recommendations recorded yet."}</p>
@@ -1199,7 +1215,7 @@ export default function TeamAnalyticsDashboard({ workspaceId, currentRole }: { w
                 {isLocked ? (
                   <span className="flex items-center gap-1.5 rounded-xl bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-300">
                     <CheckCircle2 className="h-3.5 w-3.5" />
-                    Submitted{submittedReport?.submitted_at ? ` ${new Date(submittedReport.submitted_at).toLocaleString()}` : ""} by {submittedReport?.submitted_by_name || "you"} — visible to Owner &amp; Manager in Reports.
+                    Submitted{submittedReport?.submitted_at ? ` ${new Date(submittedReport.submitted_at).toLocaleString()}` : ""} by {submittedReport?.submitted_by_name || "you"} â€” visible to Owner &amp; Manager in Reports.
                   </span>
                 ) : (
                   <div className="flex items-center gap-3">
@@ -1207,7 +1223,7 @@ export default function TeamAnalyticsDashboard({ workspaceId, currentRole }: { w
                     <button onClick={() => void handleSubmitReport()} disabled={submitting || savingReview || !reviewLoaded}
                       className="flex items-center gap-2 rounded-xl bg-[#2f7867] px-4 py-2 text-sm font-bold text-white transition hover:bg-[#276554] disabled:opacity-60">
                       <ClipboardList className="h-3.5 w-3.5" />
-                      {submitting ? "Submitting…" : isChangesRequested ? "Resubmit Report" : "Submit Report"}
+                      {submitting ? "Submittingâ€¦" : isChangesRequested ? "Resubmit Report" : "Submit Report"}
                     </button>
                   </div>
                 )}
@@ -1215,13 +1231,13 @@ export default function TeamAnalyticsDashboard({ workspaceId, currentRole }: { w
             )}
             {!canSubmit && isLocked && (
               <p className="text-right text-xs text-white/40">
-                Submitted{submittedReport?.submitted_at ? ` ${new Date(submittedReport.submitted_at).toLocaleString()}` : ""} by {submittedReport?.submitted_by_name || "the Analyst"} — see the Reports section for view/download/archive.
+                Submitted{submittedReport?.submitted_at ? ` ${new Date(submittedReport.submitted_at).toLocaleString()}` : ""} by {submittedReport?.submitted_by_name || "the Analyst"} â€” see the Reports section for view/download/archive.
               </p>
             )}
 
             {/* Footer */}
             <div className="border-t border-white/10 pt-3 text-[11px] text-white/40">
-              Report generator: Postelligence Team Analytics · Generated {new Date(data.generatedAt).toLocaleString()} · {isLocked ? `Officially submitted by ${submittedReport?.submitted_by_name || "—"}` : `Reviewed by ${review?.reviewer_name || "Not yet reviewed"}`}
+              Report generator: Postelligence Team Analytics Â· Generated {new Date(data.generatedAt).toLocaleString()} Â· {isLocked ? `Officially submitted by ${submittedReport?.submitted_by_name || "â€”"}` : `Reviewed by ${review?.reviewer_name || "Not yet reviewed"}`}
             </div>
           </div>
         )}

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
@@ -26,9 +27,14 @@ export function Navbar() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  useEffect(() => {
+  // Collapse the mobile menu whenever the route changes. Adjusting state
+  // during render (rather than in an effect) avoids the extra render pass
+  // that would briefly paint the menu open on the new page.
+  const [renderedPathname, setRenderedPathname] = useState(pathname);
+  if (renderedPathname !== pathname) {
+    setRenderedPathname(pathname);
     setOpen(false);
-  }, [pathname]);
+  }
 
   return (
     <header className="sticky top-0 z-50 px-4 pt-4 md:px-6">
@@ -39,9 +45,9 @@ export function Navbar() {
             : "border-transparent bg-white/40 backdrop-blur-md"
         }`}
       >
-        <a href="/" className="shrink-0">
+        <Link href="/" className="shrink-0">
           <BrandMark size="sm" />
-        </a>
+        </Link>
 
         <nav className="hidden items-center gap-1 md:flex">
           {links.map((link) => {

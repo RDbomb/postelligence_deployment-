@@ -1,16 +1,20 @@
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import type { Metadata } from "next";
+import { requireUser } from "@/lib/supabase/require-user";
 import { createAdminClient } from "@/lib/supabase/admin";
 import DraftsClient from "./DraftsClient";
-import type { WorkspaceRole } from "@/types";
+import type { WorkspaceDraft, WorkspaceRole } from "@/types";
+
+export const metadata: Metadata = {
+  title: "Drafts",
+  description: "Work in progress and posts awaiting approval."
+};
+
 
 export const dynamic = "force-dynamic";
 
 export default async function DraftsPage() {
-  const supabase = createClient();
+  const { supabase, user } = await requireUser();
   const admin    = createAdminClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
 
   // Personal drafts (unchanged)
   const { data: drafts } = await supabase
@@ -36,7 +40,7 @@ export default async function DraftsPage() {
     .eq("user_id", user.id)
     .single();
 
-  let workspaceDrafts: any[] = [];
+  let workspaceDrafts: WorkspaceDraft[] = [];
   let currentRole: WorkspaceRole | null = null;
 
   if (membership) {

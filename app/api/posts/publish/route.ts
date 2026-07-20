@@ -1,3 +1,4 @@
+import { createHmac } from "node:crypto";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createBaseClient } from "@supabase/supabase-js";
@@ -55,6 +56,28 @@ type DidDocument = {
 };
 
 type JsonRecord = Record<string, unknown>;
+
+// Connected-account metadata is stored as free-form JSON, so read individual
+// keys through a narrowing helper instead of asserting a shape onto it.
+function getMetadataString(
+  metadata: Record<string, unknown> | null | undefined,
+  key: string
+): string | undefined {
+  const value = metadata?.[key];
+  return typeof value === "string" ? value : undefined;
+}
+
+// Async container status shapes returned by the Threads / Instagram Graph APIs
+// while media is still being processed.
+type ThreadsContainerStatus = {
+  status?: string;
+  error_message?: string;
+};
+
+type InstagramContainerStatus = {
+  status_code?: string;
+  status?: string;
+};
 
 function asString(value: FormDataEntryValue | null) {
   return typeof value === "string" ? value.trim() : "";
@@ -278,7 +301,7 @@ async function publishTwitter(account: StoredAccount, text: string, attachment: 
       .map(k => `${percentEncode(k)}=${percentEncode(all[k])}`).join("&");
     const base = [method, percentEncode(url), percentEncode(paramString)].join("&");
     const key = `${percentEncode(consumerSecret)}&${percentEncode(accessTokenSecret)}`;
-    const sig = require("crypto").createHmac("sha1", key).update(base).digest("base64");
+    const sig = createHmac("sha1", key).update(base).digest("base64");
     oauthParams.oauth_signature = sig;
     return "OAuth " + Object.keys(oauthParams).sort()
       .map(k => `${percentEncode(k)}="${percentEncode(oauthParams[k])}"`).join(", ");
@@ -727,9 +750,17 @@ async function publishBluesky(account: StoredAccount, text: string, attachment: 
   const imageFiles = (images.length > 0 ? images : (attachment && !isVideo ? [attachment] : [])).slice(0, 4);
 
   if (isVideo && attachment) {
-    const meta = (account.metadata as any) || {};
-    const correctPdsUrl = meta.pdsHost ? `https://${meta.pdsHost}` : pdsUrl;
-    const videoBlob = await uploadBlueskyVideo(token, account.account_id, attachment, account.refresh_token, correctPdsUrl, meta.handle, meta.appPassword);
+    const metaPdsHost = getMetadataString(account.metadata, "pdsHost");
+    const correctPdsUrl = metaPdsHost ? `https://${metaPdsHost}` : pdsUrl;
+    const videoBlob = await uploadBlueskyVideo(
+      token,
+      account.account_id,
+      attachment,
+      account.refresh_token,
+      correctPdsUrl,
+      getMetadataString(account.metadata, "handle"),
+      getMetadataString(account.metadata, "appPassword")
+    );
     record.embed = {
       $type: "app.bsky.embed.video",
       video: videoBlob,
@@ -846,7 +877,7 @@ async function publishThreads(account: StoredAccount, text: string, mediaUrl: st
       await new Promise((r) => setTimeout(r, delayMs));
       try {
         const statusRes = await fetch(`https://graph.threads.net/${containerId}?${statusParams}`);
-        const status = await statusRes.json() as any;
+        const status = await statusRes.json() as ThreadsContainerStatus;
         if (status.status === "FINISHED") return;
         if (status.status === "ERROR") throw new Error(`Threads media processing failed: ${status.error_message || "unknown"}`);
       } catch (e) {
@@ -919,7 +950,7 @@ async function publishThreads(account: StoredAccount, text: string, mediaUrl: st
       await new Promise(r => setTimeout(r, 2000));
       try {
         const statusRes = await fetch(`https://graph.threads.net/${container.id}?${statusParams}`);
-        const status = await statusRes.json() as any;
+        const status = await statusRes.json() as ThreadsContainerStatus;
         if (status.status === "FINISHED") { mediaFinished = true; break; }
         if (status.status === "ERROR") throw new Error(`Threads media processing failed: ${status.error_message || "unknown"}`);
       } catch (e) {
@@ -948,7 +979,7 @@ async function publishThreads(account: StoredAccount, text: string, mediaUrl: st
     await new Promise(r => setTimeout(r, 5000));
     try {
       const statusRes = await fetch(`https://graph.threads.net/${container.id}?${statusParams}`);
-      const status = await statusRes.json() as any;
+      const status = await statusRes.json() as ThreadsContainerStatus;
       if (status.status === "FINISHED") { finished = true; break; }
       if (status.status === "ERROR") throw new Error(`Threads video processing failed: ${status.error_message || "unknown"}`);
     } catch (e) {
@@ -971,7 +1002,7 @@ async function publishInstagram(account: StoredAccount, text: string, mediaUrl: 
   const userId = account.account_id;
   // Direct Instagram Login → graph.instagram.com
   // Meta/Facebook Page-linked → graph.facebook.com
-  const isDirectLogin = (account.metadata as any)?.login_type === "instagram";
+  const isDirectLogin = getMetadataString(account.metadata, "login_type") === "instagram";
   const base = isDirectLogin
     ? `https://graph.instagram.com/${graphVersion}`
     : `https://graph.facebook.com/${graphVersion}`;
@@ -982,7 +1013,7 @@ async function publishInstagram(account: StoredAccount, text: string, mediaUrl: 
     for (let i = 0; i < 10; i++) {
       await new Promise((r) => setTimeout(r, 2000));
       const statusRes = await fetch(`${base}/${containerId}?${statusParams}`);
-      const status = await statusRes.json() as any;
+      const status = await statusRes.json() as InstagramContainerStatus;
       if (status.status_code === "FINISHED") return;
       if (status.status_code === "ERROR") throw new Error(`Instagram media processing failed: ${status.status || "unknown"}`);
     }
@@ -1060,7 +1091,7 @@ async function publishInstagram(account: StoredAccount, text: string, mediaUrl: 
   for (let i = 0; i < 30; i++) {
     await new Promise(r => setTimeout(r, 5000));
     const statusRes = await fetch(`${base}/${container.id}?${statusParams}`);
-    const status = await statusRes.json() as any;
+    const status = await statusRes.json() as InstagramContainerStatus;
     if (status.status_code === "FINISHED") { finished = true; break; }
     if (status.status_code === "ERROR") throw new Error(`Instagram media processing failed: ${status.status || "unknown"}`);
   }
@@ -1082,7 +1113,7 @@ async function refreshStoredYouTubeToken(account: StoredAccount, userId: string)
   const nextRefreshToken = tokens.refresh_token || account.refresh_token;
   const nextExpiry = getTokenExpiry(tokens.expires_in);
 
-  const supabase = createClient();
+  const supabase = await createClient();
   // Workspace-owned accounts are matched by workspace_id — updating by
   // userId here would silently fail to persist the refreshed token for
   // whichever member happens to be publishing, since they don't own the row.
@@ -1204,7 +1235,7 @@ async function resolveMediaUrl(
   if (!attachment) return fallbackUrl;
 
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const ext = attachment.name.split(".").pop() || "bin";
     const path = `posts/${userId}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
 
@@ -1283,7 +1314,7 @@ async function publishDiscord(account: StoredAccount, text: string, attachment: 
 
 async function publishTelegram(account: StoredAccount, text: string, mediaUrl: string | null) {
   const botToken = account.access_token;
-  const chatId = (account.metadata as any)?.chatId || account.account_id;
+  const chatId = getMetadataString(account.metadata, "chatId") || account.account_id;
   if (!botToken || !chatId) throw new Error("Telegram bot token or Chat ID is missing.");
   return await publishToTelegram(botToken, chatId, text, mediaUrl);
 }
@@ -1359,7 +1390,7 @@ export async function POST(request: Request) {
   const authHeader = request.headers.get("Authorization");
   const isServiceRole = authHeader === `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`;
 
-  let supabase = createClient();
+  let supabase = await createClient();
   let user = null;
 
   if (isServiceRole) {

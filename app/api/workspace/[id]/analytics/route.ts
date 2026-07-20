@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAnalyticsDashboard, type AnalyticsAccount } from "@/lib/analytics/social-analytics";
 import { readWorkspaceAnalyticsCache, writeWorkspaceAnalyticsCache } from "@/lib/analytics/analytics-cache";
-import { getActionLabel } from "@/lib/workspace/activity-logger";
+import { getActionLabel, type WorkspaceAction } from "@/lib/workspace/activity-logger";
 import type { WorkspaceRole, ScheduledPost } from "@/types";
 import { canViewTeamAnalytics } from "@/lib/workspace/permissions";
 
@@ -17,8 +17,9 @@ export const dynamic = "force-dynamic";
 // by date range, best time/day, trends, etc. happens client-side from
 // this raw data — same approach the Solo Analytics page already uses
 // for its own trend/period filters.
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
-  const supabase = createClient();
+export async function GET(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const supabase = await createClient();
   const admin    = createAdminClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -115,7 +116,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       created_at: log.created_at,
       user_name: actor?.name || "Unknown",
       user_avatar: actor?.avatar || "",
-      label: getActionLabel(log.action as any, metadata),
+      label: getActionLabel(log.action as WorkspaceAction, metadata),
       metadata: rawMetadata,
     };
   });

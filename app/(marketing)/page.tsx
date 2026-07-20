@@ -255,7 +255,7 @@ export default function HomePage() {
                   <span className="text-[0.68rem] font-bold uppercase tracking-wider text-[#2f7867]">AI Prompt Adapter</span>
                   <span className="text-[0.65rem] px-2 py-0.5 rounded bg-[#eaf7ef] text-[#20613a] font-bold">Active</span>
                 </div>
-                <p className="text-xs text-[#627078] italic">"Rewrite this post with a professional tone, keeping it under 280 characters for Twitter and formatting as bullet points..."</p>
+                <p className="text-xs text-[#627078] italic">&ldquo;Rewrite this post with a professional tone, keeping it under 280 characters for Twitter and formatting as bullet points...&rdquo;</p>
                 <div className="mt-3 flex items-center justify-end gap-2">
                   <span className="text-[0.68rem] text-[#8a949a]">Adapted:</span>
                   <div className="h-2 w-12 bg-[#2f7867]/20 rounded-full overflow-hidden">

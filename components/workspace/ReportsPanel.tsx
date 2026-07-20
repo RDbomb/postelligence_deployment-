@@ -53,7 +53,13 @@ export default function ReportsPanel({ workspaceId, currentRole }: { workspaceId
   const router = useRouter();
   const searchParams = useSearchParams();
   const [reports, setReports] = useState<ReportListItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  // `loading` is derived rather than stored: the initial fetch is "loading"
+  // until the workspace it belongs to has been recorded, and manual refreshes
+  // flip `reloading` from their own event handler. This keeps the mount effect
+  // free of synchronous setState.
+  const [loadedWorkspaceId, setLoadedWorkspaceId] = useState<string | null>(null);
+  const [reloading, setReloading] = useState(false);
+  const loading = reloading || loadedWorkspaceId !== workspaceId;
   const [error, setError] = useState<string | null>(null);
 
   const [openId, setOpenId] = useState<string | null>(null);
@@ -73,8 +79,9 @@ export default function ReportsPanel({ workspaceId, currentRole }: { workspaceId
   // "Edit Report" shortcut is for once it's been sent back for changes.
   const canEdit = canSubmitReport(currentRole);
 
-  const load = async () => {
-    setLoading(true);
+  // Fetch only — deliberately does not raise a loading flag synchronously, so
+  // it is safe to call straight from the mount effect.
+  const fetchReports = async () => {
     try {
       const res = await fetch(`/api/workspace/${workspaceId}/reports`);
       const json = await res.json();
@@ -83,18 +90,25 @@ export default function ReportsPanel({ workspaceId, currentRole }: { workspaceId
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load reports");
     } finally {
-      setLoading(false);
+      setLoadedWorkspaceId(workspaceId);
+      setReloading(false);
     }
   };
 
-  useEffect(() => { void load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [workspaceId]);
+  // Refresh triggered by a user action — shows the spinner straight away.
+  const load = async () => {
+    setReloading(true);
+    await fetchReports();
+  };
+
+  useEffect(() => { void (async () => { await fetchReports(); })();   }, [workspaceId]);
 
   // Deep link from the notification bell: "?reportId=..." opens that
   // report's detail modal directly instead of leaving the person to
   // hunt for it in the list.
   useEffect(() => {
     const linkedId = searchParams.get("reportId");
-    if (linkedId) void openReport(linkedId);
+    if (linkedId) void (async () => { await openReport(linkedId); })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 

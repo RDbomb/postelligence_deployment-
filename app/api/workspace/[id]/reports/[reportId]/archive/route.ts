@@ -11,8 +11,12 @@ export const dynamic = "force-dynamic";
 // POST /api/workspace/[id]/reports/[reportId]/archive
 // Only Owner/Manager can archive an official report — once archived
 // it's read-only and can no longer be resubmitted for that period.
-export async function POST(_req: NextRequest, { params }: { params: { id: string; reportId: string } }) {
-  const supabase = createClient();
+export async function POST(
+  _req: NextRequest,
+  props: { params: Promise<{ id: string; reportId: string }> }
+) {
+  const params = await props.params;
+  const supabase = await createClient();
   const admin    = createAdminClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

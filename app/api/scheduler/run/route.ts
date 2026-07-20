@@ -14,7 +14,7 @@ export async function GET(request: Request) {
   const isVercelCron = userAgent.includes("vercel-cron") || request.headers.get("x-vercel-cron") === "1";
 
   if (cronSecret && providedSecret !== cronSecret && !isVercelCron) {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -22,7 +22,7 @@ export async function GET(request: Request) {
   }
 
   if (!cronSecret && !isVercelCron) {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -51,7 +51,7 @@ export async function POST(request: Request) {
   }
 
   if (!cronSecret) {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

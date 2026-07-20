@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, LineChart, Line, TooltipProps,
+  PieChart, Pie, Cell, LineChart, Line, TooltipContentProps,
 } from "recharts";
 import {
   Activity, BarChart3, CheckCircle2, Eye, Heart, MessageCircle,
@@ -40,7 +40,7 @@ function connectedOnly(accounts: SocialAccount[]) {
 }
 
 // ── Custom Tooltip ────────────────────────────────────────────────────────────
-function ChartTooltip({ active, payload, label }: TooltipProps<number, string>) {
+function ChartTooltip({ active, payload, label }: Partial<TooltipContentProps<number, string>>) {
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-xl border border-[#1f2528]/10 bg-white px-4 py-3 shadow-[0_8px_30px_rgba(31,37,40,0.12)]">
@@ -56,7 +56,7 @@ function ChartTooltip({ active, payload, label }: TooltipProps<number, string>) 
   );
 }
 
-function PieTooltip({ active, payload }: TooltipProps<number, string>) {
+function PieTooltip({ active, payload }: Partial<TooltipContentProps<number, string>>) {
   if (!active || !payload?.length) return null;
   const entry = payload[0];
   return (
@@ -70,7 +70,7 @@ function PieTooltip({ active, payload }: TooltipProps<number, string>) {
   );
 }
 
-function LineChartTooltip({ active, payload, label }: TooltipProps<number, string>) {
+function LineChartTooltip({ active, payload, label }: Partial<TooltipContentProps<number, string>>) {
   if (!active || !payload?.length) return null;
   const meta = payload[0]?.payload as { title?: string; platform?: string; platformColor?: string; url?: string } | undefined;
   const lines = [
@@ -175,15 +175,19 @@ export default function AnalyticsClient({
   const [mainTab, setMainTab] = useState<"personal" | "team" | "reports">("personal");
   const searchParams = useSearchParams();
 
-  useEffect(() => {
-    const tab = searchParams.get("tab");
-    if (tab === "reports" && showReportsTab) {
+  // Sync the active tab with the "?tab=" URL param. Adjusting state during
+  // render (rather than in an effect) avoids the extra pass that would render
+  // the personal tab first and immediately swap it out.
+  const tabParam = searchParams.get("tab");
+  const [appliedTabParam, setAppliedTabParam] = useState<string | null>(null);
+  if (tabParam !== appliedTabParam) {
+    setAppliedTabParam(tabParam);
+    if (tabParam === "reports" && showReportsTab) {
       setMainTab("reports");
-    } else if (tab === "team" && showTeamTab) {
+    } else if (tabParam === "team" && showTeamTab) {
       setMainTab("team");
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, showReportsTab, showTeamTab]);
+  }
 
   const triggerBackgroundRefresh = useCallback(async () => {
     if (cacheStatus !== "stale") return;

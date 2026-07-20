@@ -1,13 +1,17 @@
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import type { Metadata } from "next";
+import { requireUser } from "@/lib/supabase/require-user";
 import LibraryClient from "./LibraryClient";
+
+export const metadata: Metadata = {
+  title: "Media library",
+  description: "Images and video ready to attach to a post."
+};
+
 
 export const dynamic = "force-dynamic";
 
 export default async function LibraryPage() {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { supabase, user } = await requireUser();
 
   const { data: items } = await supabase
     .from("media_library")

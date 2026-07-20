@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 // Marks every unread notification belonging to the current user as
 // read — used when the notification bell dropdown is opened.
 export async function POST() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

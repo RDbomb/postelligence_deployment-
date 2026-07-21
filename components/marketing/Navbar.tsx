@@ -37,12 +37,12 @@ export function Navbar() {
   }
 
   return (
-    <header className="sticky top-0 z-50 px-4 pt-4 md:px-6">
+    <header className="fixed top-0 left-0 right-0 z-50 px-4 pt-4 md:px-6">
       <div
         className={`mx-auto flex max-w-6xl items-center justify-between rounded-2xl border px-4 py-3 transition-all duration-300 md:px-5 ${
           scrolled
-            ? "border-[#1f2528]/10 bg-white/85 shadow-[0_12px_40px_rgba(31,37,40,0.10)] backdrop-blur-xl"
-            : "border-transparent bg-white/40 backdrop-blur-md"
+            ? "border-[#1f2528]/8 bg-white/50 shadow-[0_12px_40px_rgba(31,37,40,0.06)] backdrop-blur-xl"
+            : "border-transparent bg-white/20 backdrop-blur-md"
         }`}
       >
         <Link href="/" className="shrink-0">

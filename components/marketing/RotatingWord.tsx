@@ -32,7 +32,7 @@ export function RotatingWord() {
           animate={{ rotateX: 0, y: 0, opacity: 1 }}
           exit={{ rotateX: -60, y: -12, opacity: 0 }}
           transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-          className={`col-start-1 row-start-1 ${brandGradients[words[index]] || "text-[#1f2528]"} bg-clip-text text-transparent font-extrabold whitespace-nowrap pr-8 pl-2 pb-4 -mb-4 origin-center`}
+          className={`col-start-1 row-start-1 ${brandGradients[words[index]] || "text-[#1f2528]"} bg-clip-text text-transparent font-extrabold whitespace-nowrap pr-8 pl-2 pt-2 pb-8 -mt-2 -mb-8 leading-[1.2] origin-center`}
         >
           {words[index]}
         </motion.span>

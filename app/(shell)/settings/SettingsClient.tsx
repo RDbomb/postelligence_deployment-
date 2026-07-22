@@ -522,6 +522,7 @@ export default function SettingsClient({ initialDefaultPlatforms, initialUser }:
         <div className="flex flex-wrap gap-2">
           {ALL_PLATFORMS.map((p) => {
             const selected = defaultPlatforms.includes(p.id);
+            const isThreads = p.id === "threads";
             return (
               <button
                 key={p.id}
@@ -529,13 +530,15 @@ export default function SettingsClient({ initialDefaultPlatforms, initialUser }:
                 className={cn(
                   "flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-bold transition",
                   selected
-                    ? "border-transparent text-white"
+                    ? isThreads
+                      ? "bg-black border-black text-white"
+                      : "border-transparent text-white"
                     : "border-[#1f2528]/10 bg-[#f9faf7] text-slate-500 hover:bg-[#f2f4ef] hover:text-[#1f2528]"
                 )}
-                style={selected ? { backgroundColor: p.color, borderColor: p.color } : undefined}
+                style={selected && !isThreads ? { backgroundColor: p.color, borderColor: p.color } : undefined}
               >
-                {selected && <Check className="h-3.5 w-3.5" />}
-                {p.label}
+                {selected && <Check className="h-3.5 w-3.5 text-white" />}
+                <span className={selected ? "text-white" : ""}>{p.label}</span>
               </button>
             );
           })}

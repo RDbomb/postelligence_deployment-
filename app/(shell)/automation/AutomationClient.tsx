@@ -965,7 +965,7 @@ export default function AutomationClient({ user, initialSettings, initialLogs }:
                           onClick={() => togglePlatform(p.id)}
                           className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition ${activeStyle}`}
                         >
-                          {p.name}
+                          <span className={selected ? "text-white" : ""}>{p.name}</span>
                         </button>
                       );
                     })}

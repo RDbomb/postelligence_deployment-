@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createBaseClient } from "@supabase/supabase-js";
+import { schedulePostWithInngest } from "@/lib/inngest/client";
 import { createHash } from "crypto";
 import { PLATFORM_COMPOSE_RULES, type ComposePlatformId, type PlatformComposeRule } from "@/lib/compose/platform-rules";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -731,6 +732,9 @@ Return ONLY a valid JSON object with a single key "caption" containing your gene
       .single();
 
     if (postErr) throw postErr;
+
+    // Send event to Inngest to sleep until scheduledTime and publish automatically
+    await schedulePostWithInngest({ postId: post.id, scheduledTime: targetTime.toISOString() });
 
     const { data: logEntry } = await supabase
       .from("automation_logs")

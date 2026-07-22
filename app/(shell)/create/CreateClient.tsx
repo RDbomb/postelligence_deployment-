@@ -557,10 +557,17 @@ export default function CreateClient({
     }
   };
 
+  const getLocalDateString = (d: Date = new Date()) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
   const openScheduleModal = () => {
     const now = new Date();
     now.setMinutes(now.getMinutes() + 30);
-    setScheduleDate(now.toISOString().split("T")[0]);
+    setScheduleDate(getLocalDateString(now));
     setScheduleTime(now.toTimeString().slice(0, 5));
     setScheduleModal(true);
   };
@@ -834,21 +841,22 @@ export default function CreateClient({
                 const selected = selectedPlatforms.includes(platform.id);
                 const platformCfg = PLATFORM_CONFIG.find((c) => c.id === platform.id);
                 const isAvailable = !platformCfg || platformCfg.available;
+                const isThreads = platform.id === "threads";
                 return (
                   <button key={platform.id} onClick={() => togglePlatform(platform.id)} disabled={!isAvailable}
                     title={!isAvailable ? "This integration is coming soon." : platform.connected ? platform.handle : "Connect this account before publishing"}
-                    className={cn("flex min-w-[160px] shrink-0 items-center gap-3.5 rounded-xl border bg-white px-4 py-3 text-left transition-all duration-200 hover:bg-[#f2f4ef] shadow-sm", (!platform.connected || !isAvailable) && "opacity-60", !isAvailable && "cursor-not-allowed hover:bg-white", !selected && "border-slate-200/80")}
-                    style={selected && isAvailable ? { borderColor: `${platform.color}77`, backgroundColor: `${platform.color}0d`, transform: "scale(1.02)", boxShadow: `0 4px 12px ${platform.color}15` } : undefined}>
-                    <span className="grid h-9.5 w-9.5 shrink-0 place-items-center rounded-xl border border-slate-100 bg-white shadow-sm transition-transform duration-200" style={{ color: platform.color }}>
+                    className={cn("flex min-w-[160px] shrink-0 items-center gap-3.5 rounded-xl border px-4 py-3 text-left transition-all duration-200 shadow-sm", selected && isThreads ? "bg-black text-white border-black" : "bg-white hover:bg-[#f2f4ef]", (!platform.connected || !isAvailable) && "opacity-60", !isAvailable && "cursor-not-allowed hover:bg-white", !selected && "border-slate-200/80")}
+                    style={selected && isAvailable && !isThreads ? { borderColor: `${platform.color}77`, backgroundColor: `${platform.color}0d`, transform: "scale(1.02)", boxShadow: `0 4px 12px ${platform.color}15` } : selected && isThreads ? { transform: "scale(1.02)" } : undefined}>
+                    <span className={cn("grid h-9.5 w-9.5 shrink-0 place-items-center rounded-xl border shadow-sm transition-transform duration-200", selected && isThreads ? "bg-zinc-900 border-zinc-800 text-white" : "border-slate-100 bg-white")} style={{ color: selected && isThreads ? "#ffffff" : platform.color }}>
                       <PlatformLogo id={platform.id} className="h-5 w-5" />
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block text-xs font-black text-slate-800 tracking-tight leading-snug">{platform.name}</span>
-                      <span className={cn("block truncate text-[10px] font-bold mt-0.5", !isAvailable ? "text-amber-500" : platform.connected ? "text-slate-450" : "text-rose-500")}>
+                      <span className={cn("block text-xs font-black tracking-tight leading-snug", selected && isThreads ? "text-white" : "text-slate-800")}>{platform.name}</span>
+                      <span className={cn("block truncate text-[10px] font-bold mt-0.5", selected && isThreads ? "text-zinc-300" : !isAvailable ? "text-amber-500" : platform.connected ? "text-slate-450" : "text-rose-500")}>
                         {!isAvailable ? "Coming soon" : platform.connected ? platform.handle : "Not connected"}
                       </span>
                     </span>
-                    {selected && isAvailable && <Check className="h-4.5 w-4.5 shrink-0" style={{ color: platform.color }} />}
+                    {selected && isAvailable && <Check className="h-4.5 w-4.5 shrink-0" style={{ color: isThreads ? "#ffffff" : platform.color }} />}
                   </button>
                 );
               })}
@@ -1567,7 +1575,7 @@ export default function CreateClient({
                 <div>
                   <label className="mb-1.5 block text-xs font-bold uppercase tracking-[0.16em] text-slate-400">Date</label>
                   <input type="date" className="w-full rounded-lg border border-[#1f2528]/12 bg-[#f9faf7] px-4 py-2.5 text-sm text-[#1f2528] outline-none focus:border-[#2f7867]/50 focus:bg-white"
-                    value={scheduleDate} min={new Date().toISOString().split("T")[0]} onChange={(e) => setScheduleDate(e.target.value)} />
+                    value={scheduleDate} min={getLocalDateString()} onChange={(e) => setScheduleDate(e.target.value)} />
                 </div>
                 <div>
                   <label className="mb-1.5 block text-xs font-bold uppercase tracking-[0.16em] text-slate-400">Time</label>

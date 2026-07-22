@@ -23,7 +23,7 @@ export function PricingVisual() {
   };
 
   return (
-    <div className="relative mx-auto w-full max-w-[420px] p-6 rounded-[32px] border border-[#1f2528]/8 bg-white/90 shadow-[0_24px_50px_rgba(0,0,0,0.035)] backdrop-blur-xl flex flex-col gap-6 text-left select-none overflow-hidden">
+    <div className="relative mx-auto w-full max-w-[420px] p-4 sm:p-6 rounded-[24px] sm:rounded-[32px] border border-[#1f2528]/8 bg-white/90 shadow-[0_24px_50px_rgba(0,0,0,0.035)] backdrop-blur-xl flex flex-col gap-5 sm:gap-6 text-left select-none overflow-hidden">
       
       {/* Visual Header */}
       <div className="flex items-center justify-between border-b border-slate-100 pb-4">

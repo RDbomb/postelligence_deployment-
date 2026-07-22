@@ -149,7 +149,7 @@ export default function PricingPage() {
 
       {/* Pricing Cards Grid Section */}
       <section className="px-5 pb-16 md:px-8">
-        <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-3">
+        <div className="mx-auto grid max-w-6xl gap-5 sm:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
           {plans.map((plan) => {
             const priceVal = getPrice(plan.name);
             return (
@@ -158,13 +158,13 @@ export default function PricingPage() {
                 whileHover={{ y: -6 }}
                 transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
                 onMouseMove={handleMouseMove}
-                className="glow-card rounded-[32px] border border-[#1f2528]/8 bg-white overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.025)] flex flex-col justify-between"
+                className="glow-card rounded-[28px] sm:rounded-[32px] border border-[#1f2528]/8 bg-white overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.025)] flex flex-col justify-between"
               >
                 <article
                   className={
                     plan.featured 
-                      ? "marketing-pricing-card marketing-pricing-card-featured h-full relative z-20 p-8 flex flex-col justify-between" 
-                      : "marketing-pricing-card h-full relative z-20 p-8 flex flex-col justify-between"
+                      ? "marketing-pricing-card marketing-pricing-card-featured h-full relative z-20 p-6 sm:p-8 flex flex-col justify-between" 
+                      : "marketing-pricing-card h-full relative z-20 p-6 sm:p-8 flex flex-col justify-between"
                   }
                 >
                   <div>

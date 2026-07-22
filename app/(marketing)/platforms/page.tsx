@@ -714,7 +714,7 @@ export default function IntegrationsPage() {
           </Reveal>
 
           <div className="overflow-x-auto rounded-[24px] border border-[#1f2528]/8 bg-white/70 backdrop-blur-sm shadow-[0_12px_40px_rgba(0,0,0,0.02)]">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full min-w-[600px] text-left border-collapse">
               <thead>
                 <tr className="border-b border-[#1f2528]/8 bg-[#fbfbf9]/60 text-[#1f2528] text-[0.78rem] uppercase font-bold tracking-wider">
                   <th className="p-4.5 pl-6">Platform</th>

@@ -128,7 +128,7 @@ export default function HomePage() {
         <div className="marketing-orb marketing-orb-teal" aria-hidden="true" />
         <div className="marketing-orb marketing-orb-coral" aria-hidden="true" />
 
-        <div className="relative mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-[minmax(0,1fr)_580px]">
+        <div className="relative mx-auto grid max-w-7xl items-center gap-8 lg:gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(320px,540px)] xl:grid-cols-[minmax(0,1fr)_580px]">
           <div className="max-w-2xl w-full">
             <motion.p
               initial={{ opacity: 0, y: 10 }}
@@ -177,7 +177,7 @@ export default function HomePage() {
               initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.32 }}
-              className="mt-12 grid max-w-2xl grid-cols-3 gap-6 w-full"
+              className="mt-12 grid max-w-2xl grid-cols-1 xs:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 w-full"
             >
               {stats.map((stat) => {
                 const StatIcon = stat.icon;
@@ -212,8 +212,8 @@ export default function HomePage() {
             </motion.div>
           </div>
 
-          <Reveal y={28} className="hidden lg:block lg:-mt-52">
-            <div className="w-[580px] h-[580px] flex items-center justify-center translate-x-8">
+          <Reveal y={28} className="hidden lg:block lg:-mt-44 xl:-mt-52">
+            <div className="w-full max-w-[580px] aspect-square flex items-center justify-center mx-auto lg:scale-90 xl:scale-100 xl:translate-x-6 transform-gpu">
               <HomeHeroVisual />
             </div>
           </Reveal>
@@ -529,7 +529,7 @@ export default function HomePage() {
       <section className="px-5 pb-24 pt-16 md:px-8 md:pb-32">
         <div className="mx-auto max-w-6xl">
           <Reveal>
-            <div className="relative overflow-hidden rounded-[32px] border border-[#1f2528]/8 bg-white px-8 py-16 md:px-16 md:py-24 text-center shadow-[0_24px_60px_rgba(0,0,0,0.03)]">
+            <div className="relative overflow-hidden rounded-[24px] sm:rounded-[32px] border border-[#1f2528]/8 bg-white px-4 sm:px-8 md:px-16 py-10 sm:py-16 md:py-24 text-center shadow-[0_24px_60px_rgba(0,0,0,0.03)]">
               {/* Background ambient lights */}
               <div className="pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full bg-[#2f7867]/8 blur-3xl" />
               <div className="pointer-events-none absolute -bottom-16 -left-16 h-64 w-64 rounded-full bg-[#d05945]/4 blur-3xl" />

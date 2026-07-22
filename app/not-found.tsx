@@ -46,7 +46,7 @@ export default function NotFound() {
   ];
 
   return (
-    <main className="relative h-screen bg-gradient-to-b from-[#fbfbf9] to-[#f5f6f0] flex items-center justify-center p-6 overflow-hidden select-none">
+    <main className="relative min-h-dvh h-dvh bg-gradient-to-b from-[#fbfbf9] to-[#f5f6f0] flex items-center justify-center p-4 sm:p-6 overflow-hidden select-none">
       
       {/* Premium ambient glowing color blobs */}
       <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] rounded-full bg-gradient-to-tr from-[#2f7867]/8 to-transparent blur-[120px] pointer-events-none animate-pulse duration-[8000ms]" />

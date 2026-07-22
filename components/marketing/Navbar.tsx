@@ -102,7 +102,7 @@ export function Navbar() {
             animate={{ opacity: 1, y: 0, height: "auto" }}
             exit={{ opacity: 0, y: -8, height: 0 }}
             transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-            className="mx-auto mt-2 max-w-6xl overflow-hidden rounded-2xl border border-[#1f2528]/10 bg-white/95 p-3 shadow-[0_12px_40px_rgba(31,37,40,0.12)] backdrop-blur-xl md:hidden"
+            className="mx-auto mt-2 max-w-6xl max-h-[85dvh] overflow-y-auto rounded-2xl border border-[#1f2528]/10 bg-white/95 p-3 shadow-[0_12px_40px_rgba(31,37,40,0.12)] backdrop-blur-xl md:hidden"
           >
             <div className="flex flex-col">
               {links.map((link) => (

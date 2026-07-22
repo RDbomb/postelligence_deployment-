@@ -32,7 +32,7 @@ const steps = [
 
 export function ProductFlowDemo() {
   return (
-    <div className="mx-auto max-w-5xl grid gap-8 md:grid-cols-3 items-stretch select-none">
+    <div className="mx-auto max-w-5xl grid gap-4 sm:gap-6 lg:gap-8 grid-cols-1 md:grid-cols-3 items-stretch select-none">
       {steps.map((item, idx) => {
         const Icon = item.icon;
         return (
@@ -43,7 +43,7 @@ export function ProductFlowDemo() {
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: idx * 0.1, ease: [0.22, 1, 0.36, 1] }}
             whileHover={{ y: -6 }}
-            className="flex flex-col justify-between p-7 rounded-[24px] border border-[#1f2528]/8 bg-white shadow-[0_12px_30px_rgba(0,0,0,0.02)] transition-all duration-300 relative group"
+            className="flex flex-col justify-between p-5 sm:p-7 rounded-[24px] border border-[#1f2528]/8 bg-white shadow-[0_12px_30px_rgba(0,0,0,0.02)] transition-all duration-300 relative group"
           >
             {/* Ambient hover glow */}
             <div 

@@ -146,7 +146,10 @@ export default function HomePage() {
             >
               Create once.
               <br />
-              Publish <RotatingWord />
+              <span className="inline-flex flex-wrap items-baseline gap-x-3">
+                <span>Publish</span>
+                <RotatingWord />
+              </span>
             </motion.h1>
             <motion.p
               initial={{ opacity: 0, y: 14 }}
@@ -162,7 +165,7 @@ export default function HomePage() {
               initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.24 }}
-              className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center"
+              className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center"
             >
               <a href="/login" className="marketing-cta-primary marketing-cta-glow">
                 Start for free
@@ -173,37 +176,38 @@ export default function HomePage() {
               </a>
             </motion.div>
 
+            {/* 3 Stats cards side-by-side in 3 columns */}
             <motion.div
               initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.32 }}
-              className="mt-12 grid max-w-2xl grid-cols-1 xs:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 w-full"
+              className="mt-10 grid grid-cols-3 gap-2.5 sm:gap-4 w-full"
             >
               {stats.map((stat) => {
                 const StatIcon = stat.icon;
                 return (
                   <div 
                     key={stat.label} 
-                    className="marketing-stat-card marketing-stat-card-hover p-5 md:p-6 flex flex-col justify-between min-h-[155px] relative group hover:border-[#2f7867]/20 transition-all duration-300 overflow-hidden"
+                    className="marketing-stat-card marketing-stat-card-hover p-4 sm:p-5 flex flex-col justify-between min-h-[135px] relative group hover:border-[#2f7867]/20 transition-all duration-300 overflow-hidden"
                   >
                     {/* Icon container */}
                     <div 
-                      className="flex h-10 w-10 items-center justify-center rounded-xl shadow-sm transition-transform duration-300 group-hover:scale-105"
+                      className="flex h-9 w-9 items-center justify-center rounded-xl shadow-sm transition-transform duration-300 group-hover:scale-105"
                       style={{ backgroundColor: stat.bgLight, color: stat.color }}
                     >
-                      <StatIcon className="h-4.5 w-4.5" />
+                      <StatIcon className="h-4 w-4" />
                     </div>
 
-                    <div className="mt-4">
-                      <p className="text-3xl font-extrabold tracking-[-0.04em] text-[#1f2528] md:text-4xl lg:text-5xl flex items-baseline">
+                    <div className="mt-3">
+                      <p className="text-2xl font-extrabold tracking-[-0.04em] text-[#1f2528] sm:text-3xl md:text-4xl flex items-baseline">
                         <StatCounter value={stat.value} suffix={stat.suffix} />
                       </p>
-                      <p className="mt-1 text-xs md:text-sm text-[#627078] font-bold leading-normal">{stat.label}</p>
+                      <p className="mt-1 text-[0.7rem] sm:text-xs text-[#627078] font-bold leading-tight">{stat.label}</p>
                     </div>
                     
                     {/* Hover ambient light inside each card */}
                     <div 
-                      className="pointer-events-none absolute -bottom-10 -right-10 h-24 w-24 rounded-full blur-2xl opacity-0 group-hover:opacity-40 transition-opacity duration-300"
+                      className="pointer-events-none absolute -bottom-10 -right-10 h-20 w-20 rounded-full blur-2xl opacity-0 group-hover:opacity-40 transition-opacity duration-300"
                       style={{ backgroundColor: stat.color }}
                     />
                   </div>

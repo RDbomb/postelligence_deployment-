@@ -24,7 +24,7 @@ export function RotatingWord() {
   }, []);
 
   return (
-    <span className="relative inline-grid align-bottom overflow-visible text-left" style={{ width: "8.2em", perspective: 1000 }}>
+    <span className="relative inline-grid align-baseline overflow-visible text-left" style={{ minWidth: "5.8em", perspective: 1000 }}>
       <AnimatePresence mode="wait">
         <motion.span
           key={words[index]}
@@ -32,7 +32,7 @@ export function RotatingWord() {
           animate={{ rotateX: 0, y: 0, opacity: 1 }}
           exit={{ rotateX: -60, y: -12, opacity: 0 }}
           transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-          className={`col-start-1 row-start-1 ${brandGradients[words[index]] || "text-[#1f2528]"} bg-clip-text text-transparent font-extrabold whitespace-nowrap pr-8 pl-2 pt-2 pb-8 -mt-2 -mb-8 leading-[1.2] origin-center`}
+          className={`col-start-1 row-start-1 ${brandGradients[words[index]] || "text-[#1f2528]"} bg-clip-text text-transparent font-extrabold whitespace-nowrap pr-4 pl-1 pt-1 pb-4 origin-left`}
         >
           {words[index]}
         </motion.span>

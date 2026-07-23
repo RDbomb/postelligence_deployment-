@@ -123,10 +123,10 @@ export function Navbar() {
               </a>
               <a
                 href="/login"
-                className="mt-1 flex items-center justify-center gap-2 rounded-xl bg-[#1f2528] px-3 py-3 text-[0.95rem] font-semibold text-white"
+                className="mt-1 flex items-center justify-center gap-2 rounded-xl bg-[#1f2528] px-4 py-3 text-[0.95rem] font-bold text-white shadow-md cursor-pointer transition hover:bg-[#2b353b]"
               >
-                Get started
-                <ArrowRight className="h-4 w-4" />
+                <span>Get started</span>
+                <ArrowRight className="h-4 w-4 shrink-0 text-white" />
               </a>
             </div>
           </motion.div>

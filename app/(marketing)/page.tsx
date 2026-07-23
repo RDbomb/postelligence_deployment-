@@ -124,12 +124,12 @@ export default function HomePage() {
 
   return (
     <PageTransition>
-      <section className="marketing-hero relative overflow-hidden px-5 pb-16 pt-[100px] md:px-8 md:pb-20 md:pt-[104px]">
+      <section className="marketing-hero relative overflow-hidden px-4 sm:px-6 md:px-8 pb-16 pt-[90px] md:pt-[104px]">
         <div className="marketing-orb marketing-orb-teal" aria-hidden="true" />
         <div className="marketing-orb marketing-orb-coral" aria-hidden="true" />
 
-        <div className="relative mx-auto grid max-w-7xl items-center gap-8 lg:gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(320px,540px)] xl:grid-cols-[minmax(0,1fr)_580px]">
-          <div className="max-w-2xl w-full">
+        <div className="relative mx-auto grid max-w-7xl items-center gap-8 lg:gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(320px,540px)] xl:grid-cols-[minmax(0,1fr)_580px] w-full min-w-0">
+          <div className="max-w-2xl w-full min-w-0">
             <motion.p
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -142,11 +142,11 @@ export default function HomePage() {
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
-              className="marketing-display mt-5"
+              className="marketing-display mt-5 max-w-full min-w-0 break-words"
             >
               Create once.
               <br />
-              <span className="inline-flex flex-wrap items-baseline gap-x-3">
+              <span className="inline-flex flex-wrap items-baseline gap-x-2 sm:gap-x-3 max-w-full">
                 <span>Publish</span>
                 <RotatingWord />
               </span>
@@ -165,44 +165,44 @@ export default function HomePage() {
               initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.24 }}
-              className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center"
+              className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center w-full max-w-full"
             >
-              <a href="/login" className="marketing-cta-primary marketing-cta-glow">
+              <a href="/login" className="marketing-cta-primary marketing-cta-glow w-full sm:w-auto text-center justify-center">
                 Start for free
-                <ArrowRight className="h-4 w-4" />
+                <ArrowRight className="h-4 w-4 shrink-0" />
               </a>
-              <a href="/features" className="marketing-cta-secondary">
+              <a href="/features" className="marketing-cta-secondary w-full sm:w-auto text-center justify-center">
                 Explore features
               </a>
             </motion.div>
 
-            {/* 3 Stats cards side-by-side in 3 columns */}
+            {/* 3 Stats cards */}
             <motion.div
               initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.32 }}
-              className="mt-10 grid grid-cols-3 gap-2.5 sm:gap-4 w-full"
+              className="mt-10 grid grid-cols-1 min-[420px]:grid-cols-3 gap-2 sm:gap-4 w-full min-w-0"
             >
               {stats.map((stat) => {
                 const StatIcon = stat.icon;
                 return (
                   <div 
                     key={stat.label} 
-                    className="marketing-stat-card marketing-stat-card-hover p-4 sm:p-5 flex flex-col justify-between min-h-[135px] relative group hover:border-[#2f7867]/20 transition-all duration-300 overflow-hidden"
+                    className="marketing-stat-card marketing-stat-card-hover p-3.5 sm:p-5 flex flex-col justify-between min-h-[110px] sm:min-h-[135px] relative group hover:border-[#2f7867]/20 transition-all duration-300 overflow-hidden"
                   >
                     {/* Icon container */}
                     <div 
-                      className="flex h-9 w-9 items-center justify-center rounded-xl shadow-sm transition-transform duration-300 group-hover:scale-105"
+                      className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl shadow-sm transition-transform duration-300 group-hover:scale-105"
                       style={{ backgroundColor: stat.bgLight, color: stat.color }}
                     >
                       <StatIcon className="h-4 w-4" />
                     </div>
 
-                    <div className="mt-3">
+                    <div className="mt-2.5 sm:mt-3">
                       <p className="text-2xl font-extrabold tracking-[-0.04em] text-[#1f2528] sm:text-3xl md:text-4xl flex items-baseline">
                         <StatCounter value={stat.value} suffix={stat.suffix} />
                       </p>
-                      <p className="mt-1 text-[0.7rem] sm:text-xs text-[#627078] font-bold leading-tight">{stat.label}</p>
+                      <p className="mt-0.5 sm:mt-1 text-xs text-[#627078] font-bold leading-tight">{stat.label}</p>
                     </div>
                     
                     {/* Hover ambient light inside each card */}
@@ -216,14 +216,14 @@ export default function HomePage() {
             </motion.div>
           </div>
 
-          <Reveal y={28} className="mt-2 lg:mt-0 lg:-mt-44 xl:-mt-52 flex items-center justify-center w-full overflow-hidden">
-            <div className="flex items-center justify-center -my-20 xs:-my-14 sm:-my-6 md:my-0 scale-[0.52] xs:scale-[0.62] sm:scale-[0.78] md:scale-[0.85] lg:scale-90 xl:scale-100 xl:translate-x-6 transform-gpu transition-all">
+          <Reveal y={28} className="mt-2 lg:mt-0 lg:-mt-44 xl:-mt-52 flex items-center justify-center w-full overflow-hidden max-w-full min-w-0">
+            <div className="flex items-center justify-center -my-24 min-[380px]:-my-18 xs:-my-12 sm:max-lg:-my-6 lg:my-0 scale-[0.56] min-[380px]:scale-[0.66] xs:scale-[0.78] sm:scale-[0.92] md:max-lg:scale-[1.0] lg:scale-85 xl:scale-95 lg:translate-x-0 xl:translate-x-2 transform-gpu transition-all">
               <HomeHeroVisual />
             </div>
           </Reveal>
         </div>
 
-        <div className="relative mx-auto mt-16 max-w-6xl">
+        <div className="relative mx-auto mt-6 sm:mt-12 md:mt-16 max-w-6xl">
           <p className="mb-4 text-center text-[0.78rem] font-bold uppercase tracking-[0.1em] text-[#8a949a]">
             Publish natively, everywhere your audience already is
           </p>

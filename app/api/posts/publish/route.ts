@@ -905,6 +905,11 @@ async function publishThreads(account: StoredAccount, text: string, mediaUrl: st
     }))).filter((id): id is string => Boolean(id));
 
     if (childIds.length > 1) {
+      // Wait for each child container to finish processing before creating parent CAROUSEL container
+      for (const childId of childIds) {
+        await waitForThreadsContainer(childId, false);
+      }
+
       const carouselParams = new URLSearchParams({
         access_token: token,
         media_type: "CAROUSEL",
@@ -1002,7 +1007,7 @@ async function publishInstagram(account: StoredAccount, text: string, mediaUrl: 
   const userId = account.account_id;
   // Direct Instagram Login → graph.instagram.com
   // Meta/Facebook Page-linked → graph.facebook.com
-  const isDirectLogin = getMetadataString(account.metadata, "login_type") === "instagram";
+  const isDirectLogin = account.metadata?.login_type === "instagram";
   const base = isDirectLogin
     ? `https://graph.instagram.com/${graphVersion}`
     : `https://graph.facebook.com/${graphVersion}`;
@@ -1020,23 +1025,26 @@ async function publishInstagram(account: StoredAccount, text: string, mediaUrl: 
     throw new Error("Instagram media did not finish processing in time.");
   }
 
-  const imageUrls = mediaType === "image" ? mediaUrls.filter(Boolean) : [];
-
   // Carousel: 2-10 images posted together as one swipeable post.
+  const imageUrls = mediaType === "image" ? mediaUrls.filter(Boolean) : [];
   if (imageUrls.length > 1) {
     const carouselUrls = imageUrls.slice(0, 10);
     const childIds = (await Promise.all(carouselUrls.map(async (url) => {
       const params = new URLSearchParams({ access_token: token, image_url: url, is_carousel_item: "true" });
-      const child = await requireOk(
-        await fetch(`${base}/${userId}/media`, { method: "POST", body: params }),
-        "Instagram carousel item creation failed"
-      );
-      return child?.id as string | undefined;
+      const res = await fetch(`${base}/${userId}/media`, { method: "POST", body: params });
+      if (!res.ok) return undefined;
+      const child = await res.json() as { id?: string };
+      return child?.id;
     }))).filter((id): id is string => Boolean(id));
 
     if (childIds.length > 1) {
+      // Wait for each child container to finish processing before creating parent CAROUSEL container
+      for (const childId of childIds) {
+        await waitForContainer(childId);
+      }
+
       const carouselParams = new URLSearchParams({ access_token: token, media_type: "CAROUSEL", caption: text });
-      childIds.forEach((id, i) => carouselParams.set(`children[${i}]`, id));
+      childIds.forEach((id: string, i: number) => carouselParams.set(`children[${i}]`, id));
       const container = await requireOk(
         await fetch(`${base}/${userId}/media`, { method: "POST", body: carouselParams }),
         "Instagram carousel creation failed"
@@ -1063,10 +1071,23 @@ async function publishInstagram(account: StoredAccount, text: string, mediaUrl: 
     createParams.set("image_url", mediaUrl);
   }
 
-  const container = await requireOk(
-    await fetch(`${base}/${userId}/media`, { method: "POST", body: createParams }),
-    "Instagram container creation failed"
-  );
+  let containerFetchRes = await fetch(`${base}/${userId}/media`, { method: "POST", body: createParams });
+  if (!containerFetchRes.ok) {
+    const errText = await containerFetchRes.text();
+    if (mediaType === "video" && (errText.includes("2207009") || errText.includes("aspect ratio"))) {
+      console.warn("Instagram Reel share_to_feed rejected due to aspect ratio, retrying as standard Reel...");
+      createParams.delete("share_to_feed");
+      containerFetchRes = await fetch(`${base}/${userId}/media`, { method: "POST", body: createParams });
+    }
+    if (!containerFetchRes.ok) {
+      const finalErrText = await containerFetchRes.text().catch(() => errText);
+      if (finalErrText.includes("2207009") || finalErrText.includes("aspect ratio")) {
+        throw new Error("Instagram image aspect ratio is not supported (error 2207009). Instagram requires feed images to be between 4:5 (0.8) and 1.91:1 aspect ratio. Please crop your image.");
+      }
+      throw new Error(`Instagram container creation failed: ${finalErrText}`);
+    }
+  }
+  const container = await containerFetchRes.json() as { id: string };
 
   const publishParams = new URLSearchParams({ access_token: token, creation_id: container.id });
 
@@ -1538,7 +1559,8 @@ export async function POST(request: Request) {
       .insert(historyRow);
 
     if (historyError && historyError.message.includes("platform_results")) {
-      const { platform_results: _platformResults, ...legacyHistoryRow } = historyRow;
+      const legacyHistoryRow = { ...historyRow } as Record<string, unknown>;
+      delete legacyHistoryRow.platform_results;
       await supabase.from("scheduled_posts").insert(legacyHistoryRow);
     } else if (historyError) {
       console.error("[Publish] Failed to save publish history", historyError);

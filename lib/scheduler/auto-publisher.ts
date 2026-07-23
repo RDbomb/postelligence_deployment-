@@ -265,23 +265,6 @@ async function publishLinkedIn(account: StoredAccount, post: ScheduledPost, atta
   return payload?.id as string | undefined;
 }
 
-async function uploadYouTubeVideo(accessToken: string, attachment: File, metadata: Record<string, unknown>) {
-  const boundary = `postelligence-${crypto.randomUUID()}`;
-  const metadataPart = Buffer.from(`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n`);
-  const fileHeader = Buffer.from(`--${boundary}\r\nContent-Type: ${attachment.type || "application/octet-stream"}\r\n\r\n`);
-  const closing = Buffer.from(`\r\n--${boundary}--`);
-  const body = Buffer.concat([metadataPart, fileHeader, Buffer.from(await attachment.arrayBuffer()), closing]);
-
-  return await fetch("https://www.googleapis.com/upload/youtube/v3/videos?uploadType=multipart&part=snippet,status", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": `multipart/related; boundary=${boundary}`,
-    },
-    body,
-  });
-}
-
 async function refreshStoredYouTubeToken(account: StoredAccount, userId: string) {
   if (!account.refresh_token) throw new Error("YouTube session expired. Reconnect YouTube.");
 
@@ -311,11 +294,6 @@ async function refreshStoredYouTubeToken(account: StoredAccount, userId: string)
   account.refresh_token = refreshToken;
   account.token_expires_at = tokenExpiresAt;
   return accessToken;
-}
-
-function isTokenExpired(expiresAt?: string | null) {
-  if (!expiresAt) return false;
-  return new Date(expiresAt).getTime() <= Date.now() + 60_000;
 }
 
 async function publishYouTube(account: StoredAccount, post: ScheduledPost) {
@@ -824,6 +802,11 @@ async function publishThreads(account: StoredAccount, text: string, mediaUrl: st
     }))).filter((id): id is string => Boolean(id));
 
     if (childIds.length > 1) {
+      // Wait for each child container to finish processing before creating parent CAROUSEL container
+      for (const childId of childIds) {
+        await waitForThreadsContainer(childId);
+      }
+
       const carouselParams = new URLSearchParams({
         access_token: token,
         media_type: "CAROUSEL",
@@ -931,6 +914,11 @@ async function publishInstagram(account: StoredAccount, text: string, mediaUrl: 
     }))).filter((id): id is string => Boolean(id));
 
     if (childIds.length > 1) {
+      // Wait for each child container to finish processing before creating parent CAROUSEL container
+      for (const childId of childIds) {
+        await waitForContainer(childId);
+      }
+
       const carouselParams = new URLSearchParams({ access_token: token, media_type: "CAROUSEL", caption: text });
       childIds.forEach((id, i) => carouselParams.set(`children[${i}]`, id));
       const containerRes = await fetch(`${base}/${userId}/media`, { method: "POST", body: carouselParams });
@@ -958,8 +946,22 @@ async function publishInstagram(account: StoredAccount, text: string, mediaUrl: 
   } else {
     createParams.set("image_url", mediaUrl);
   }
-  const containerRes = await fetch(`${base}/${userId}/media`, { method: "POST", body: createParams });
-  if (!containerRes.ok) throw new Error(`Instagram container failed: ${await containerRes.text()}`);
+  let containerRes = await fetch(`${base}/${userId}/media`, { method: "POST", body: createParams });
+  if (!containerRes.ok) {
+    const errText = await containerRes.text();
+    if (mediaType === "video" && (errText.includes("2207009") || errText.includes("aspect ratio"))) {
+      console.warn("Instagram Reel share_to_feed rejected due to aspect ratio, retrying as standard Reel...");
+      createParams.delete("share_to_feed");
+      containerRes = await fetch(`${base}/${userId}/media`, { method: "POST", body: createParams });
+    }
+    if (!containerRes.ok) {
+      const finalErrText = await containerRes.text().catch(() => errText);
+      if (finalErrText.includes("2207009") || finalErrText.includes("aspect ratio")) {
+        throw new Error("Instagram image aspect ratio is not supported (error 2207009). Instagram requires feed images to be between 4:5 (0.8) and 1.91:1 aspect ratio. Please crop your image.");
+      }
+      throw new Error(`Instagram container failed: ${finalErrText}`);
+    }
+  }
   const container = await containerRes.json() as MetaContainerResponse;
 
   const publishParams = new URLSearchParams({ access_token: token, creation_id: container.id });

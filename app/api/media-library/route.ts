@@ -41,6 +41,53 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const contentType = req.headers.get("content-type") || "";
+
+  // Direct JSON Metadata Registration (Bypasses Next.js 413 Payload Limit for client-side uploads)
+  if (contentType.includes("application/json")) {
+    const json = await req.json().catch(() => ({}));
+    const { file_name, file_url, file_type, file_size, content_hash } = json;
+
+    if (!file_url || !file_name) {
+      return NextResponse.json({ error: "Missing required media fields." }, { status: 400 });
+    }
+
+    const adminDbClient = getAdminClient() || supabase;
+
+    if (content_hash) {
+      const { data: existing } = await adminDbClient
+        .from("media_library")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("content_hash", content_hash)
+        .maybeSingle();
+
+      if (existing) {
+        return NextResponse.json({ item: existing, deduplicated: true });
+      }
+    }
+
+    const { data: mediaItem, error: dbError } = await adminDbClient
+      .from("media_library")
+      .insert({
+        user_id: user.id,
+        file_name,
+        file_url,
+        file_type: file_type || "image",
+        file_size: file_size || 0,
+        content_hash: content_hash || null,
+      })
+      .select()
+      .single();
+
+    if (dbError) {
+      console.error("[Media Library JSON] DB Insert Error:", dbError.message);
+      return NextResponse.json({ error: dbError.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ item: mediaItem });
+  }
+
   const formData = await req.formData();
   const file = formData.get("file") as File | null;
 

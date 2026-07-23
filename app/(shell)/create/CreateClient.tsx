@@ -44,6 +44,7 @@ import {
   type SocialAccount,
 } from "@/lib/integrations/social-accounts";
 import { cn } from "@/lib/utils";
+import { createClient as createBrowserClient } from "@/lib/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PLATFORM_CONFIG } from "@/types";
@@ -461,6 +462,46 @@ export default function CreateClient({
         const fileKind = file.type.startsWith("video/") ? "video" : "image";
         setUploadStatusText(`Uploading ${fileKind} "${file.name}" to media storage${attemptLabel}... Please wait.`);
 
+        // Step 1: Direct Client-to-Supabase Storage Upload (Bypasses Next.js HTTP 413 Payload Too Large Limit!)
+        try {
+          const supabase = createBrowserClient();
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            const fileExt = file.name.split(".").pop() || "bin";
+            const storagePath = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
+
+            const { data: uploadData, error: uploadErr } = await supabase.storage
+              .from("media-library")
+              .upload(storagePath, file, { cacheControl: "3600", upsert: true });
+
+            if (!uploadErr && uploadData?.path) {
+              const { data: { publicUrl } } = supabase.storage.from("media-library").getPublicUrl(uploadData.path);
+
+              // Register DB metadata via lightweight JSON POST (~200 bytes, no 413!)
+              const dbRes = await fetch("/api/media-library", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  file_name: file.name,
+                  file_url: publicUrl,
+                  file_type: fileKind,
+                  file_size: file.size,
+                })
+              });
+              const dbData = await dbRes.json().catch(() => ({}));
+              if (dbRes.ok && (dbData.item?.file_url || publicUrl)) {
+                setUploadStatusText(null);
+                return dbData.item?.file_url || publicUrl;
+              }
+            } else if (uploadErr) {
+              console.warn("[Media Upload] Direct Supabase storage upload error:", uploadErr.message);
+            }
+          }
+        } catch (directErr) {
+          console.warn("[Media Upload] Direct upload error, trying fallback route:", directErr);
+        }
+
+        // Step 2: Fallback to FormData POST for smaller files
         const formData = new FormData();
         formData.set("file", file);
 

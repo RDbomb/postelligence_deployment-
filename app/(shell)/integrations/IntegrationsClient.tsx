@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useSyncExternalStore } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   MoreHorizontal, Plus, X, Check, Loader2,
@@ -142,7 +143,7 @@ function PlatformAvatar({ platform, size = "lg" }: { platform: Platform; size?: 
 }
 
 // ── Animated connection line decoration ─────────────────────────────────────
-function ConnectionDot({ connected }: { connected: boolean }) {
+function _ConnectionDot({ connected }: { connected: boolean }) {
   return (
     <div className="relative flex items-center gap-1.5">
       <span
@@ -420,6 +421,7 @@ function PlatformCard({
 
 // ── Main Component ─────────────────────────────────────────────────────────────
 export default function IntegrationsClient({ socialAccounts }: Props) {
+  const router = useRouter();
   const [disconnectingPlatform, setDisconnectingPlatform] = useState<string | null>(null);
   const [blueskyModalOpen, setBlueskyModalOpen] = useState(false);
   const [blueskyHandle, setBlueskyHandle] = useState("");
@@ -439,6 +441,11 @@ export default function IntegrationsClient({ socialAccounts }: Props) {
   const [telegramChatId, setTelegramChatId] = useState("");
   const [telegramConnecting, setTelegramConnecting] = useState(false);
   const [telegramError, setTelegramError] = useState<string | null>(null);
+
+  const [pinterestModalOpen, setPinterestModalOpen] = useState(false);
+  const [pinterestAccessToken, setPinterestAccessToken] = useState("");
+  const [pinterestConnecting, setPinterestConnecting] = useState(false);
+  const [pinterestError, setPinterestError] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<"all" | "connected" | "available">("all");
 
   const facebookAccount  = getConnectedFacebookAccount(socialAccounts);
@@ -582,6 +589,38 @@ export default function IntegrationsClient({ socialAccounts }: Props) {
     return true;
   });
 
+  const connectPinterest = async () => {
+    if (!pinterestAccessToken.trim()) {
+      setPinterestError("Please enter your Pinterest Access Token.");
+      return;
+    }
+
+    setPinterestConnecting(true);
+    setPinterestError(null);
+
+    try {
+      const res = await fetch("/api/integrations/pinterest/manual-connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accessToken: pinterestAccessToken.trim() }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to connect Pinterest.");
+      }
+
+      setPinterestModalOpen(false);
+      setPinterestAccessToken("");
+      router.refresh();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to connect Pinterest.";
+      setPinterestError(msg);
+    } finally {
+      setPinterestConnecting(false);
+    }
+  };
+
   const handleConnect = (platform: Platform) => {
     if (platform.id === "bluesky") {
       setBlueskyError(null);
@@ -597,6 +636,11 @@ export default function IntegrationsClient({ socialAccounts }: Props) {
       setTelegramModalOpen(true);
       return;
     }
+    if (platform.id === "pinterest") {
+      setPinterestError(null);
+      setPinterestModalOpen(true);
+      return;
+    }
     if (platform.id === "linkedin") {
       window.location.assign("/api/integrations/linkedin/connect");
       return;
@@ -605,7 +649,6 @@ export default function IntegrationsClient({ socialAccounts }: Props) {
       instagram: "/api/integrations/instagram/connect",
       facebook:  "/api/integrations/meta/connect?platform=facebook",
       threads:   "/api/integrations/threads/connect",
-      pinterest: "/api/integrations/pinterest/connect",
       youtube:   "/api/integrations/youtube/connect",
     };
     if (routes[platform.id]) window.location.assign(routes[platform.id]);
@@ -1276,6 +1319,89 @@ export default function IntegrationsClient({ socialAccounts }: Props) {
                 >
                   {telegramConnecting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                   {telegramConnecting ? "Connecting…" : "Connect Account"}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* Pinterest Modal */}
+        {pinterestModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm"
+            onClick={() => !pinterestConnecting && setPinterestModalOpen(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.92, y: 16 }}
+              transition={{ type: "spring", stiffness: 300, damping: 28 }}
+              className="w-full max-w-sm rounded-3xl border border-slate-200 bg-white p-7 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal header */}
+              <div className="flex items-center gap-3 mb-5">
+                <div
+                  className="h-12 w-12 rounded-2xl grid place-items-center text-white shadow-lg flex-shrink-0"
+                  style={{ background: "linear-gradient(135deg, #E60023, #BD081C)" }}
+                >
+                  <PlatformLogo id="pinterest" className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-800 leading-none">Connect Pinterest</h3>
+                  <p className="text-xs text-slate-400 font-medium mt-1">Via Developer Access Token</p>
+                </div>
+              </div>
+
+              <p className="text-xs text-slate-500 font-medium leading-relaxed mb-5">
+                Generate an <strong>Access Token</strong> in your Pinterest Developer Portal (My Apps → Generate access tokens) and paste it below to connect immediately.
+              </p>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Pinterest Access Token</label>
+                  <input
+                    type="text"
+                    value={pinterestAccessToken}
+                    onChange={(e) => setPinterestAccessToken(e.target.value)}
+                    placeholder="pina_..."
+                    disabled={pinterestConnecting}
+                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-2.5 text-sm font-bold text-slate-800 outline-none focus:bg-white focus:border-red-400 focus:ring-2 focus:ring-red-100 transition"
+                  />
+                </div>
+              </div>
+
+              {pinterestError && (
+                <motion.p
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mt-4 text-xs font-bold text-rose-600 bg-rose-50 border border-rose-100 rounded-xl px-4 py-2.5"
+                >
+                  {pinterestError}
+                </motion.p>
+              )}
+
+              <div className="mt-6 flex gap-2.5">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="flex-1 rounded-xl h-10 text-xs font-bold"
+                  disabled={pinterestConnecting}
+                  onClick={() => setPinterestModalOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <button
+                  disabled={pinterestConnecting}
+                  onClick={() => void connectPinterest()}
+                  className="flex-1 text-white font-bold transition rounded-xl text-xs h-10 flex items-center justify-center gap-1.5 shadow-sm disabled:opacity-50 hover:opacity-90 active:scale-[0.98]"
+                  style={{ background: "linear-gradient(135deg, #E60023, #BD081C)" }}
+                >
+                  {pinterestConnecting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  {pinterestConnecting ? "Connecting…" : "Connect Account"}
                 </button>
               </div>
             </motion.div>

@@ -13,7 +13,7 @@ if (process.env.NODE_ENV === "development") {
 // Initialize the Inngest client with App ID
 export const inngest = new Inngest({
   id: "post-sync",
-  isDev: true,
+  isDev: process.env.NODE_ENV === "development",
 });
 
 /**

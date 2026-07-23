@@ -87,8 +87,7 @@ export const PLATFORM_CONFIG: PlatformAvailability[] = [
   {
     id: "pinterest",
     name: "Pinterest",
-    available: false,
-    comingSoonReason: "Pinterest integration is planned for a future release.",
+    available: true,
   },
   {
     id: "reddit",

@@ -197,13 +197,17 @@ function PlatformCard({
 
   useEffect(() => {
     if (!menuOpen) return;
-    const handler = (e: MouseEvent) => {
+    const handler = (e: MouseEvent | TouchEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setMenuOpen(false);
       }
     };
     document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    document.addEventListener("touchstart", handler);
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("touchstart", handler);
+    };
   }, [menuOpen]);
 
   const profileUrls: Record<string, string> = {
@@ -265,9 +269,16 @@ function PlatformCard({
         {/* 3-dot menu top-right */}
         <div className="absolute top-2.5 right-2.5" ref={menuRef}>
           <button
-            className="grid h-7 w-7 place-items-center rounded-xl border border-white/25 bg-black/15 backdrop-blur-sm hover:bg-black/30 transition-all"
+            type="button"
+            className="grid h-7 w-7 place-items-center rounded-xl border border-white/25 bg-black/15 backdrop-blur-sm hover:bg-black/30 transition-all cursor-pointer"
             style={{ color: "#fff" }}
-            onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setMenuOpen((prev) => !prev);
+            }}
+            onTouchEnd={(e) => {
+              e.stopPropagation();
+            }}
           >
             <MoreHorizontal className="h-3.5 w-3.5" />
           </button>

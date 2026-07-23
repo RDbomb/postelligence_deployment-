@@ -216,8 +216,8 @@ export default function HomePage() {
             </motion.div>
           </div>
 
-          <Reveal y={28} className="mt-8 lg:mt-0 lg:-mt-44 xl:-mt-52">
-            <div className="w-full max-w-[340px] xs:max-w-[420px] sm:max-w-[500px] lg:max-w-[580px] aspect-square flex items-center justify-center mx-auto lg:scale-90 xl:scale-100 xl:translate-x-6 transform-gpu">
+          <Reveal y={28} className="mt-2 lg:mt-0 lg:-mt-44 xl:-mt-52 flex items-center justify-center w-full overflow-hidden">
+            <div className="flex items-center justify-center -my-20 xs:-my-14 sm:-my-6 md:my-0 scale-[0.52] xs:scale-[0.62] sm:scale-[0.78] md:scale-[0.85] lg:scale-90 xl:scale-100 xl:translate-x-6 transform-gpu transition-all">
               <HomeHeroVisual />
             </div>
           </Reveal>

@@ -100,7 +100,7 @@ export function HomeHeroVisual() {
   ];
 
   return (
-    <div className="relative mx-auto w-full max-w-[580px] aspect-square shrink-0 flex items-center justify-center p-4 sm:p-8 overflow-visible select-none scale-[0.65] xs:scale-75 sm:scale-90 md:scale-95 lg:scale-100 transform-gpu">
+    <div className="relative mx-auto w-[580px] h-[580px] shrink-0 flex items-center justify-center select-none transform-gpu">
       
       {/* Central Core: Postelligence BrandMark */}
       <motion.div

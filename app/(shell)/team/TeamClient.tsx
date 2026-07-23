@@ -320,7 +320,7 @@ export default function TeamClient({
       </div>
 
       {/* Tabs */}
-      <div className="flex rounded-xl bg-gray-100 p-1">
+      <div className="flex items-center gap-1 overflow-x-auto no-scrollbar rounded-2xl bg-[#1f2528]/5 p-1.5 border border-[#1f2528]/8">
         {(["compose", "schedule", "members", "accounts", "activity"] as const).map((t) => (
           <button
             key={t}
@@ -329,10 +329,10 @@ export default function TeamClient({
               setEditDraftId(null);
               router.replace("/team");
             }}
-            className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all capitalize ${
+            className={`shrink-0 px-4 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all whitespace-nowrap capitalize ${
               tab === t
-                ? "bg-white text-gray-900 shadow-sm"
-                : "text-gray-500 hover:text-gray-700"
+                ? "bg-white text-[#1f2528] shadow-sm border border-[#1f2528]/10"
+                : "text-slate-500 hover:text-[#1f2528]"
             }`}
           >
             {t === "compose" ? "Compose" : t === "schedule" ? "Schedule" : t === "members" ? "Members" : t === "accounts" ? "Accounts" : "Activity Log"}

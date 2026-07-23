@@ -799,10 +799,10 @@ export default function IntegrationsClient({ socialAccounts }: Props) {
               initial={{ opacity: 0, x: 24 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2, duration: 0.5 }}
-              className="flex flex-col items-end gap-5"
+              className="flex flex-col items-start lg:items-end gap-5 w-full lg:w-auto"
             >
               {/* Connected channels counter card */}
-              <div className="rounded-2xl border border-slate-200 bg-white/90 backdrop-blur-sm px-5 py-4 shadow-md flex items-center gap-5">
+              <div className="rounded-2xl border border-slate-200 bg-white/90 backdrop-blur-sm px-5 py-4 shadow-md flex items-center gap-5 w-full sm:w-auto">
                 {/* Progress ring */}
                 <div className="relative w-16 h-16 flex-shrink-0">
                   <svg className="w-16 h-16 -rotate-90" viewBox="0 0 64 64">
@@ -847,7 +847,7 @@ export default function IntegrationsClient({ socialAccounts }: Props) {
               </div>
 
               {/* Platform icons mosaic */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 max-w-full overflow-x-auto pb-1 no-scrollbar sm:flex-wrap">
                 {platforms.map((p, i) => (
                   <MosaicIcon key={p.id} platform={p} delay={0.25 + i * 0.05} />
                 ))}

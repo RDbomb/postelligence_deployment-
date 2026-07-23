@@ -567,7 +567,7 @@ export default function AutomationClient({ user, initialSettings, initialLogs }:
 
       <div className="relative mx-auto max-w-6xl px-4 py-8">
         {/* Header */}
-        <div className="mb-8 flex items-center justify-between border-b border-[#1f2528]/8 pb-6">
+        <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#1f2528]/8 pb-6">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.28em] text-[#2f7867]/70">Scheduler Engine</p>
             <h1 className="mt-1 text-3xl font-black tracking-[-0.03em] text-[#1f2528]">Content Automation</h1>
@@ -577,7 +577,7 @@ export default function AutomationClient({ user, initialSettings, initialLogs }:
           </div>
 
           {/* Big ON/OFF Toggle Button */}
-          <div className="flex items-center gap-3 bg-white border border-[#1f2528]/8 px-4 py-2.5 rounded-2xl shadow-sm">
+          <div className="flex items-center justify-between sm:justify-start gap-3 bg-white border border-[#1f2528]/8 px-4 py-2.5 rounded-2xl shadow-sm w-full sm:w-auto">
             <span className={`text-[10px] font-extrabold uppercase tracking-widest ${isEnabled ? 'text-[#2f7867]' : 'text-slate-400'}`}>
               {isEnabled ? 'Automation Active' : 'Automation Paused'}
             </span>
@@ -618,7 +618,7 @@ export default function AutomationClient({ user, initialSettings, initialLogs }:
                 {/* Automation Mode */}
                 <div>
                   <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Publishing Mode</label>
-                  <div className="mt-2 grid grid-cols-2 gap-2">
+                  <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <button
                       onClick={() => setMode("manual")}
                       className={`flex flex-col items-start rounded-xl border p-3 text-left transition-all duration-200 ${

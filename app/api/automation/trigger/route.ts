@@ -453,6 +453,84 @@ function extractCleanText(text: string): string {
   return cleaned;
 }
 
+async function scrapeRealWebImage(query: string): Promise<{ buffer: ArrayBuffer; contentType: string } | null> {
+  const cleanQuery = query.replace(/[^\w\s]/gi, " ").trim();
+  const userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36";
+
+  // Strategy 1: Bing Image Search HTML Scrape
+  try {
+    const bingUrl = `https://www.bing.com/images/search?q=${encodeURIComponent(cleanQuery)}&form=HDRSC2`;
+    const res = await fetch(bingUrl, {
+      headers: {
+        "User-Agent": userAgent,
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      }
+    });
+    if (res.ok) {
+      const html = await res.text();
+      const murlMatches = html.match(/murl&quot;:&quot;(https?:\/\/[^&"]+)&quot;/g);
+      if (murlMatches && murlMatches.length > 0) {
+        for (let i = 0; i < Math.min(murlMatches.length, 8); i++) {
+          const rawMatch = murlMatches[i];
+          const urlMatch = rawMatch.match(/https?:\/\/[^&"]+/);
+          if (urlMatch && urlMatch[0]) {
+            const imgUrl = urlMatch[0];
+            try {
+              const imgRes = await fetch(imgUrl, {
+                headers: { "User-Agent": userAgent }
+              });
+              if (imgRes.ok && imgRes.headers.get("content-type")?.startsWith("image/")) {
+                const buffer = await imgRes.arrayBuffer();
+                if (buffer.byteLength > 5000) {
+                  return { buffer, contentType: imgRes.headers.get("content-type") || "image/jpeg" };
+                }
+              }
+            } catch {}
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("Bing image scrape failed:", err);
+  }
+
+  // Strategy 2: DuckDuckGo HTML Scrape
+  try {
+    const ddgUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(cleanQuery)}`;
+    const res = await fetch(ddgUrl, {
+      headers: {
+        "User-Agent": userAgent,
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      }
+    });
+    if (res.ok) {
+      const html = await res.text();
+      const imgMatches = html.match(/\/\/external-content\.duckduckgo\.com\/iu\/\?u=([^&"']+)/g);
+      if (imgMatches && imgMatches.length > 0) {
+        for (let i = 0; i < Math.min(imgMatches.length, 5); i++) {
+          const rawUrl = imgMatches[i].replace(/^\/\//, "https://");
+          const targetUrl = decodeURIComponent(rawUrl.split("u=")[1] || rawUrl);
+          try {
+            const imgRes = await fetch(targetUrl, {
+              headers: { "User-Agent": userAgent }
+            });
+            if (imgRes.ok && imgRes.headers.get("content-type")?.startsWith("image/")) {
+              const buffer = await imgRes.arrayBuffer();
+              if (buffer.byteLength > 5000) {
+                return { buffer, contentType: imgRes.headers.get("content-type") || "image/jpeg" };
+              }
+            }
+          } catch {}
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("DuckDuckGo image scrape failed:", err);
+  }
+
+  return null;
+}
+
 // core automation script
 async function runAutomationForUser(
   supabase: SupabaseClient,
@@ -600,43 +678,13 @@ Return ONLY a valid JSON object with a single key "caption" containing your gene
   let contentType = "image/jpeg";
 
   try {
-    const htmlRes = await fetch(`https://duckduckgo.com/?q=${encodeURIComponent(trendTitle)}`, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-      }
-    });
-    if (htmlRes.ok) {
-      const html = await htmlRes.text();
-      const vqdMatch = html.match(/vqd=['"]?([^'"]+)['"]?/);
-      if (vqdMatch) {
-        const vqd = vqdMatch[1];
-        const imagesRes = await fetch(`https://duckduckgo.com/i.js?q=${encodeURIComponent(trendTitle)}&o=json&vqd=${vqd}`, {
-          headers: {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Referer": "https://duckduckgo.com/"
-          }
-        });
-        if (imagesRes.ok) {
-          const json = await imagesRes.json();
-          const results = json.results || [];
-          if (results.length > 0) {
-            const randomIndex = Math.floor(Math.random() * Math.min(results.length, 10));
-            const imageUrl = results[randomIndex].image;
-            const dlRes = await fetch(imageUrl, {
-              headers: {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-              }
-            });
-            if (dlRes.ok) {
-              imageBuffer = await dlRes.arrayBuffer();
-              contentType = dlRes.headers.get("content-type") || "image/jpeg";
-            }
-          }
-        }
-      }
+    const webImg = await scrapeRealWebImage(trendTitle);
+    if (webImg) {
+      imageBuffer = webImg.buffer;
+      contentType = webImg.contentType;
     }
   } catch (err) {
-    console.error("DDG visual search failed, falling back to AI generation:", err);
+    console.error("Web visual search failed, falling back to AI generation:", err);
   }
 
   // Fallback Image

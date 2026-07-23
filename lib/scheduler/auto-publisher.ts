@@ -492,6 +492,46 @@ async function requirePublishedId(res: Response, label: string) {
   return id;
 }
 
+async function publishPinterest(account: StoredAccount, text: string, mediaUrl: string): Promise<string | undefined> {
+  let boardId = (account.metadata?.board_id || account.metadata?.default_board_id) as string | undefined;
+  if (!boardId) {
+    try {
+      const listRes = await fetch("https://api.pinterest.com/v5/boards?page_size=25", {
+        headers: { Authorization: `Bearer ${account.access_token}` }
+      });
+      if (listRes.ok) {
+        const data = await listRes.json();
+        if (data.items?.length > 0 && data.items[0].id) boardId = data.items[0].id;
+      }
+    } catch {}
+    if (!boardId) {
+      const createRes = await fetch("https://api.pinterest.com/v5/boards", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${account.access_token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "Postelligence Pins", description: "Created automatically by Postelligence for scheduled pins." })
+      });
+      if (createRes.ok) {
+        const data = await createRes.json();
+        boardId = data?.id;
+      }
+    }
+  }
+  if (!boardId) throw new Error("Pinterest requires a board to publish pins.");
+  if (!mediaUrl) throw new Error("Pinterest requires a public image URL.");
+
+  const response = await fetch("https://api.pinterest.com/v5/pins", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${account.access_token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      board_id: boardId,
+      title: text.slice(0, 100) || "Postelligence Pin",
+      description: text.slice(0, 800),
+      media_source: { source_type: "image_url", url: mediaUrl },
+    })
+  });
+  return await requirePublishedId(response, "Pinterest publish failed");
+}
+
 async function publishOne(account: StoredAccount, post: ScheduledPost, attachment: File | null, attachments: File[]): Promise<PublishResult> {
   try {
     // Facebook, Threads, and Instagram only have a single caption field with no separate
@@ -511,6 +551,7 @@ async function publishOne(account: StoredAccount, post: ScheduledPost, attachmen
       account.platform === "facebook"  ? await publishFacebook(account, captionOnly, mediaUrl, mediaType, post.media_urls) :
       account.platform === "threads"   ? await publishThreads(account, captionOnly, mediaUrl, mediaType, post.media_urls) :
       account.platform === "instagram" ? await publishInstagram(account, captionOnly, mediaUrl, mediaType, post.media_urls) :
+      account.platform === "pinterest" ? await publishPinterest(account, captionOnly, mediaUrl) :
       account.platform === "discord"   ? await publishDiscord(account, captionOnly, mediaUrl, attachment, attachments) :
       account.platform === "telegram"  ? await publishTelegramMessage(account, captionOnly, mediaUrl) :
       undefined;
@@ -577,7 +618,7 @@ async function processPost(post: ScheduledPost) {
     const platforms = post.platforms.filter((platform): platform is PublishPlatform =>
       platform === "linkedin" || platform === "youtube" || platform === "bluesky" ||
       platform === "facebook" || platform === "instagram" || platform === "threads" ||
-      platform === "discord" || platform === "telegram"
+      platform === "pinterest" || platform === "discord" || platform === "telegram"
     );
 
     // Workspace-scheduled posts must always publish through the workspace's

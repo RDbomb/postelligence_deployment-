@@ -1222,10 +1222,79 @@ async function publishYouTube(account: StoredAccount, text: string, title: strin
 
 // ─── Pinterest ────────────────────────────────────────────────────────────────
 
-async function publishPinterest(account: StoredAccount, text: string, mediaUrl: string, linkUrl: string) {
-  const boardId = account.metadata?.board_id || account.metadata?.default_board_id;
-  if (!boardId || typeof boardId !== "string") throw new Error("Pinterest needs a default board_id in the connected account metadata.");
-  if (!mediaUrl) throw new Error("Pinterest requires a public image URL.");
+async function getOrCreatePinterestBoardId(token: string): Promise<string> {
+  try {
+    const listRes = await fetch("https://api.pinterest.com/v5/boards?page_size=25", {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (listRes.ok) {
+      const data = await listRes.json();
+      const boards = data.items || [];
+      if (boards.length > 0 && boards[0].id) {
+        return boards[0].id;
+      }
+    }
+  } catch (err) {
+    console.warn("[Pinterest] Failed to fetch boards:", err);
+  }
+
+  try {
+    const createRes = await fetch("https://api.pinterest.com/v5/boards", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        name: "Postelligence Pins",
+        description: "Created automatically by Postelligence for pin publishing."
+      })
+    });
+    if (createRes.ok) {
+      const data = await createRes.json();
+      if (data?.id) return data.id;
+    }
+  } catch (err) {
+    console.warn("[Pinterest] Failed to create board:", err);
+  }
+
+  throw new Error("Pinterest requires a board to publish pins. Please create a board on Pinterest first.");
+}
+
+async function publishPinterest(
+  account: StoredAccount,
+  text: string,
+  mediaUrl: string,
+  linkUrl: string,
+  mediaType: string,
+  mediaUrls: string[]
+) {
+  let boardId = (account.metadata?.board_id || account.metadata?.default_board_id) as string | undefined;
+  if (!boardId) {
+    boardId = await getOrCreatePinterestBoardId(account.access_token || "");
+  }
+  if (!mediaUrl) throw new Error("Pinterest requires a public image or video URL to create a Pin.");
+
+  const validUrls = mediaUrls.filter(Boolean);
+  let mediaSource: Record<string, unknown>;
+
+  if (mediaType === "image" && validUrls.length > 1) {
+    const carouselItems = validUrls.slice(0, 5).map((url) => ({ url }));
+    mediaSource = {
+      source_type: "multiple_image_urls",
+      items: carouselItems,
+    };
+  } else if (mediaType === "video") {
+    mediaSource = {
+      source_type: "video_url",
+      url: mediaUrl,
+    };
+  } else {
+    mediaSource = {
+      source_type: "image_url",
+      url: mediaUrl,
+    };
+  }
 
   const payload = await requireOk(
     await fetch("https://api.pinterest.com/v5/pins", {
@@ -1233,10 +1302,10 @@ async function publishPinterest(account: StoredAccount, text: string, mediaUrl: 
       headers: { Authorization: `Bearer ${account.access_token}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         board_id: boardId,
-        title: text.slice(0, 100) || "Postelligence post",
-        description: text,
+        title: text.slice(0, 100) || "Postelligence Pin",
+        description: text.slice(0, 800),
         link: linkUrl || undefined,
-        media_source: { source_type: "image_url", url: mediaUrl },
+        media_source: mediaSource,
       }),
     }),
     "Pinterest publish failed"

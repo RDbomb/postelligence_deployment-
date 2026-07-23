@@ -87,7 +87,8 @@ export const PLATFORM_CONFIG: PlatformAvailability[] = [
   {
     id: "pinterest",
     name: "Pinterest",
-    available: true,
+    available: false,
+    comingSoonReason: "Pinterest integration is awaiting developer approval.",
   },
   {
     id: "reddit",

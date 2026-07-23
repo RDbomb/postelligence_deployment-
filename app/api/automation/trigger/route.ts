@@ -6,10 +6,10 @@ import { createHash } from "crypto";
 import { PLATFORM_COMPOSE_RULES, type ComposePlatformId, type PlatformComposeRule } from "@/lib/compose/platform-rules";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ScheduledPost } from "@/types";
+import { generateWithGeminiCascade } from "@/lib/gemini";
 
 export const maxDuration = 60; // Allow execution to take up to 60 seconds
 
-const POLLINATIONS_TEXT_URL = "https://text.pollinations.ai/";
 const POLLINATIONS_IMAGE_URL = "https://image.pollinations.ai/prompt/";
 
 // Per-time-slot overrides stored on automation_settings.time_configs when
@@ -198,7 +198,7 @@ async function triggerAutomation(req: NextRequest) {
                 const { data: { user: dbUser } } = await baseClient.auth.admin.getUserById(settings.user_id);
                 const email = dbUser?.email || "";
                 
-                const runRes = await runAutomationForUser(baseClient, settings.user_id, settings, email, req.nextUrl.origin, false, timeStr);
+                const runRes = await runAutomationForUser(baseClient, settings.user_id, settings, email, req.nextUrl.origin, timeStr);
                 results.push({ user_id: settings.user_id, success: true, response: runRes, timeSlot: timeStr });
               } catch (e: unknown) {
                 results.push({ user_id: settings.user_id, success: false, error: errorMessage(e, String(e)), timeSlot: timeStr });
@@ -283,7 +283,7 @@ async function triggerAutomation(req: NextRequest) {
       }
     }
 
-    const res = await runAutomationForUser(supabase, userId, settings, user.email || "", req.nextUrl.origin, isManualTest);
+    const res = await runAutomationForUser(supabase, userId, settings, user.email || "", req.nextUrl.origin);
     return NextResponse.json(res);
 
   } catch (err: unknown) {
@@ -406,7 +406,7 @@ function extractCleanText(text: string): string {
       if (parsed.content) return parsed.content;
       if (parsed.choices?.[0]?.message?.content) return parsed.choices[0].message.content;
       if (parsed.result) return parsed.result;
-    } catch (e) {}
+    } catch {}
 
     const captionRegex = /"caption"\s*:\s*\\?"([^"]+)\\?"/i;
     let match = cleaned.match(captionRegex);
@@ -460,7 +460,6 @@ async function runAutomationForUser(
   settings: AutomationSettings,
   userEmail: string,
   origin: string,
-  isTest = false,
   activePostTime?: string
 ): Promise<AutomationRunResult> {
   const { mode, approval_email } = settings;
@@ -593,22 +592,7 @@ Requirements:
 Format Constraint:
 Return ONLY a valid JSON object with a single key "caption" containing your generated caption. Do not output any markdown code blocks, reasoning, thoughts, or extra explanations. Example: {"caption": "your generated text here"}`;
 
-  const captionRes = await fetch(POLLINATIONS_TEXT_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      messages: [{ role: "user", content: systemPrompt }],
-      model: "openai",
-      temperature: 0.85,
-      max_tokens: 1500
-    }),
-  });
-
-  if (!captionRes.ok) {
-    throw new Error("Failed to generate caption");
-  }
-
-  const rawCaptionText = await captionRes.text();
+  const rawCaptionText = await generateWithGeminiCascade(systemPrompt);
   const caption = ensureCharacterLimit(cleanCaption(extractCleanText(rawCaptionText)), captionBand);
 
   // 3. Scrape Web Image or Generate Image

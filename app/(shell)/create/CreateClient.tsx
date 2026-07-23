@@ -227,26 +227,10 @@ export default function CreateClient({
   initialTitle = "",
   initialCaption = "",
   initialPlatforms,
-  isInWorkspace = false,
   workspaceDraftId = null,
   personalDraftId = null,
   composeTarget = "personal",
   workspaceId = null,
-  youtubeStatus,
-  metaStatus,
-  instagramStatus,
-  threadsStatus,
-  blueskyStatus,
-  pinterestStatus,
-  youtubeMessage,
-  metaMessage,
-  instagramMessage,
-  twitterMessage,
-  threadsMessage,
-  blueskyMessage,
-  pinterestMessage,
-  linkedinStatus,
-  linkedinMessage,
 }: Props) {
   const router = useRouter();
   const [caption, setCaption] = useState(initialCaption);
@@ -271,6 +255,41 @@ export default function CreateClient({
   const [libraryLoading, setLibraryLoading] = useState(false);
   const [libraryError, setLibraryError] = useState<string | null>(null);
   const [libraryAttachingId, setLibraryAttachingId] = useState<string | null>(null);
+
+  // AI Assist Modal State
+  const [aiModalOpen, setAiModalOpen] = useState(false);
+  const [aiPromptTopic, setAiPromptTopic] = useState("");
+  const [aiMode, setAiMode] = useState<"caption" | "hooks" | "hashtags" | "cta" | "rewrite">("caption");
+  const [aiTone, setAiTone] = useState("Authentic");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiResult, setAiResult] = useState("");
+  const [aiError, setAiError] = useState("");
+
+  const handleGenerateAiText = async () => {
+    setAiLoading(true);
+    setAiError("");
+    setAiResult("");
+    try {
+      const res = await fetch("/api/ai/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: aiMode,
+          topic: aiPromptTopic || postTitle || caption || "Trending social media update",
+          tone: aiTone,
+          existingContent: caption,
+          count: 1
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Generation failed");
+      setAiResult(data.result);
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : "AI generation failed");
+    } finally {
+      setAiLoading(false);
+    }
+  };
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(() => {
     if (initialPlatforms?.length) return initialPlatforms;
     if (composeTarget === "workspace") {
@@ -430,13 +449,42 @@ export default function CreateClient({
     setPublishResults([]); setPublishError(null);
   };
 
+  const [uploadStatusText, setUploadStatusText] = useState<string | null>(null);
+
   const uploadFileToMediaLibrary = async (file: File): Promise<string> => {
-    const formData = new FormData();
-    formData.set("file", file);
-    const res = await fetch("/api/media-library", { method: "POST", body: formData });
-    const payload = await res.json().catch(() => ({}));
-    if (res.ok && payload.item?.file_url) return payload.item.file_url;
-    throw new Error(payload.error || `Failed to upload "${file.name}" to media storage.`);
+    const maxRetries = 3;
+    let lastError = "";
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const attemptLabel = attempt > 1 ? ` (attempt ${attempt}/${maxRetries})` : "";
+        const fileKind = file.type.startsWith("video/") ? "video" : "image";
+        setUploadStatusText(`Uploading ${fileKind} "${file.name}" to media storage${attemptLabel}... Please wait.`);
+
+        const formData = new FormData();
+        formData.set("file", file);
+
+        const res = await fetch("/api/media-library", { method: "POST", body: formData });
+        const payload = await res.json().catch(() => ({}));
+
+        if (res.ok && payload.item?.file_url) {
+          setUploadStatusText(null);
+          return payload.item.file_url;
+        }
+
+        lastError = payload.error || `HTTP ${res.status}`;
+      } catch (err) {
+        lastError = err instanceof Error ? err.message : "Network upload error";
+      }
+
+      if (attempt < maxRetries) {
+        console.warn(`[Media Upload] Attempt ${attempt} failed: ${lastError}. Retrying in 1.5s...`);
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+      }
+    }
+
+    setUploadStatusText(null);
+    throw new Error(`Failed to upload "${file.name}" to media storage: ${lastError}`);
   };
 
   // Uploads every attached image (plus a video/file attachment, if any) and
@@ -453,14 +501,6 @@ export default function CreateClient({
       if (url) urls.push(url);
     }
     return urls;
-  };
-
-  // Single-URL convenience wrapper for spots that only ever deal with one
-  // primary media item (YouTube/LinkedIn video pre-upload, Instagram/
-  // Pinterest checks, the "Publish Now" formData, etc).
-  const getDurableMediaUrl = async (): Promise<string> => {
-    const urls = await getDurableMediaUrls();
-    return urls[0] || "";
   };
 
   const buildComposedCaption = () => {
@@ -1065,6 +1105,12 @@ export default function CreateClient({
                 )}
               </div>
 
+              {uploadStatusText && (
+                <div className="mt-4 flex items-center gap-3 rounded-lg border border-[#2f7867]/30 bg-[#f4f9f7] px-4 py-3 text-sm font-bold text-[#2f7867]">
+                  <Loader2 className="h-4.5 w-4.5 shrink-0 animate-spin text-[#2f7867]" />
+                  <span>{uploadStatusText}</span>
+                </div>
+              )}
               {publishError && <p className="mt-4 rounded-lg bg-rose-50 px-4 py-3 text-sm font-bold text-rose-600">{publishError}</p>}
               {draftSaving && (
                 <div className="mt-4 flex items-center gap-2 rounded-lg bg-[#f4f8ff] px-4 py-3 text-sm font-bold text-blue-600">
@@ -1123,7 +1169,18 @@ export default function CreateClient({
                     <p className="text-sm font-black text-[#1f2528]">Preview</p>
                     <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">One master post, adapted per platform</p>
                   </div>
-                  <Button variant="ghost" size="sm"><Sparkles className="h-3.5 w-3.5" />AI</Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setAiPromptTopic(postTitle || caption.slice(0, 100));
+                      setAiModalOpen(true);
+                    }}
+                    className="flex items-center gap-1.5 text-xs font-bold text-[#2f7867] hover:bg-[#2f7867]/10"
+                  >
+                    <Sparkles className="h-3.5 w-3.5" />
+                    AI Assist
+                  </Button>
                 </div>
 
                 {/* Platform tabs */}
@@ -1700,6 +1757,116 @@ export default function CreateClient({
                     </div>
                   </>
                 )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {aiModalOpen && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 grid place-items-center bg-[#1f2528]/35 p-4 backdrop-blur-xl"
+            onClick={() => setAiModalOpen(false)}>
+            <motion.div initial={{ opacity: 0, scale: 0.94, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 10 }}
+              className="flex w-full max-w-xl flex-col rounded-2xl border border-[#1f2528]/10 bg-white p-6 shadow-[0_30px_100px_rgba(31,37,40,0.22)]"
+              onClick={(e) => e.stopPropagation()}>
+              <div className="mb-4 flex items-start justify-between">
+                <div>
+                  <h3 className="text-xl font-black text-[#1f2528] flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-[#2f7867]" />
+                    AI Content Assistant
+                  </h3>
+                  <p className="mt-1 text-xs text-slate-500">Powered by Gemini Multi-Model Cascade</p>
+                </div>
+                <Button variant="ghost" size="icon" onClick={() => setAiModalOpen(false)}><X className="h-4 w-4" /></Button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="mb-1 block text-xs font-bold text-slate-600">Generation Goal</label>
+                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 text-xs font-bold">
+                    {[
+                      { id: "caption", label: "Caption" },
+                      { id: "rewrite", label: "Rewrite" },
+                      { id: "hooks", label: "Hooks" },
+                      { id: "hashtags", label: "Hashtags" },
+                      { id: "cta", label: "CTA" },
+                    ].map((m) => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => setAiMode(m.id as "caption" | "hooks" | "hashtags" | "cta" | "rewrite")}
+                        className={cn("rounded-lg border py-2 text-center transition-all", aiMode === m.id ? "border-[#2f7867] bg-[#2f7867]/10 text-[#2f7867]" : "border-slate-200 text-slate-600 hover:bg-slate-50")}
+                      >
+                        {m.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-xs font-bold text-slate-600">Topic / Focus Prompt</label>
+                  <input
+                    type="text"
+                    value={aiPromptTopic}
+                    onChange={(e) => setAiPromptTopic(e.target.value)}
+                    placeholder="E.g. Product launch tips, AI automation case study..."
+                    className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm font-medium focus:border-[#2f7867] focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-xs font-bold text-slate-600">Tone of Voice</label>
+                  <select
+                    value={aiTone}
+                    onChange={(e) => setAiTone(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 focus:border-[#2f7867] focus:outline-none"
+                  >
+                    <option value="Authentic">Authentic & Engaging</option>
+                    <option value="Professional">Professional & Authority</option>
+                    <option value="Casual">Casual & Conversational</option>
+                    <option value="Punchy">Punchy & Urgent</option>
+                    <option value="Witty">Witty & Humorous</option>
+                  </select>
+                </div>
+
+                {aiError && <p className="rounded-lg bg-rose-50 px-3 py-2 text-xs font-bold text-rose-600">{aiError}</p>}
+
+                {aiResult && (
+                  <div className="rounded-xl border border-[#2f7867]/20 bg-[#f4f9f7] p-3">
+                    <p className="mb-1.5 text-[10px] font-extrabold uppercase tracking-wider text-[#2f7867]">Generated Result</p>
+                    <p className="max-h-40 overflow-y-auto whitespace-pre-wrap text-xs text-slate-800 font-medium">{aiResult}</p>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <Button
+                    type="button"
+                    onClick={handleGenerateAiText}
+                    disabled={aiLoading}
+                    className="bg-[#1f2528] text-white hover:bg-[#2b353b]"
+                  >
+                    {aiLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                    {aiLoading ? "Generating..." : "Generate with Gemini"}
+                  </Button>
+                  {aiResult && (
+                    <Button
+                      type="button"
+                      onClick={() => {
+                        if (aiMode === "hashtags") {
+                          setCaption((prev) => prev ? `${prev}\n\n${aiResult}` : aiResult);
+                        } else {
+                          setCaption(aiResult);
+                        }
+                        setAiModalOpen(false);
+                      }}
+                      className="bg-[#2f7867] text-[#ffffff] hover:bg-[#266254]"
+                    >
+                      Use in Post
+                    </Button>
+                  )}
+                </div>
               </div>
             </motion.div>
           </motion.div>

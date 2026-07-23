@@ -176,10 +176,70 @@ async function processPost(post: any): Promise<{ id: string; status: string }> {
     }
   }
 
-  return { id: post.id, status: finalStatus };
+const GEMINI_MODEL_CASCADE = [
+  "gemini-2.5-flash",
+  "gemini-2.0-flash",
+  "gemini-2.0-flash-lite-preview-02-05",
+  "gemini-2.0-flash-lite",
+  "gemini-1.5-flash",
+  "gemini-1.5-flash-8b",
+  "gemini-1.5-pro"
+];
+
+async function generateWithGeminiCascadeEdge(prompt: string): Promise<string> {
+  const keys: string[] = [];
+  const key0 = Deno.env.get("GEMINI_API_KEY");
+  if (key0) keys.push(key0);
+
+  const keysCsv = Deno.env.get("GEMINI_API_KEYS");
+  if (keysCsv) {
+    const split = keysCsv.split(",").map((k: string) => k.trim()).filter(Boolean);
+    keys.push(...split);
+  }
+
+  for (let i = 1; i <= 20; i++) {
+    const key = Deno.env.get(`GEMINI_API_KEY_${i}`);
+    if (key && !keys.includes(key)) {
+      keys.push(key);
+    }
+  }
+
+  const uniqueKeys = Array.from(new Set(keys));
+  if (uniqueKeys.length === 0) {
+    throw new Error("No GEMINI_API_KEY set");
+  }
+
+  let lastErr: Error | null = null;
+  for (const apiKey of uniqueKeys) {
+    for (const model of GEMINI_MODEL_CASCADE) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { temperature: 0.7, maxOutputTokens: 2048 }
+          })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text && typeof text === "string" && text.trim().length > 0) {
+            return text.trim();
+          }
+        } else {
+          lastErr = new Error(`Gemini status ${res.status}`);
+        }
+      } catch (err) {
+        lastErr = err instanceof Error ? err : new Error(String(err));
+      }
+    }
+  }
+  throw lastErr || new Error("All Gemini models exhausted");
 }
 
-const POLLINATIONS_TEXT_URL = "https://text.pollinations.ai/";
 const POLLINATIONS_IMAGE_URL = "https://image.pollinations.ai/prompt/";
 
 function getNextPostTime(postTimeStr: string): Date {
@@ -561,21 +621,7 @@ Requirements:
 
 Return ONLY the plain, final social media caption itself. No wrapper quotes, no markdown headers, and absolutely no additional commentary.`;
 
-  const captionRes = await fetch(POLLINATIONS_TEXT_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      messages: [{ role: "user", content: systemPrompt }],
-      model: "openai",
-      temperature: 0.8,
-    }),
-  });
-
-  if (!captionRes.ok) {
-    throw new Error("Failed to generate caption");
-  }
-
-  const rawCaptionText = await captionRes.text();
+  const rawCaptionText = await generateWithGeminiCascadeEdge(systemPrompt);
   const caption = cleanCaption(rawCaptionText);
 
   // 3. Scrape Web Image or Generate Image

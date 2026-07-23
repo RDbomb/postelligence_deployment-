@@ -1439,7 +1439,7 @@ async function publishOne(
       account.platform === "reddit"    ? await publishReddit(account, text, title, mediaUrl) :
       account.platform === "discord"   ? await publishDiscord(account, text, attachment, mediaUrl, images) :
       account.platform === "telegram"  ? await publishTelegram(account, text, mediaUrl) :
-                                         await publishPinterest(account, text, mediaUrl, linkUrl);
+                                         await publishPinterest(account, text, mediaUrl, linkUrl, mediaType, mediaUrls);
 
     // Handle graceful skip (e.g. YouTube without video)
     if (id && typeof id === "object" && "skipped" in id) {

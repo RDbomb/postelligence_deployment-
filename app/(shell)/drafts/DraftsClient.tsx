@@ -105,6 +105,12 @@ export default function DraftsClient({
 
   const confirmSchedule = async () => {
     if (!scheduleModal) return;
+    const hasMediaPlatform = schedulePlatforms.some((p) => ["instagram", "youtube", "pinterest"].includes(p.toLowerCase()));
+    const mediaList = scheduleModal.media_urls || [];
+    if (hasMediaPlatform && mediaList.length === 0) {
+      showToast("Instagram, YouTube, and Pinterest require media. Please edit the draft to attach a file before scheduling.", "error");
+      return;
+    }
     setScheduling(true);
     try {
       const scheduled_time = new Date(`${scheduleDate}T${scheduleTime}`).toISOString();
@@ -116,13 +122,17 @@ export default function DraftsClient({
           media_urls: scheduleModal.media_urls, platforms: schedulePlatforms, scheduled_time,
         }),
       });
-      if (!res.ok) throw new Error();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Failed to schedule post.");
       await fetch(`/api/drafts/${scheduleModal.id}`, { method: "DELETE" });
       setDrafts((p) => p.filter((d) => d.id !== scheduleModal.id));
       setScheduleModal(null);
       showToast("Post scheduled! View it in Calendar.");
-    } catch { showToast("Failed to schedule post.", "error"); }
-    finally { setScheduling(false); }
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "Failed to schedule post.", "error");
+    } finally {
+      setScheduling(false);
+    }
   };
 
   const publishNow = async (draft: Draft) => {

@@ -436,7 +436,7 @@ export default function CreateClient({
     const res = await fetch("/api/media-library", { method: "POST", body: formData });
     const payload = await res.json().catch(() => ({}));
     if (res.ok && payload.item?.file_url) return payload.item.file_url;
-    return "";
+    throw new Error(payload.error || `Failed to upload "${file.name}" to media storage.`);
   };
 
   // Uploads every attached image (plus a video/file attachment, if any) and
@@ -445,15 +445,13 @@ export default function CreateClient({
   const getDurableMediaUrls = async (): Promise<string[]> => {
     if (mediaUrl.trim()) return [mediaUrl.trim()];
     const urls: string[] = [];
-    try {
-      if (imageAttachments.length > 0) {
-        const uploaded = await Promise.all(imageAttachments.map((file) => uploadFileToMediaLibrary(file)));
-        urls.push(...uploaded.filter(Boolean));
-      } else if (attachment && (attachment.type.startsWith("image/") || attachment.type.startsWith("video/"))) {
-        const url = await uploadFileToMediaLibrary(attachment);
-        if (url) urls.push(url);
-      }
-    } catch { /* continue with whatever uploaded successfully */ }
+    if (imageAttachments.length > 0) {
+      const uploaded = await Promise.all(imageAttachments.map((file) => uploadFileToMediaLibrary(file)));
+      urls.push(...uploaded.filter(Boolean));
+    } else if (attachment && (attachment.type.startsWith("image/") || attachment.type.startsWith("video/"))) {
+      const url = await uploadFileToMediaLibrary(attachment);
+      if (url) urls.push(url);
+    }
     return urls;
   };
 

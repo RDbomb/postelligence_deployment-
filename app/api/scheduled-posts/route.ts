@@ -45,6 +45,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "scheduled_time is required" }, { status: 400 });
   }
 
+  const selectedPlatforms = Array.isArray(platforms) ? platforms : [];
+  const requiresMedia = selectedPlatforms.some((p: string) =>
+    ["instagram", "youtube", "pinterest"].includes(p.toLowerCase())
+  );
+  const mediaList = Array.isArray(media_urls) ? media_urls.filter(Boolean) : [];
+
+  if (requiresMedia && mediaList.length === 0) {
+    return NextResponse.json(
+      { error: "Instagram, YouTube, and Pinterest require an image or video file. Please attach media before scheduling." },
+      { status: 400 }
+    );
+  }
+
   if (workspace_id) {
     const { data: membership } = await supabase
       .from("workspace_members")

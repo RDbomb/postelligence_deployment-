@@ -913,7 +913,9 @@ export default function CreateClient({
                 <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Channels first</p>
                 <p className="mt-1 text-sm font-bold text-[#1f2528]">{selectedPlatformNames}</p>
               </div>
-              <Badge className="border-[#2f7867]/20 bg-[#eaf7ef] text-[#2f7867]">{selectedConnectedPlatforms.length}/{selectedPlatforms.length || 0} ready</Badge>
+              <Badge className="border-[#2f7867]/20 bg-[#eaf7ef] text-[#2f7867]">
+                {selectedConnectedPlatforms.length} of {platforms.filter((p) => p.connected).length} connected ready
+              </Badge>
             </div>
             <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-slate-100">
               {platforms.map((platform) => {
@@ -1006,7 +1008,7 @@ export default function CreateClient({
                     selectedPlatformHas("facebook")  && { id: "facebook",  label: "FB",  color: "#1877F2", limit: 63206 },
                     selectedPlatformHas("reddit")    && { id: "reddit",    label: "RD",  color: "#FF4500", limit: 40000 },
                     selectedPlatformHas("discord")   && { id: "discord",   label: "DC",  color: "#5865F2", limit: 2000 },
-                    selectedPlatformHas("telegram")  && { id: "telegram",  label: "TG",  color: "#26A5E4", limit: 4096 },
+                    selectedPlatformHas("telegram")  && { id: "telegram",  label: "TG",  color: "#26A5E4", limit: (mediaUrl.trim() || attachment || imageAttachments.length > 0) ? 1024 : 4096 },
                   ] as const).filter(isPresent).map((p) => {
                     const remaining = p.limit - caption.length;
                     const pct = caption.length / p.limit;

@@ -1402,11 +1402,11 @@ async function publishDiscord(account: StoredAccount, text: string, attachment: 
   return await publishToDiscordWebhook(webhookUrl, text, mediaUrl, attachment, images);
 }
 
-async function publishTelegram(account: StoredAccount, text: string, mediaUrl: string | null) {
+async function publishTelegram(account: StoredAccount, text: string, mediaUrl: string | null, mediaUrls: string[]) {
   const botToken = account.access_token;
   const chatId = getMetadataString(account.metadata, "chatId") || account.account_id;
   if (!botToken || !chatId) throw new Error("Telegram bot token or Chat ID is missing.");
-  return await publishToTelegram(botToken, chatId, text, mediaUrl);
+  return await publishToTelegram(botToken, chatId, text, mediaUrl, mediaUrls);
 }
 
 // ─── Dispatcher ───────────────────────────────────────────────────────────────
@@ -1438,7 +1438,7 @@ async function publishOne(
       account.platform === "youtube"   ? await publishYouTube(account, text, title, attachment, userId) :
       account.platform === "reddit"    ? await publishReddit(account, text, title, mediaUrl) :
       account.platform === "discord"   ? await publishDiscord(account, text, attachment, mediaUrl, images) :
-      account.platform === "telegram"  ? await publishTelegram(account, text, mediaUrl) :
+      account.platform === "telegram"  ? await publishTelegram(account, text, mediaUrl, mediaUrls) :
                                          await publishPinterest(account, text, mediaUrl, linkUrl, mediaType, mediaUrls);
 
     // Handle graceful skip (e.g. YouTube without video)

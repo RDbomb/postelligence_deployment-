@@ -1257,13 +1257,13 @@ export default function IntegrationsClient({ socialAccounts }: Props) {
                   <PlatformLogo id="telegram" className="h-6 w-6" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-black text-slate-800 leading-none">Connect Telegram</h3>
+                  <h3 className="text-lg font-black text-slate-800 leading-none">Connect Telegram Channel</h3>
                   <p className="text-xs text-slate-400 font-medium mt-1">Via Bot API Credentials</p>
                 </div>
               </div>
 
               <p className="text-xs text-slate-500 font-medium leading-relaxed mb-5">
-                Create a bot using @BotFather to get a <strong>Bot Token</strong>, then add your bot as an admin to your target channel/group and use its handle/ID.
+                Create a bot via <strong>@BotFather</strong> to get a <strong>Bot Token</strong>, add your bot as an admin to your Telegram Channel, and enter your Channel handle or ID below.
               </p>
 
               <div className="space-y-4">
@@ -1279,12 +1279,12 @@ export default function IntegrationsClient({ socialAccounts }: Props) {
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Chat / Channel ID</label>
+                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Telegram Channel Handle / ID</label>
                   <input
                     type="text"
                     value={telegramChatId}
                     onChange={(e) => setTelegramChatId(e.target.value)}
-                    placeholder="-100xxxxxxxxx or @channelname"
+                    placeholder="@mychannel or -100xxxxxxxxx"
                     disabled={telegramConnecting}
                     className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-2.5 text-sm font-bold text-slate-800 outline-none focus:bg-white focus:border-sky-400 focus:ring-2 focus:ring-sky-100 transition"
                   />

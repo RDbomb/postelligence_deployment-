@@ -532,6 +532,13 @@ async function publishPinterest(account: StoredAccount, text: string, mediaUrl: 
   return await requirePublishedId(response, "Pinterest publish failed");
 }
 
+async function publishTelegramMessage(account: StoredAccount, text: string, mediaUrl: string, mediaUrls: string[] = []) {
+  const botToken = account.access_token;
+  const chatId = (account.metadata?.chatId as string) || account.account_id;
+  if (!botToken || !chatId) throw new Error("Telegram bot token or Chat ID is missing.");
+  return await publishToTelegram(botToken, chatId, text, mediaUrl, mediaUrls);
+}
+
 async function publishOne(account: StoredAccount, post: ScheduledPost, attachment: File | null, attachments: File[]): Promise<PublishResult> {
   try {
     // Facebook, Threads, and Instagram only have a single caption field with no separate
@@ -553,7 +560,7 @@ async function publishOne(account: StoredAccount, post: ScheduledPost, attachmen
       account.platform === "instagram" ? await publishInstagram(account, captionOnly, mediaUrl, mediaType, post.media_urls) :
       account.platform === "pinterest" ? await publishPinterest(account, captionOnly, mediaUrl) :
       account.platform === "discord"   ? await publishDiscord(account, captionOnly, mediaUrl, attachment, attachments) :
-      account.platform === "telegram"  ? await publishTelegramMessage(account, captionOnly, mediaUrl) :
+      account.platform === "telegram"  ? await publishTelegramMessage(account, captionOnly, mediaUrl, post.media_urls) :
       undefined;
 
     return { platform: account.platform, status: "published", message: "Published successfully.", id };
@@ -1045,10 +1052,4 @@ async function publishInstagram(account: StoredAccount, text: string, mediaUrl: 
 async function publishDiscord(account: StoredAccount, text: string, mediaUrl: string, attachment: File | null, attachments: File[]) {
   if (!account.access_token) throw new Error("Discord webhook URL is missing.");
   return await publishToDiscordWebhook(account.access_token, text, mediaUrl || null, attachment, attachments);
-}
-
-async function publishTelegramMessage(account: StoredAccount, text: string, mediaUrl: string) {
-  const chatId = typeof account.metadata?.chatId === "string" ? account.metadata.chatId : account.account_id;
-  if (!account.access_token || !chatId) throw new Error("Telegram bot token or Chat ID is missing.");
-  return await publishToTelegram(account.access_token, chatId, text, mediaUrl || null);
 }

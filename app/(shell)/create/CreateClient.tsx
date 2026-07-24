@@ -333,13 +333,126 @@ export default function CreateClient({
   // Drafts page, not here, and saves go to the workspace, not personally.
   const isWorkspaceMode = Boolean(workspaceDraftId) || composeTarget === "workspace";
 
+  const [uploadStatusText, setUploadStatusText] = useState<string | null>(null);
+  const [uploadProgressMap, setUploadProgressMap] = useState<Record<string, number>>({});
+
+  const isUploadingMedia = useMemo(() => {
+    return Object.values(uploadProgressMap).some((pct) => pct >= 0 && pct < 100);
+  }, [uploadProgressMap]);
+
+  const overallUploadProgress = useMemo(() => {
+    const values = Object.values(uploadProgressMap).filter((pct) => pct >= 0 && pct <= 100);
+    if (values.length === 0) return 100;
+    return Math.round(values.reduce((a, b) => a + b, 0) / values.length);
+  }, [uploadProgressMap]);
+
+  async function uploadFileToMediaLibrary(file: File): Promise<string> {
+    const key = file.name;
+    setUploadProgressMap((prev) => ({ ...prev, [key]: 10 }));
+    const maxRetries = 3;
+    let lastError = "";
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const attemptLabel = attempt > 1 ? ` (attempt ${attempt}/${maxRetries})` : "";
+        const fileKind = file.type.startsWith("video/") ? "video" : "image";
+        setUploadStatusText(`Uploading ${fileKind} "${file.name}" to media storage${attemptLabel}... Please wait.`);
+
+        // Step 1: Direct Client-to-Supabase Storage Upload (Bypasses Next.js HTTP 413 Payload Too Large Limit!)
+        try {
+          const supabase = createBrowserClient();
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            const fileExt = file.name.split(".").pop() || "bin";
+            const timeStamp = file.lastModified || Date.now();
+            const randomSuffix = Math.random().toString(36).slice(2);
+            const storagePath = `${user.id}/${timeStamp}-${randomSuffix}.${fileExt}`;
+
+            setUploadProgressMap((prev) => ({ ...prev, [key]: 35 }));
+
+            const { data: uploadData, error: uploadErr } = await supabase.storage
+              .from("media-library")
+              .upload(storagePath, file, { cacheControl: "3600", upsert: true });
+
+            setUploadProgressMap((prev) => ({ ...prev, [key]: 75 }));
+
+            if (!uploadErr && uploadData?.path) {
+              const { data: { publicUrl } } = supabase.storage.from("media-library").getPublicUrl(uploadData.path);
+
+              // Register DB metadata via lightweight JSON POST (~200 bytes, no 413!)
+              const dbRes = await fetch("/api/media-library", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  file_name: file.name,
+                  file_url: publicUrl,
+                  file_type: fileKind,
+                  file_size: file.size,
+                })
+              });
+              const dbData = await dbRes.json().catch(() => ({}));
+              if (dbRes.ok && (dbData.item?.file_url || publicUrl)) {
+                setUploadStatusText(null);
+                setUploadProgressMap((prev) => ({ ...prev, [key]: 100 }));
+                return dbData.item?.file_url || publicUrl;
+              }
+            } else if (uploadErr) {
+              console.warn("[Media Upload] Direct Supabase storage upload error:", uploadErr.message);
+            }
+          }
+        } catch (directErr) {
+          console.warn("[Media Upload] Direct upload error, trying fallback route:", directErr);
+        }
+
+        // Step 2: Fallback to FormData POST for smaller files
+        setUploadProgressMap((prev) => ({ ...prev, [key]: 55 }));
+        const formData = new FormData();
+        formData.set("file", file);
+
+        const res = await fetch("/api/media-library", { method: "POST", body: formData });
+        const payload = await res.json().catch(() => ({}));
+
+        if (res.ok && payload.item?.file_url) {
+          setUploadStatusText(null);
+          setUploadProgressMap((prev) => ({ ...prev, [key]: 100 }));
+          return payload.item.file_url;
+        }
+
+        lastError = payload.error || `HTTP ${res.status}`;
+      } catch (err) {
+        lastError = err instanceof Error ? err.message : "Network upload error";
+      }
+
+      if (attempt < maxRetries) {
+        console.warn(`[Media Upload] Attempt ${attempt} failed: ${lastError}. Retrying in 1.5s...`);
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+      }
+    }
+
+    setUploadStatusText(null);
+    setUploadProgressMap((prev) => ({ ...prev, [key]: 100 }));
+    throw new Error(`Failed to upload "${file.name}" to media storage: ${lastError}`);
+  }
+
+  function addImageAttachments(files: File[]) {
+    if (files.length === 0) return;
+    setImageAttachments((prev) => {
+      const room = Math.max(0, MAX_IMAGE_ATTACHMENTS - prev.length);
+      const added = files.slice(0, room);
+      added.forEach((f) => void uploadFileToMediaLibrary(f));
+      return [...prev, ...added];
+    });
+    setImageAttachmentPreviews((prev) => {
+      const room = Math.max(0, MAX_IMAGE_ATTACHMENTS - prev.length);
+      return [...prev, ...files.slice(0, room).map((f) => URL.createObjectURL(f))];
+    });
+    if (attachment) { if (attachmentPreview) URL.revokeObjectURL(attachmentPreview); setAttachment(null); setAttachmentPreview(null); }
+    setActiveTab("image");
+  }
+
   useEffect(() => {
     return () => { if (attachmentPreview) URL.revokeObjectURL(attachmentPreview); };
   }, [attachmentPreview]);
-
-  useEffect(() => {
-    return () => { imageAttachmentPreviews.forEach((url) => URL.revokeObjectURL(url)); };
-  }, [imageAttachmentPreviews]);
 
   // Editing an existing draft that has more than one image — pull every
   // one of them (not just media_urls[0]) into the gallery, the same way
@@ -451,83 +564,7 @@ export default function CreateClient({
     setPublishResults([]); setPublishError(null);
   };
 
-  const [uploadStatusText, setUploadStatusText] = useState<string | null>(null);
 
-  const uploadFileToMediaLibrary = async (file: File): Promise<string> => {
-    const maxRetries = 3;
-    let lastError = "";
-
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        const attemptLabel = attempt > 1 ? ` (attempt ${attempt}/${maxRetries})` : "";
-        const fileKind = file.type.startsWith("video/") ? "video" : "image";
-        setUploadStatusText(`Uploading ${fileKind} "${file.name}" to media storage${attemptLabel}... Please wait.`);
-
-        // Step 1: Direct Client-to-Supabase Storage Upload (Bypasses Next.js HTTP 413 Payload Too Large Limit!)
-        try {
-          const supabase = createBrowserClient();
-          const { data: { user } } = await supabase.auth.getUser();
-          if (user) {
-            const fileExt = file.name.split(".").pop() || "bin";
-            const storagePath = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
-
-            const { data: uploadData, error: uploadErr } = await supabase.storage
-              .from("media-library")
-              .upload(storagePath, file, { cacheControl: "3600", upsert: true });
-
-            if (!uploadErr && uploadData?.path) {
-              const { data: { publicUrl } } = supabase.storage.from("media-library").getPublicUrl(uploadData.path);
-
-              // Register DB metadata via lightweight JSON POST (~200 bytes, no 413!)
-              const dbRes = await fetch("/api/media-library", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  file_name: file.name,
-                  file_url: publicUrl,
-                  file_type: fileKind,
-                  file_size: file.size,
-                })
-              });
-              const dbData = await dbRes.json().catch(() => ({}));
-              if (dbRes.ok && (dbData.item?.file_url || publicUrl)) {
-                setUploadStatusText(null);
-                return dbData.item?.file_url || publicUrl;
-              }
-            } else if (uploadErr) {
-              console.warn("[Media Upload] Direct Supabase storage upload error:", uploadErr.message);
-            }
-          }
-        } catch (directErr) {
-          console.warn("[Media Upload] Direct upload error, trying fallback route:", directErr);
-        }
-
-        // Step 2: Fallback to FormData POST for smaller files
-        const formData = new FormData();
-        formData.set("file", file);
-
-        const res = await fetch("/api/media-library", { method: "POST", body: formData });
-        const payload = await res.json().catch(() => ({}));
-
-        if (res.ok && payload.item?.file_url) {
-          setUploadStatusText(null);
-          return payload.item.file_url;
-        }
-
-        lastError = payload.error || `HTTP ${res.status}`;
-      } catch (err) {
-        lastError = err instanceof Error ? err.message : "Network upload error";
-      }
-
-      if (attempt < maxRetries) {
-        console.warn(`[Media Upload] Attempt ${attempt} failed: ${lastError}. Retrying in 1.5s...`);
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-      }
-    }
-
-    setUploadStatusText(null);
-    throw new Error(`Failed to upload "${file.name}" to media storage: ${lastError}`);
-  };
 
   // Uploads every attached image (plus a video/file attachment, if any) and
   // returns ALL of their durable URLs — used anywhere multiple images need
@@ -735,28 +772,14 @@ export default function CreateClient({
     if (attachmentPreview) URL.revokeObjectURL(attachmentPreview);
     setAttachment(file);
     setAttachmentPreview(file ? URL.createObjectURL(file) : null);
-    if (file?.type.startsWith("video/")) setActiveTab("video");
-    else if (file?.type.startsWith("image/")) setActiveTab("image");
+    if (file) {
+      if (file.type.startsWith("video/")) setActiveTab("video");
+      else if (file.type.startsWith("image/")) setActiveTab("image");
+      void uploadFileToMediaLibrary(file);
+    }
   };
 
-  // Appends one or more images to the gallery instead of replacing the
-  // existing selection — this is the fix for images disappearing when a
-  // second one is added, since social platforms support multi-image posts.
-  function addImageAttachments(files: File[]) {
-    if (files.length === 0) return;
-    setImageAttachments((prev) => {
-      const room = Math.max(0, MAX_IMAGE_ATTACHMENTS - prev.length);
-      return [...prev, ...files.slice(0, room)];
-    });
-    setImageAttachmentPreviews((prev) => {
-      const room = Math.max(0, MAX_IMAGE_ATTACHMENTS - prev.length);
-      return [...prev, ...files.slice(0, room).map((f) => URL.createObjectURL(f))];
-    });
-    // A video/file attachment can't coexist with an image gallery on most
-    // platforms — attaching an image clears any previous video/file.
-    if (attachment) { if (attachmentPreview) URL.revokeObjectURL(attachmentPreview); setAttachment(null); setAttachmentPreview(null); }
-    setActiveTab("image");
-  }
+
 
   const removeImageAttachment = (index: number) => {
     setImageAttachments((prev) => prev.filter((_, i) => i !== index));
@@ -875,7 +898,8 @@ export default function CreateClient({
       formData.set("title", postTitle.trim());
       formData.set("mediaUrl", resolvedMediaUrl);
       formData.set("linkUrl", linkUrl.trim());
-      formData.set("mediaType", activeTab === "video" || attachment?.type.startsWith("video/") ? "video" : "image");
+      const isVideoFile = activeTab === "video" || Boolean(attachment?.type.startsWith("video/")) || Boolean(resolvedMediaUrl.match(/\.(mp4|mov|webm|avi|m4v)(\?|$)/i));
+      formData.set("mediaType", isVideoFile ? "video" : "image");
       formData.set("platforms", selectedPlatforms.join(","));
 
       // Include raw files as fallback only if < 3MB to stay under Vercel payload limits
@@ -1128,16 +1152,33 @@ export default function CreateClient({
 
                 {imageAttachments.length > 0 ? (
                   <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
-                    {imageAttachments.map((file, i) => (
-                      <div key={`${file.name}-${i}`} className="group relative aspect-square overflow-hidden rounded-lg border border-[#1f2528]/10 bg-white">
-                        <img src={imageAttachmentPreviews[i]} alt="" className="h-full w-full object-cover" />
-                        {i === 0 && <span className="absolute left-1 top-1 rounded bg-[#1f2528]/70 px-1.5 py-0.5 text-[10px] font-bold text-white">Primary</span>}
-                        <button type="button" onClick={() => removeImageAttachment(i)}
-                          className="absolute right-1 top-1 grid h-6 w-6 place-items-center rounded-full bg-[#1f2528]/70 text-white opacity-0 transition-opacity group-hover:opacity-100">
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    ))}
+                    {imageAttachments.map((file, i) => {
+                      const fileProgress = uploadProgressMap[file.name];
+                      const isUploadingThis = fileProgress !== undefined && fileProgress < 100;
+                      return (
+                        <div key={`${file.name}-${i}`} className="group relative aspect-square overflow-hidden rounded-lg border border-[#1f2528]/10 bg-white">
+                          <img src={imageAttachmentPreviews[i]} alt="" className="h-full w-full object-cover" />
+                          {i === 0 && <span className="absolute left-1 top-1 rounded bg-[#1f2528]/70 px-1.5 py-0.5 text-[10px] font-bold text-white z-10">Primary</span>}
+                          {!isUploadingThis && (
+                            <button type="button" onClick={() => removeImageAttachment(i)}
+                              className="absolute right-1 top-1 grid h-6 w-6 place-items-center rounded-full bg-[#1f2528]/70 text-white opacity-0 transition-opacity group-hover:opacity-100 z-10">
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                          {isUploadingThis && (
+                            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-slate-900/80 backdrop-blur-sm p-1 text-center">
+                              <div className="relative flex items-center justify-center">
+                                <svg className="h-9 w-9 transform -rotate-90" viewBox="0 0 36 36">
+                                  <path className="text-slate-700/80" strokeWidth="3" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                  <path className="text-emerald-400 transition-all duration-300 ease-out" strokeDasharray={`${fileProgress}, 100`} strokeWidth="3.5" strokeLinecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                </svg>
+                                <span className="absolute text-[10px] font-black text-white">{fileProgress}%</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                     {imageAttachments.length < MAX_IMAGE_ATTACHMENTS && (
                       <button type="button" onClick={() => attachmentInputRef.current?.click()}
                         className="grid aspect-square place-items-center rounded-lg border border-dashed border-[#1f2528]/20 bg-white text-slate-400 transition hover:border-[#2f7867]/40 hover:text-[#2f7867]">
@@ -1146,7 +1187,20 @@ export default function CreateClient({
                     )}
                   </div>
                 ) : (attachmentPreview || mediaUrlLooksLikeMedia) && (
-                  <div className="mt-3 overflow-hidden rounded-lg border border-[#1f2528]/10 bg-white">
+                  <div className="relative mt-3 overflow-hidden rounded-lg border border-[#1f2528]/10 bg-white">
+                    {attachment && uploadProgressMap[attachment.name] !== undefined && uploadProgressMap[attachment.name] < 100 && (
+                      <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-slate-900/85 backdrop-blur-md p-4 text-center">
+                        <div className="relative flex items-center justify-center">
+                          <svg className="h-14 w-14 transform -rotate-90" viewBox="0 0 36 36">
+                            <path className="text-slate-700/80" strokeWidth="3" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            <path className="text-emerald-400 transition-all duration-300 ease-out" strokeDasharray={`${uploadProgressMap[attachment.name]}, 100`} strokeWidth="3.5" strokeLinecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                          </svg>
+                          <span className="absolute text-sm font-black text-white">{uploadProgressMap[attachment.name]}%</span>
+                        </div>
+                        <p className="mt-2.5 text-xs font-bold text-slate-200 tracking-wide">Uploading media to storage…</p>
+                        <p className="mt-0.5 text-[11px] text-slate-400">Publishing is paused until upload completes</p>
+                      </div>
+                    )}
                     {attachment?.type.startsWith("video/") ? (
                       <video src={attachmentPreview || undefined} controls className="max-h-72 w-full bg-black object-contain" />
                     ) : mediaUrlIsVideo ? (
@@ -1222,7 +1276,7 @@ export default function CreateClient({
               )}
 
               <div className="mt-5 grid gap-2 sm:grid-cols-[1fr_1fr_1.4fr]">
-                <Button variant="secondary" disabled={draftSaving || !hasDraftContent} onClick={() => void saveDraft()} className={isWorkspaceMode ? "sm:col-span-3" : ""}>
+                <Button variant="secondary" disabled={draftSaving || isUploadingMedia || !hasDraftContent} onClick={() => void saveDraft()} className={isWorkspaceMode ? "sm:col-span-3" : ""}>
                   {draftSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                   {draftSaving ? "Saving..." : (workspaceDraftId || personalDraftId) ? "Save Changes" : "Save draft"}
                 </Button>
@@ -1232,10 +1286,10 @@ export default function CreateClient({
                     compose mode (new or existing draft). */}
                 {!isWorkspaceMode && (
                   <>
-                    <Button variant="secondary" disabled={scheduleSaving || !hasDraftContent} onClick={openScheduleModal}>Schedule</Button>
-                    <Button variant="primary" disabled={publishing || !hasDraftContent || selectedPlatforms.length === 0} onClick={() => setPublishModal(true)}>
-                      {publishing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" />}
-                      Publish
+                    <Button variant="secondary" disabled={scheduleSaving || isUploadingMedia || !hasDraftContent} onClick={openScheduleModal}>Schedule</Button>
+                    <Button variant="primary" disabled={publishing || isUploadingMedia || !hasDraftContent || selectedPlatforms.length === 0} onClick={() => setPublishModal(true)}>
+                      {publishing || isUploadingMedia ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" />}
+                      {isUploadingMedia ? `Uploading (${overallUploadProgress}%)` : publishing ? "Publishing…" : "Publish"}
                     </Button>
                   </>
                 )}

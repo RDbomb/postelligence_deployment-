@@ -45,17 +45,56 @@ export async function fetchTelegramChatInfo(botToken: string, chatId: string) {
   };
 }
 
+import { TelegramClient } from "telegram";
+import { StringSession } from "telegram/sessions";
+
+const DEFAULT_API_ID = Number(process.env.TELEGRAM_API_ID || 2040);
+const DEFAULT_API_HASH = process.env.TELEGRAM_API_HASH || "b18441a1ed607e10a39fb21744570f96";
+
 /**
- * Publishes text, single photo/video, or multi-media album (up to 10 photos/videos) to a Telegram channel.
+ * Publishes text, single photo/video, or multi-media album to Telegram via MTProto User Session or Bot API.
  * Character limit: 4096 for text posts, 1024 for photo/video captions.
  */
 export async function publishToTelegram(
-  botToken: string,
+  accessToken: string,
   chatId: string,
   text: string,
   mediaUrl?: string | null,
-  mediaUrls?: string[]
+  mediaUrls?: string[],
+  metadata?: Record<string, unknown>
 ): Promise<string> {
+  const isMTProto = metadata?.login_type === "mtproto" || accessToken.length > 100;
+
+  if (isMTProto) {
+    const apiId = Number(metadata?.apiId || DEFAULT_API_ID);
+    const apiHash = String(metadata?.apiHash || DEFAULT_API_HASH);
+    const target = (metadata?.targetChatId as string) || chatId;
+
+    const client = new TelegramClient(new StringSession(accessToken), apiId, apiHash, {
+      connectionRetries: 5,
+    });
+    await client.connect();
+
+    const validUrls = (mediaUrls && mediaUrls.length > 0 ? mediaUrls : [mediaUrl]).filter(Boolean) as string[];
+
+    let resultMsg;
+    if (validUrls.length > 0) {
+      resultMsg = await client.sendFile(target, {
+        file: validUrls.length === 1 ? validUrls[0] : validUrls,
+        caption: text.slice(0, 1024),
+      });
+    } else {
+      resultMsg = await client.sendMessage(target, {
+        message: text.slice(0, 4096),
+      });
+    }
+
+    await client.disconnect();
+    return String(resultMsg.id);
+  }
+
+  // ──── Bot API Fallback ────
+  const botToken = accessToken;
   const validUrls = (mediaUrls && mediaUrls.length > 0 ? mediaUrls : [mediaUrl]).filter(Boolean) as string[];
 
   // 1. Multiple Media Album (up to 10 photos/videos)

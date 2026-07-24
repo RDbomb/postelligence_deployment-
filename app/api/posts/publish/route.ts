@@ -805,14 +805,15 @@ async function publishFacebook(account: StoredAccount, text: string, mediaUrl: s
   // vanish whenever media was attached. Fold it into the visible text
   // instead so it's never lost (Facebook auto-links plain URLs in text).
   const textWithLink = linkUrl ? [text.trim(), linkUrl.trim()].filter(Boolean).join("\n\n") : text;
+  const isVideo = mediaType === "video" || Boolean(mediaUrl && /\.(mp4|mov|webm|avi|m4v)(\?|$)/i.test(mediaUrl));
 
   // Video: /videos endpoint + file_url param
-  if (mediaUrl && mediaType === "video") {
+  if (mediaUrl && isVideo) {
     const params = new URLSearchParams({ access_token: token, file_url: mediaUrl });
     if (textWithLink) params.set("description", textWithLink);
     const payload = await requireOk(
       await fetch(`${base}/videos`, { method: "POST", body: params }),
-      "Facebook publish failed"
+      "Facebook video publish failed"
     );
     return payload?.id as string | undefined;
   }
@@ -1403,10 +1404,10 @@ async function publishDiscord(account: StoredAccount, text: string, attachment: 
 }
 
 async function publishTelegram(account: StoredAccount, text: string, mediaUrl: string | null, mediaUrls: string[]) {
-  const botToken = account.access_token;
+  const token = account.access_token;
   const chatId = getMetadataString(account.metadata, "chatId") || account.account_id;
-  if (!botToken || !chatId) throw new Error("Telegram bot token or Chat ID is missing.");
-  return await publishToTelegram(botToken, chatId, text, mediaUrl, mediaUrls);
+  if (!token || !chatId) throw new Error("Telegram access token or Chat ID is missing.");
+  return await publishToTelegram(token, chatId, text, mediaUrl, mediaUrls, account.metadata || undefined);
 }
 
 // ─── Dispatcher ───────────────────────────────────────────────────────────────

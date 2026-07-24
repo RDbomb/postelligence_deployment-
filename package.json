@@ -29,7 +29,8 @@
     "react-dom": "^19.2.7",
     "recharts": "^3.9.2",
     "tailwind-merge": "^3.6.0",
-    "tailwindcss": "^4.3.0"
+    "tailwindcss": "^4.3.0",
+    "telegram": "^2.26.22"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.1",

@@ -437,6 +437,13 @@ export default function IntegrationsClient({ socialAccounts }: Props) {
   const [discordError, setDiscordError] = useState<string | null>(null);
 
   const [telegramModalOpen, setTelegramModalOpen] = useState(false);
+  const [telegramMethodTab, setTelegramMethodTab] = useState<"phone" | "bot">("phone");
+  const [telegramStep, setTelegramStep] = useState<"phone" | "code">("phone");
+  const [telegramPhoneNumber, setTelegramPhoneNumber] = useState("");
+  const [telegramPhoneCode, setTelegramPhoneCode] = useState("");
+  const [telegram2FAPassword, setTelegram2FAPassword] = useState("");
+  const [telegramPhoneCodeHash, setTelegramPhoneCodeHash] = useState("");
+  const [telegramSessionString, setTelegramSessionString] = useState("");
   const [telegramBotToken, setTelegramBotToken] = useState("");
   const [telegramChatId, setTelegramChatId] = useState("");
   const [telegramConnecting, setTelegramConnecting] = useState(false);
@@ -738,7 +745,70 @@ export default function IntegrationsClient({ socialAccounts }: Props) {
     }
   };
 
-  const connectTelegram = async () => {
+  const sendTelegramCode = async () => {
+    if (!telegramPhoneNumber.trim()) {
+      setTelegramError("Please enter your Telegram phone number with country code (e.g. +1234567890).");
+      return;
+    }
+    setTelegramConnecting(true);
+    setTelegramError(null);
+    try {
+      const res = await fetch("/api/integrations/telegram/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "send_code", phoneNumber: telegramPhoneNumber.trim() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setTelegramError(data?.error || "Failed to send code to Telegram.");
+        return;
+      }
+      setTelegramPhoneCodeHash(data.phoneCodeHash || "");
+      setTelegramSessionString(data.sessionString || "");
+      setTelegramStep("code");
+    } catch {
+      setTelegramError("Couldn't reach the server. Try again.");
+    } finally {
+      setTelegramConnecting(false);
+    }
+  };
+
+  const verifyTelegramCode = async () => {
+    if (!telegramPhoneCode.trim()) {
+      setTelegramError("Please enter the 5-digit code sent to your Telegram app.");
+      return;
+    }
+    setTelegramConnecting(true);
+    setTelegramError(null);
+    try {
+      const res = await fetch("/api/integrations/telegram/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "verify_code",
+          phoneNumber: telegramPhoneNumber.trim(),
+          phoneCode: telegramPhoneCode.trim(),
+          phoneCodeHash: telegramPhoneCodeHash,
+          sessionString: telegramSessionString,
+          password: telegram2FAPassword.trim() || undefined,
+          chatId: telegramChatId.trim() || undefined,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setTelegramError(data?.error || "Verification failed. Check your code.");
+        return;
+      }
+      setTelegramModalOpen(false);
+      window.location.reload();
+    } catch {
+      setTelegramError("Couldn't reach the server. Try again.");
+    } finally {
+      setTelegramConnecting(false);
+    }
+  };
+
+  const connectTelegramBot = async () => {
     if (!telegramBotToken.trim() || !telegramChatId.trim()) {
       setTelegramError("Enter both your Bot Token and Chat/Channel ID.");
       return;
@@ -1249,7 +1319,7 @@ export default function IntegrationsClient({ socialAccounts }: Props) {
               onClick={(e) => e.stopPropagation()}
             >
               {/* Modal header */}
-              <div className="flex items-center gap-3 mb-5">
+              <div className="flex items-center gap-3 mb-4">
                 <div
                   className="h-12 w-12 rounded-2xl grid place-items-center text-white shadow-lg flex-shrink-0"
                   style={{ background: "linear-gradient(135deg, #26A5E4, #1E88C7)" }}
@@ -1257,70 +1327,186 @@ export default function IntegrationsClient({ socialAccounts }: Props) {
                   <PlatformLogo id="telegram" className="h-6 w-6" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-black text-slate-800 leading-none">Connect Telegram Channel</h3>
-                  <p className="text-xs text-slate-400 font-medium mt-1">Via Bot API Credentials</p>
+                  <h3 className="text-lg font-black text-slate-800 leading-none">Connect Telegram</h3>
+                  <p className="text-xs text-slate-400 font-medium mt-1">Option 4: Phone & App Code Login</p>
                 </div>
               </div>
 
-              <p className="text-xs text-slate-500 font-medium leading-relaxed mb-5">
-                Create a bot via <strong>@BotFather</strong> to get a <strong>Bot Token</strong>, add your bot as an admin to your Telegram Channel, and enter your Channel handle or ID below.
-              </p>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Bot API Token</label>
-                  <input
-                    type="text"
-                    value={telegramBotToken}
-                    onChange={(e) => setTelegramBotToken(e.target.value)}
-                    placeholder="123456789:ABCdefGhIJKlmNoPQRsT..."
-                    disabled={telegramConnecting}
-                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-2.5 text-sm font-bold text-slate-800 outline-none focus:bg-white focus:border-sky-400 focus:ring-2 focus:ring-sky-100 transition"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Telegram Channel Handle / ID</label>
-                  <input
-                    type="text"
-                    value={telegramChatId}
-                    onChange={(e) => setTelegramChatId(e.target.value)}
-                    placeholder="@mychannel or -100xxxxxxxxx"
-                    disabled={telegramConnecting}
-                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-2.5 text-sm font-bold text-slate-800 outline-none focus:bg-white focus:border-sky-400 focus:ring-2 focus:ring-sky-100 transition"
-                  />
-                </div>
-              </div>
-
-              {telegramError && (
-                <motion.p
-                  initial={{ opacity: 0, y: -4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="mt-4 text-xs font-bold text-rose-600 bg-rose-50 border border-rose-100 rounded-xl px-4 py-2.5"
-                >
-                  {telegramError}
-                </motion.p>
-              )}
-
-              <div className="mt-6 flex gap-2.5">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="flex-1 rounded-xl h-10 text-xs font-bold"
-                  disabled={telegramConnecting}
-                  onClick={() => setTelegramModalOpen(false)}
-                >
-                  Cancel
-                </Button>
+              {/* Method Switcher Tabs */}
+              <div className="flex rounded-xl bg-slate-100 p-1 mb-5">
                 <button
-                  disabled={telegramConnecting}
-                  onClick={() => void connectTelegram()}
-                  className="flex-1 text-white font-bold transition rounded-xl text-xs h-10 flex items-center justify-center gap-1.5 shadow-sm disabled:opacity-50 hover:opacity-90 active:scale-[0.98]"
-                  style={{ background: "linear-gradient(135deg, #26A5E4, #1E88C7)" }}
+                  type="button"
+                  onClick={() => { setTelegramMethodTab("phone"); setTelegramError(null); }}
+                  className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${telegramMethodTab === "phone" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
                 >
-                  {telegramConnecting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                  {telegramConnecting ? "Connecting…" : "Connect Account"}
+                  📱 Phone + Code (Option 4)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setTelegramMethodTab("bot"); setTelegramError(null); }}
+                  className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${telegramMethodTab === "bot" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}
+                >
+                  🤖 Bot Token
                 </button>
               </div>
+
+              {telegramMethodTab === "phone" ? (
+                <>
+                  {telegramStep === "phone" ? (
+                    <div className="space-y-4">
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Telegram Phone Number</label>
+                        <input
+                          type="text"
+                          value={telegramPhoneNumber}
+                          onChange={(e) => setTelegramPhoneNumber(e.target.value)}
+                          placeholder="+1234567890 (with country code)"
+                          disabled={telegramConnecting}
+                          className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-2.5 text-sm font-bold text-slate-800 outline-none focus:bg-white focus:border-sky-400 focus:ring-2 focus:ring-sky-100 transition"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Target Channel Handle (Optional)</label>
+                        <input
+                          type="text"
+                          value={telegramChatId}
+                          onChange={(e) => setTelegramChatId(e.target.value)}
+                          placeholder="@mychannel (or leave empty for personal profile)"
+                          disabled={telegramConnecting}
+                          className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-2.5 text-sm font-bold text-slate-800 outline-none focus:bg-white focus:border-sky-400 focus:ring-2 focus:ring-sky-100 transition"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="rounded-xl border border-sky-100 bg-sky-50 px-3.5 py-2.5 text-xs font-semibold text-sky-800 flex items-center justify-between">
+                        <span>Code sent to <strong>{telegramPhoneNumber}</strong></span>
+                        <button type="button" onClick={() => setTelegramStep("phone")} className="text-[11px] underline text-sky-600 font-bold">Change</button>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">5-Digit Telegram App Code</label>
+                        <input
+                          type="text"
+                          value={telegramPhoneCode}
+                          onChange={(e) => setTelegramPhoneCode(e.target.value)}
+                          placeholder="e.g. 54321"
+                          disabled={telegramConnecting}
+                          className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-2.5 text-base font-black tracking-widest text-slate-800 outline-none focus:bg-white focus:border-sky-400 focus:ring-2 focus:ring-sky-100 transition"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">2FA Password (If Enabled on your account)</label>
+                        <input
+                          type="password"
+                          value={telegram2FAPassword}
+                          onChange={(e) => setTelegram2FAPassword(e.target.value)}
+                          placeholder="Leave blank if no 2FA password set"
+                          disabled={telegramConnecting}
+                          className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-2.5 text-sm font-bold text-slate-800 outline-none focus:bg-white focus:border-sky-400 focus:ring-2 focus:ring-sky-100 transition"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {telegramError && (
+                    <motion.p
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="mt-4 text-xs font-bold text-rose-600 bg-rose-50 border border-rose-100 rounded-xl px-4 py-2.5"
+                    >
+                      {telegramError}
+                    </motion.p>
+                  )}
+
+                  <div className="mt-6 flex gap-2.5">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="flex-1 rounded-xl h-10 text-xs font-bold"
+                      disabled={telegramConnecting}
+                      onClick={() => setTelegramModalOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <button
+                      disabled={telegramConnecting}
+                      onClick={() => void (telegramStep === "phone" ? sendTelegramCode() : verifyTelegramCode())}
+                      className="flex-1 text-white font-bold transition rounded-xl text-xs h-10 flex items-center justify-center gap-1.5 shadow-sm disabled:opacity-50 hover:opacity-90 active:scale-[0.98]"
+                      style={{ background: "linear-gradient(135deg, #26A5E4, #1E88C7)" }}
+                    >
+                      {telegramConnecting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                      {telegramConnecting ? "Processing…" : telegramStep === "phone" ? "Send Code to App 📩" : "Verify & Connect"}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="rounded-2xl border border-sky-100 bg-sky-50/60 p-3.5 mb-4 text-xs text-slate-600 leading-relaxed space-y-1.5">
+                    <p className="font-bold text-slate-800">Quick 3-Step Setup:</p>
+                    <ol className="list-decimal list-inside space-y-1 font-medium text-slate-600">
+                      <li>Open Telegram & search for <a href="https://t.me/BotFather" target="_blank" rel="noreferrer" className="font-bold text-sky-600 underline">@BotFather ↗</a></li>
+                      <li>Send <code className="bg-white px-1 py-0.5 rounded text-[11px] font-bold text-slate-800">/newbot</code> to get your <strong>Bot Token</strong></li>
+                      <li>Add your bot as an <strong>Admin</strong> in your Telegram Channel</li>
+                    </ol>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Bot API Token</label>
+                      <input
+                        type="text"
+                        value={telegramBotToken}
+                        onChange={(e) => setTelegramBotToken(e.target.value)}
+                        placeholder="123456789:ABCdefGhIJKlmNoPQRsT..."
+                        disabled={telegramConnecting}
+                        className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-2.5 text-sm font-bold text-slate-800 outline-none focus:bg-white focus:border-sky-400 focus:ring-2 focus:ring-sky-100 transition"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Telegram Channel Handle / ID</label>
+                      <input
+                        type="text"
+                        value={telegramChatId}
+                        onChange={(e) => setTelegramChatId(e.target.value)}
+                        placeholder="@mychannel or -100xxxxxxxxx"
+                        disabled={telegramConnecting}
+                        className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-2.5 text-sm font-bold text-slate-800 outline-none focus:bg-white focus:border-sky-400 focus:ring-2 focus:ring-sky-100 transition"
+                      />
+                    </div>
+                  </div>
+
+                  {telegramError && (
+                    <motion.p
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="mt-4 text-xs font-bold text-rose-600 bg-rose-50 border border-rose-100 rounded-xl px-4 py-2.5"
+                    >
+                      {telegramError}
+                    </motion.p>
+                  )}
+
+                  <div className="mt-6 flex gap-2.5">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="flex-1 rounded-xl h-10 text-xs font-bold"
+                      disabled={telegramConnecting}
+                      onClick={() => setTelegramModalOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <button
+                      disabled={telegramConnecting}
+                      onClick={() => void connectTelegramBot()}
+                      className="flex-1 text-white font-bold transition rounded-xl text-xs h-10 flex items-center justify-center gap-1.5 shadow-sm disabled:opacity-50 hover:opacity-90 active:scale-[0.98]"
+                      style={{ background: "linear-gradient(135deg, #26A5E4, #1E88C7)" }}
+                    >
+                      {telegramConnecting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                      {telegramConnecting ? "Connecting…" : "Connect Account"}
+                    </button>
+                  </div>
+                </>
+              )}
             </motion.div>
           </motion.div>
         )}

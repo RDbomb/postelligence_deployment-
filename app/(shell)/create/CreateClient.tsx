@@ -50,6 +50,7 @@ import { Button } from "@/components/ui/button";
 import { PLATFORM_CONFIG } from "@/types";
 
 interface User {
+  id?: string;
   email?: string | null;
   user_metadata?: {
     full_name?: string;
@@ -822,40 +823,81 @@ export default function CreateClient({
 
   const publishPost = async () => {
     setPublishError(null);
-    setPublishResults([]);
-    if (!hasDraftContent) { setPublishError("Add text, a media URL, or an attachment before publishing."); return; }
-    if (selectedPlatforms.length === 0) { setPublishError("Select at least one platform."); return; }
-    if (disconnectedSelectedPlatforms.length > 0) { setPublishError(`Connect ${disconnectedSelectedPlatforms.map((p) => p.name).join(", ")} before publishing.`); return; }
-    if (selectedPlatformHas("youtube") && !attachment?.type.startsWith("video/")) {
-      if (!otherPlatformsSelected) { setPublishError("YouTube only supports video uploads. Please attach a video, or use YouTube Studio to create text and image posts."); return; }
-    }
-    if (selectedPlatformHas("instagram") && !mediaUrl.trim() && !attachment && imageAttachments.length === 0) { setPublishError("Instagram needs a public media URL or an attachment that can be hosted first."); return; }
-    if (selectedPlatformHas("pinterest") && !mediaUrl.trim() && attachmentKind !== "image") { setPublishError("Pinterest needs an image attachment or a public image URL."); return; }
-
-    const formData = new FormData();
-    const tagText = tags.split(",").map((t) => t.trim()).filter(Boolean).map((t) => (t.startsWith("#") ? t : `#${t}`)).join(" ");
-    const composedCaption = [caption.trim(), mood.trim(), tagText, location.trim() ? `Location: ${location.trim()}` : ""].filter(Boolean).join("\n\n");
-    formData.set("caption", composedCaption);
-    formData.set("title", postTitle.trim());
-    formData.set("mediaUrl", mediaUrl.trim());
-    formData.set("linkUrl", linkUrl.trim());
-    formData.set("mediaType", activeTab === "video" ? "video" : "image");
-    formData.set("platforms", selectedPlatforms.join(","));
-    // The publish API currently accepts one primary attachment per post —
-    // send the first image (or the video/file attachment) as that primary,
-    // and include every other selected image too so the backend can adopt
-    // multi-image publishing without another frontend change.
-    const primaryAttachment = attachment || imageAttachments[0] || null;
-    if (primaryAttachment) formData.set("attachment", primaryAttachment);
-    imageAttachments.slice(attachment ? 0 : 1).forEach((file) => formData.append("images", file));
-
     setPublishing(true);
+    setPublishError(null);
+    setPublishResults([]);
+
     try {
+      let resolvedMediaUrl = mediaUrl.trim();
+      const supabase = createBrowserClient();
+
+      // Direct browser-to-Supabase Storage CDN upload for video/image attachments.
+      // This completely bypasses Vercel's 4.5MB request body limit and avoids HTTP 413 error!
+      const userId = user?.id || user?.email || "anonymous";
+      if (attachment) {
+        const fileExt = attachment.name.split(".").pop() || "bin";
+        const storagePath = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
+        const { data, error } = await supabase.storage.from("media-library").upload(storagePath, attachment, {
+          cacheControl: "3600",
+          upsert: true,
+        });
+        if (!error && data?.path) {
+          const publicUrlRes = supabase.storage.from("media-library").getPublicUrl(data.path);
+          resolvedMediaUrl = publicUrlRes.data.publicUrl;
+        }
+      }
+
+      if (imageAttachments.length > 0 && !resolvedMediaUrl) {
+        const uploadedUrls = await Promise.all(
+          imageAttachments.map(async (img) => {
+            const fileExt = img.name.split(".").pop() || "jpg";
+            const storagePath = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
+            const { data, error } = await supabase.storage.from("media-library").upload(storagePath, img, {
+              cacheControl: "3600",
+              upsert: true,
+            });
+            if (!error && data?.path) {
+              return supabase.storage.from("media-library").getPublicUrl(data.path).data.publicUrl;
+            }
+            return "";
+          })
+        );
+        const validUrls = uploadedUrls.filter(Boolean);
+        if (validUrls.length > 0) {
+          resolvedMediaUrl = validUrls[0];
+        }
+      }
+
+      const formData = new FormData();
+      const tagText = tags.split(",").map((t) => t.trim()).filter(Boolean).map((t) => (t.startsWith("#") ? t : `#${t}`)).join(" ");
+      const composedCaption = [caption.trim(), mood.trim(), tagText, location.trim() ? `Location: ${location.trim()}` : ""].filter(Boolean).join("\n\n");
+      formData.set("caption", composedCaption);
+      formData.set("title", postTitle.trim());
+      formData.set("mediaUrl", resolvedMediaUrl);
+      formData.set("linkUrl", linkUrl.trim());
+      formData.set("mediaType", activeTab === "video" || attachment?.type.startsWith("video/") ? "video" : "image");
+      formData.set("platforms", selectedPlatforms.join(","));
+
+      // Include raw files as fallback only if < 3MB to stay under Vercel payload limits
+      const primaryAttachment = attachment || imageAttachments[0] || null;
+      if (primaryAttachment && primaryAttachment.size < 3 * 1024 * 1024) {
+        formData.set("attachment", primaryAttachment);
+      }
+
       const response = await fetch("/api/posts/publish", { method: "POST", body: formData });
-      const data = await response.json();
+      const responseText = await response.text();
+      let data: { error?: string; results?: PublishResult[]; published?: number } = {};
+      try {
+        data = JSON.parse(responseText);
+      } catch {
+        if (!response.ok) {
+          throw new Error(responseText.slice(0, 200) || `Server error (${response.status})`);
+        }
+      }
+
       if (!response.ok) throw new Error(data.error || "Publishing failed.");
       setPublishResults(data.results || []);
-      if (data.published > 0) {
+      if (data.published && data.published > 0) {
         window.localStorage.removeItem("postelligence-draft");
       }
     } catch (error) {

@@ -348,6 +348,14 @@ export default function CreateClient({
 
   async function uploadFileToMediaLibrary(file: File): Promise<string> {
     const key = file.name;
+    const isVideo = file.type.startsWith("video/") || /\.(mp4|mov|webm|avi|m4v)(\?|$)/i.test(file.name);
+    if (isVideo && file.size > 45 * 1024 * 1024) {
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+      const errMsg = `Video "${file.name}" (${sizeMB} MB) exceeds the 45 MB upload limit. Please compress your video before attaching.`;
+      setPublishError(errMsg);
+      setUploadStatusText(null);
+      throw new Error(errMsg);
+    }
     setUploadProgressMap((prev) => ({ ...prev, [key]: 10 }));
     const maxRetries = 3;
     let lastError = "";
@@ -770,6 +778,16 @@ export default function CreateClient({
   // behavior — platforms only accept one video per post).
   const handleAttachmentChange = (file: File | null) => {
     if (attachmentPreview) URL.revokeObjectURL(attachmentPreview);
+    if (file) {
+      const isVideo = file.type.startsWith("video/") || /\.(mp4|mov|webm|avi|m4v)(\?|$)/i.test(file.name);
+      if (isVideo && file.size > 45 * 1024 * 1024) {
+        const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+        setPublishError(`Video "${file.name}" is ${sizeMB} MB which exceeds the 45 MB limit. Please compress your video before uploading.`);
+        setAttachment(null);
+        setAttachmentPreview(null);
+        return;
+      }
+    }
     setAttachment(file);
     setAttachmentPreview(file ? URL.createObjectURL(file) : null);
     if (file) {

@@ -1537,6 +1537,16 @@ export async function POST(request: Request) {
     : images.length > 0 ? "image"
     : asString(formData.get("mediaType")) || "image";
 
+  if (attachment && (mediaType === "video" || attachment.type.startsWith("video/"))) {
+    if (attachment.size > 45 * 1024 * 1024) {
+      const sizeMB = (attachment.size / (1024 * 1024)).toFixed(1);
+      return NextResponse.json(
+        { error: `Attached video file size (${sizeMB} MB) exceeds the 45 MB maximum limit. Please compress your video.` },
+        { status: 400 }
+      );
+    }
+  }
+
   if (!text && !mediaUrl && !attachment) {
     return NextResponse.json({ error: "Add post text, a media URL, or an attachment before publishing." }, { status: 400 });
   }
